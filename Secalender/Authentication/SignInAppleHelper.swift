@@ -27,7 +27,6 @@ struct SignInWithAppleResult {
     let email: String?
 }
 
-
 @MainActor
 final class SignInAppleHelper: NSObject {
     
@@ -49,7 +48,6 @@ final class SignInAppleHelper: NSObject {
             }
         }
     }
-    
     
     func startSignInWithAppleFlow(completion: @escaping (Result<SignInWithAppleResult, Error>) -> Void) {
         
@@ -106,8 +104,6 @@ final class SignInAppleHelper: NSObject {
     }
 }
 
-
-
 extension SignInAppleHelper: ASAuthorizationControllerDelegate {
     
     func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
@@ -137,8 +133,6 @@ extension SignInAppleHelper: ASAuthorizationControllerDelegate {
     
 }
 
-
- 
 extension UIViewController: ASAuthorizationControllerPresentationContextProviding {
     
     public func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {

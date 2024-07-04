@@ -9,42 +9,39 @@ import SwiftUI
 import GoogleSignIn
 import GoogleSignInSwift
 
-
-
-
-@MainActor
-    final class AuthenticationViewModel: ObservableObject {
-        
-        let signInAppleHelper = SignInAppleHelper()
-        
-    func signInGoogle() async throws {
-        let helper = SignInGoogleHelper()
-        let tokens = try await helper.signIn()
-        try await AuthenticationManager.shared.signInWithGoogle(tokens: tokens)
-    }
-    func signInApple() async throws {
-        let helper = SignInAppleHelper()
-        let tokens = try await helper.startSignInWithAppleFlow()
-        try await AuthenticationManager.shared.signInWithApple(tokens: tokens)
-        
-        
-        
-    }
-}
-
-    
 struct AuthenticationView: View {
     
     @StateObject private var viewModle = AuthenticationViewModel()
     @Binding var showSignInView: Bool
+    
     var body: some View {
         VStack {
+
+            Button(action: {
+                Task {
+                    do {
+                        try await viewModle.signInAnonymous()
+                        showSignInView = false
+                    } catch {
+                        print(error)
+                    }
+                }
+                
+            }, label: {
+                Text("Sign In Anonymously")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(height: 55)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.orange)
+                    .cornerRadius(10)
+            })
+           
             
             NavigationLink {
                 SignInEmailView(showSignInView: $showSignInView)
-                
             } label: {
-                Text("Sing In With Email")
+                Text("Sign In With Email")
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(height: 55)
@@ -77,16 +74,16 @@ struct AuthenticationView: View {
                 }
                 
             }, label: {
-                SignInWithAppleButtonViewRepresentable(type: .default, style: .black)
+                SignInWithAppleButtonViewRepresentable(type: .default, style: .white)
                     .allowsTightening(false)
             })
             .frame(height: 55)
-
+            
             
             Spacer()
         }
         .padding()
-        .navigationTitle("Sing In")
+        .navigationTitle("Sign In")
         
     }
 }
