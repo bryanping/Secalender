@@ -1,0 +1,40 @@
+{
+  "source": "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Core/Authentication/Subviews/SignInEmailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Sign In With Email",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 61
+        }
+      },
+      {
+        "comment": "",
+        "key": "Email...",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 19
+        }
+      },
+      {
+        "comment": "",
+        "key": "Password...",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 26
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sign In",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 49
+        }
+      }
+    ]
+  },
+  "version": 1
+}

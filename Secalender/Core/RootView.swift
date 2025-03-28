@@ -14,9 +14,9 @@ struct RootView: View {
     var body: some View {
         
             ZStack {
-                if !showSignInView{
+                if !showSignInView {
                     NavigationStack {
-                        ProfileView(showSignInView: $showSignInView)
+                        CalendarView()
                     }
                 }
             }

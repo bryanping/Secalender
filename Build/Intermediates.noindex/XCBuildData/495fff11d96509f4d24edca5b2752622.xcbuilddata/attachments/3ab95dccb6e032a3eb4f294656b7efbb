@@ -1,0 +1,88 @@
+{
+  "" : {
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/GTMAppAuth-master.dia",
+    "emit-module-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/GTMAppAuth-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/GTMAppAuth-master-emit-module.dia",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/GTMAppAuth-master.swiftdeps"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/DerivedSources/resource_bundle_accessor.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/resource_bundle_accessor.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/resource_bundle_accessor.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/resource_bundle_accessor.dia",
+    "index-unit-output-path" : "/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/resource_bundle_accessor.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/resource_bundle_accessor.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/resource_bundle_accessor.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/resource_bundle_accessor.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/resource_bundle_accessor~partial.swiftmodule"
+  },
+  "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/GTMAppAuth/GTMAppAuth/Sources/AuthSession.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSession.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSession.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSession.dia",
+    "index-unit-output-path" : "/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSession.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSession.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSession.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSession.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSession~partial.swiftmodule"
+  },
+  "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/GTMAppAuth/GTMAppAuth/Sources/AuthSessionDelegate.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionDelegate.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionDelegate.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionDelegate.dia",
+    "index-unit-output-path" : "/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionDelegate.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionDelegate.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionDelegate.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionDelegate.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionDelegate~partial.swiftmodule"
+  },
+  "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/GTMAppAuth/GTMAppAuth/Sources/AuthSessionStore.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionStore.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionStore.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionStore.dia",
+    "index-unit-output-path" : "/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionStore.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionStore.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionStore.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionStore.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/AuthSessionStore~partial.swiftmodule"
+  },
+  "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/GTMAppAuth/GTMAppAuth/Sources/KeychainStore/GTMOAuth2Compatibility.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/GTMOAuth2Compatibility.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/GTMOAuth2Compatibility.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/GTMOAuth2Compatibility.dia",
+    "index-unit-output-path" : "/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/GTMOAuth2Compatibility.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/GTMOAuth2Compatibility.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/GTMOAuth2Compatibility.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/GTMOAuth2Compatibility.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/GTMOAuth2Compatibility~partial.swiftmodule"
+  },
+  "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/GTMAppAuth/GTMAppAuth/Sources/KeychainStore/KeychainAttribute.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainAttribute.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainAttribute.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainAttribute.dia",
+    "index-unit-output-path" : "/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainAttribute.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainAttribute.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainAttribute.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainAttribute.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainAttribute~partial.swiftmodule"
+  },
+  "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/GTMAppAuth/GTMAppAuth/Sources/KeychainStore/KeychainHelper.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainHelper.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainHelper.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainHelper.dia",
+    "index-unit-output-path" : "/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainHelper.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainHelper.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainHelper.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainHelper.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainHelper~partial.swiftmodule"
+  },
+  "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/GTMAppAuth/GTMAppAuth/Sources/KeychainStore/KeychainStore.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainStore.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainStore.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainStore.dia",
+    "index-unit-output-path" : "/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainStore.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainStore.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainStore.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainStore.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/GTMAppAuth.build/Debug-iphonesimulator/GTMAppAuth.build/Objects-normal/x86_64/KeychainStore~partial.swiftmodule"
+  }
+}

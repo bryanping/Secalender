@@ -1,0 +1,4 @@
+module FirebaseAnalyticsSwift {
+header "FirebaseAnalyticsSwift-Swift.h"
+export *
+}

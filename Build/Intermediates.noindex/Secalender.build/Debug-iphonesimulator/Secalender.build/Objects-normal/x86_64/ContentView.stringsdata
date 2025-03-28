@@ -1,0 +1,32 @@
+{
+  "source": "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/ContentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "行事历",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 16
+        }
+      },
+      {
+        "comment": "",
+        "key": "活动",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 20
+        }
+      },
+      {
+        "comment": "",
+        "key": "功能",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 24
+        }
+      }
+    ]
+  },
+  "version": 1
+}

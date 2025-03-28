@@ -1,0 +1,4 @@
+module FirebaseFirestore {
+header "FirebaseFirestore-Swift.h"
+export *
+}

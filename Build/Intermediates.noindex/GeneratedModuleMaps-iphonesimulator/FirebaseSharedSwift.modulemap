@@ -1,0 +1,4 @@
+module FirebaseSharedSwift {
+header "FirebaseSharedSwift-Swift.h"
+export *
+}

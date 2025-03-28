@@ -1,0 +1,268 @@
+{
+  "" : {
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Secalender-master.dia",
+    "emit-module-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Secalender-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Secalender-master-emit-module.dia",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Secalender-master.swiftdeps"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/GeneratedAssetSymbols~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Authentication/AuthenticationManager.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationManager.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationManager.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationManager.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationManager.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationManager.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationManager.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationManager.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationManager~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Authentication/SignInAppleHelper.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInAppleHelper.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInAppleHelper.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInAppleHelper.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInAppleHelper.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInAppleHelper.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInAppleHelper.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInAppleHelper.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInAppleHelper~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Authentication/SignInGoogleHelper.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInGoogleHelper.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInGoogleHelper.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInGoogleHelper.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInGoogleHelper.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInGoogleHelper.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInGoogleHelper.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInGoogleHelper.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInGoogleHelper~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Authentication/UserManager.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/UserManager.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/UserManager.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/UserManager.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/UserManager.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/UserManager.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/UserManager.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/UserManager.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/UserManager~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/ContentView.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ContentView.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ContentView.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ContentView.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ContentView.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ContentView.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ContentView~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Core/Authentication/AuthenticationView.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationView.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationView.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationView.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationView.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationView.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationView.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationView.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationView~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Core/Authentication/AuthenticationViewModel.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationViewModel.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationViewModel.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationViewModel.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationViewModel.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationViewModel.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationViewModel.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationViewModel.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AuthenticationViewModel~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Core/Authentication/Subviews/SignInEmailView.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailView.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailView.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailView.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailView.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailView.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailView.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailView.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailView~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Core/Authentication/Subviews/SignInEmailViewModel.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailViewModel.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailViewModel.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailViewModel.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailViewModel.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailViewModel.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailViewModel.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailViewModel.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SignInEmailViewModel~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Core/Profile/ProfileView.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ProfileView.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ProfileView.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ProfileView.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ProfileView.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ProfileView.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ProfileView.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ProfileView.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ProfileView~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Core/RootView.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/RootView.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/RootView.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/RootView.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/RootView.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/RootView.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/RootView.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/RootView.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/RootView~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Core/Settings/SettingsView.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsView.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsView.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsView.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsView.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsView.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsView.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsView.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsView~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Core/Settings/SettingsViewModel.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsViewModel.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsViewModel.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsViewModel.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsViewModel.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsViewModel.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsViewModel.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsViewModel.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SettingsViewModel~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Models/AIPlanner.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AIPlanner.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AIPlanner.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AIPlanner.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AIPlanner.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AIPlanner.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AIPlanner.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AIPlanner.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/AIPlanner~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/SecalenderApp.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SecalenderApp.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SecalenderApp.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SecalenderApp.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SecalenderApp.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SecalenderApp.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SecalenderApp.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SecalenderApp.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/SecalenderApp~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Utilities/Utilities.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Utilities.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Utilities.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Utilities.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Utilities.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Utilities.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Utilities.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Utilities.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Utilities~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Views/ActivityView.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ActivityView.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ActivityView.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ActivityView.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ActivityView.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ActivityView.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ActivityView.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ActivityView.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/ActivityView~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Views/CalendarView.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/CalendarView.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/CalendarView.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/CalendarView.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/CalendarView.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/CalendarView.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/CalendarView.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/CalendarView.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/CalendarView~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Views/Event.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Event.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Event.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Event.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Event.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Event.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Event.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Event.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/Event~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Views/EventCreateView.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventCreateView.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventCreateView.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventCreateView.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventCreateView.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventCreateView.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventCreateView.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventCreateView.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventCreateView~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Views/EventDetailViewModel.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventDetailViewModel.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventDetailViewModel.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventDetailViewModel.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventDetailViewModel.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventDetailViewModel.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventDetailViewModel.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventDetailViewModel.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventDetailViewModel~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Views/EventEditView.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventEditView.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventEditView.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventEditView.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventEditView.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventEditView.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventEditView.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventEditView.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventEditView~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Views/EventManager.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventManager.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventManager.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventManager.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventManager.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventManager.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventManager.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventManager.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventManager~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Views/EventShareView.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventShareView.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventShareView.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventShareView.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventShareView.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventShareView.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventShareView.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventShareView.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/EventShareView~partial.swiftmodule"
+  },
+  "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Views/MemberView.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/MemberView.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/MemberView.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/MemberView.dia",
+    "index-unit-output-path" : "/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/MemberView.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/MemberView.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/MemberView.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/MemberView.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Secalender.build/Debug-iphonesimulator/Secalender.build/Objects-normal/x86_64/MemberView~partial.swiftmodule"
+  }
+}

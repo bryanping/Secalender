@@ -1,0 +1,4 @@
+module AppAuth {
+umbrella "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/AppAuth-iOS/Sources/AppAuth"
+export *
+}

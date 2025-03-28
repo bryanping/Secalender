@@ -1,0 +1,32 @@
+{
+  "source": "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Secalender/Core/Authentication/AuthenticationView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Sign In",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sign In Anonymously",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 31
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sign In With Email",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 44
+        }
+      }
+    ]
+  },
+  "version": 1
+}

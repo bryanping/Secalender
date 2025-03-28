@@ -45,8 +45,6 @@ struct SignInEmailView: View {
                         print(error)
                     }
                 }
-
-                
             } label: {
                 Text("Sign In")
                     .font(.headline)

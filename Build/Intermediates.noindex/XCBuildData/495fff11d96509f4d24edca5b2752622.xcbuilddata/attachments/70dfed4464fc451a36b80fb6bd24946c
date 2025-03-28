@@ -1,0 +1,18 @@
+{
+  "" : {
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Firebase.build/Debug-iphonesimulator/FirebaseFirestoreSwift.build/Objects-normal/x86_64/FirebaseFirestoreSwift-master.dia",
+    "emit-module-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Firebase.build/Debug-iphonesimulator/FirebaseFirestoreSwift.build/Objects-normal/x86_64/FirebaseFirestoreSwift-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Firebase.build/Debug-iphonesimulator/FirebaseFirestoreSwift.build/Objects-normal/x86_64/FirebaseFirestoreSwift-master-emit-module.dia",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Firebase.build/Debug-iphonesimulator/FirebaseFirestoreSwift.build/Objects-normal/x86_64/FirebaseFirestoreSwift-master.swiftdeps"
+  },
+  "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/firebase-ios-sdk/FirebaseFirestoreSwift/Sources/FirebaseFirestoreSwift.swift" : {
+    "const-values" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Firebase.build/Debug-iphonesimulator/FirebaseFirestoreSwift.build/Objects-normal/x86_64/FirebaseFirestoreSwift.swiftconstvalues",
+    "dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Firebase.build/Debug-iphonesimulator/FirebaseFirestoreSwift.build/Objects-normal/x86_64/FirebaseFirestoreSwift.d",
+    "diagnostics" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Firebase.build/Debug-iphonesimulator/FirebaseFirestoreSwift.build/Objects-normal/x86_64/FirebaseFirestoreSwift.dia",
+    "index-unit-output-path" : "/Firebase.build/Debug-iphonesimulator/FirebaseFirestoreSwift.build/Objects-normal/x86_64/FirebaseFirestoreSwift.o",
+    "llvm-bc" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Firebase.build/Debug-iphonesimulator/FirebaseFirestoreSwift.build/Objects-normal/x86_64/FirebaseFirestoreSwift.bc",
+    "object" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Firebase.build/Debug-iphonesimulator/FirebaseFirestoreSwift.build/Objects-normal/x86_64/FirebaseFirestoreSwift.o",
+    "swift-dependencies" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Firebase.build/Debug-iphonesimulator/FirebaseFirestoreSwift.build/Objects-normal/x86_64/FirebaseFirestoreSwift.swiftdeps",
+    "swiftmodule" : "/Users/linping/Desktop/活動歷/MyFirstProgram/Secalender/Build/Intermediates.noindex/Firebase.build/Debug-iphonesimulator/FirebaseFirestoreSwift.build/Objects-normal/x86_64/FirebaseFirestoreSwift~partial.swiftmodule"
+  }
+}

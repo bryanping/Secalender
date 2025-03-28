@@ -1,0 +1,4 @@
+module abslWrapper {
+umbrella "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/abseil-cpp-binary/absl-Wrapper/include"
+export *
+}

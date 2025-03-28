@@ -8,17 +8,22 @@
 import SwiftUI
 
 struct ContentView: View {
-    var body: some View {
-        TabView(selection: /*@START_MENU_TOKEN@*//*@PLACEHOLDER=Selection@*/.constant(1)/*@END_MENU_TOKEN@*/) {
+    @State private var selectedTab = 1  // <- 加上可变状态
 
+    var body: some View {
+        TabView(selection: $selectedTab) {  // <- 改为绑定变量
             CalendarView()
-                .tabItem { Text("行事历") }.tag(1)
+                .tabItem { Text("行事历") }
+                .tag(1)
+
             ActivityView()
-                .tabItem { Text("活动") }.tag(2)
+                .tabItem { Text("活动") }
+                .tag(2)
+
             MemberView()
-                .tabItem { Text("功能") }.tag(3)
+                .tabItem { Text("功能") }
+                .tag(3)
         }
-        .padding()
     }
 }
 

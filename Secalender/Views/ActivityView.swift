@@ -10,11 +10,33 @@ import Firebase
 import FirebaseFirestore
 
 struct ActivityView: View {
+    @State private var activities: [Activity] = []
+    
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        NavigationView {
+            List(activities) { activity in
+                Text(activity.title)
+            }
+            .navigationTitle("活动")
+            .onAppear {
+                fetchActivities()
+            }
+        }
+    }
+    
+    private func fetchActivities() {
+        // 模拟获取活动数据
+        activities = [
+            Activity(id: UUID().uuidString, title: "活动 1"),
+            Activity(id: UUID().uuidString, title: "活动 2")
+        ]
     }
 }
 
+struct Activity: Identifiable {
+    var id: String
+    var title: String
+}
 
 #Preview {
     ActivityView()
