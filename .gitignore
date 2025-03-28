@@ -1,0 +1,14 @@
+# Xcode
+Build/
+*.xcuserstate
+*.xcworkspace
+*.xcodeproj/project.xcworkspace/
+DerivedData/
+*.swiftdeps
+*.swiftsourceinfo
+*.db
+*.plist
+
+# macOS 系统文件
+.DS_Store
+

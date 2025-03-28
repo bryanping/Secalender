@@ -1,4 +1,0 @@
-module leveldb {
-umbrella "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/leveldb/include"
-export *
-}

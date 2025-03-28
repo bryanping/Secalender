@@ -1,4 +1,0 @@
-module FirebaseFirestoreTarget {
-umbrella "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/firebase-ios-sdk/SwiftPM-PlatformExclude/FirebaseFirestoreWrap/include"
-export *
-}

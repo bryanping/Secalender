@@ -1,4 +1,0 @@
-module opensslWrapper {
-umbrella "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/grpc-binary/openssl-grpc-Wrapper/include"
-export *
-}

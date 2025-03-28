@@ -16,8 +16,8 @@ struct ContentView: View {
                 .tabItem { Text("行事历") }
                 .tag(1)
 
-            ActivityView()
-                .tabItem { Text("活动") }
+            CommunityView()
+                .tabItem { Text("社群") }
                 .tag(2)
 
             MemberView()

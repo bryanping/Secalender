@@ -1,4 +1,0 @@
-module GoogleSignInSwift {
-header "GoogleSignInSwift-Swift.h"
-export *
-}

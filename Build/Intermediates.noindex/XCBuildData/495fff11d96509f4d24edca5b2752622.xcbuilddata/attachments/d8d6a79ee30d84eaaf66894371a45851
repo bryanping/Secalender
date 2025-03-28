@@ -1,4 +1,0 @@
-module GoogleUtilities_Environment {
-umbrella "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/GoogleUtilities/GoogleUtilities/Environment/Public"
-export *
-}

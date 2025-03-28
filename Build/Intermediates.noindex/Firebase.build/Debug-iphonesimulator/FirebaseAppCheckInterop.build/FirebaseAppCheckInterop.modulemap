@@ -1,4 +1,0 @@
-module FirebaseAppCheckInterop {
-umbrella header "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/firebase-ios-sdk/FirebaseAppCheck/Interop/Public/FirebaseAppCheckInterop/FirebaseAppCheckInterop.h"
-export *
-}

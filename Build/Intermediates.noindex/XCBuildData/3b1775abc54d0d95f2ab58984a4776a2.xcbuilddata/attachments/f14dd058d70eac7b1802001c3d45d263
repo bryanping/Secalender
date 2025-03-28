@@ -1,4 +1,0 @@
-module FirebaseAuth {
-umbrella header "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/firebase-ios-sdk/FirebaseAuth/Sources/Public/FirebaseAuth/FirebaseAuth.h"
-export *
-}

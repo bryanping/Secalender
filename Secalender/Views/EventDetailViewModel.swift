@@ -11,7 +11,13 @@ class EventDetailViewModel: ObservableObject {
     @Published var event: Event
     
     init(event: Event = Event()) {
-        self.event = event
+        var newEvent = event
+        let now = Date()
+        if event.id == nil { // 新建事件才默认赋值
+            newEvent.startDate = now
+            newEvent.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: now) ?? now
+        }
+        self.event = newEvent
     }
     
     func loadEvent() {

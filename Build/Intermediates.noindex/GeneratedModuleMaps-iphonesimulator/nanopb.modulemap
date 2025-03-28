@@ -1,4 +1,0 @@
-module nanopb {
-umbrella "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/nanopb/spm_headers"
-export *
-}
