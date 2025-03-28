@@ -1,4 +1,0 @@
-module grpcppWrapper {
-umbrella "/Users/linping/Library/Developer/Xcode/DerivedData/Secalender-gcbpvurnjjlaphbxrgdfdcthzclx/SourcePackages/checkouts/grpc-binary/grpcpp-Wrapper/include"
-export *
-}

@@ -1,18 +1,15 @@
-//
-//  CalendarView.swift
-//  Secalender
-//
-//  Created by linping on 2024/6/24.
-//
 import SwiftUI
 import Firebase
 import FirebaseFirestore
+import MapKit
 
 struct CalendarView: View {
     @State private var currentMonth: Date = Date()
     @State private var events: [Event] = []
     @State private var currentUserOpenid: String = "current_user_openid"
     @State private var scrollToDate: Date?
+    @State private var showEventCreateSheet = false
+    @State private var prefilledDate: Date? = nil
 
     private let dateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -29,21 +26,32 @@ struct CalendarView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // 月份切换
                 monthSelector
-
                 Divider()
-
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 16) {
                             let grouped = groupedEventsWithEmptyDays()
                             ForEach(0..<grouped.count, id: \.self) { index in
                                 let (date, dayEvents) = grouped[index]
-                                DaySectionView(date: date, events: dayEvents, currentUserOpenid: currentUserOpenid, dateFormatter: dateFormatter, timeFormatter: timeFormatter)
+                                DaySectionView(
+                                    date: date,
+                                    events: dayEvents,
+                                    currentUserOpenid: currentUserOpenid,
+                                    dateFormatter: dateFormatter,
+                                    timeFormatter: timeFormatter
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture(count: 2) {
+                                    prefilledDate = date
+                                    showEventCreateSheet = true
+                                }
                             }
                         }
                         .padding(.vertical)
+                        .refreshable {
+                            fetchEvents()
+                        }
                     }
                     .onAppear {
                         fetchEvents()
@@ -57,21 +65,44 @@ struct CalendarView: View {
                     }
                 }
             }
-            .navigationBarHidden(true)
+            //.navigationBarHidden(false)
+            //.navigationTitle("行事历")
+//            .toolbar {
+//                ToolbarItem(placement: .navigationBarTrailing) {
+//                    
+//                }
+//            }
+            .sheet(isPresented: $showEventCreateSheet, onDismiss: {
+                fetchEvents()
+            }) {
+                if let selectedDate = prefilledDate {
+                    EventCreateView(viewModel: EventDetailViewModel(event: Event(date: selectedDate)), onComplete: { fetchEvents(); showEventCreateSheet = false })
+                } else {
+                    EventCreateView(onComplete: { fetchEvents(); showEventCreateSheet = false })
+                }
+            }
         }
     }
 
     private var monthSelector: some View {
         HStack {
+            Spacer()
             Button(action: previousMonth) {
                 Image(systemName: "chevron.left")
             }
-            Spacer()
+         //   Spacer()
             Text(monthFormatter.string(from: currentMonth))
                 .font(.headline)
-            Spacer()
+         
             Button(action: nextMonth) {
                 Image(systemName: "chevron.right")
+            }
+             Spacer()
+            Button(action: {
+                prefilledDate = nil
+                showEventCreateSheet = true
+            }) {
+                Image(systemName: "plus")
             }
         }
         .padding(.horizontal)
