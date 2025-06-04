@@ -1,5 +1,7 @@
 import SwiftUI
 
+@EnvironmentObject var userManager: FirebaseUserManager
+
 struct EventCreateView: View {
     @ObservedObject var viewModel = EventDetailViewModel()
     var onComplete: (() -> Void)? = nil

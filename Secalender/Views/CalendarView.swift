@@ -1,60 +1,69 @@
 import SwiftUI
 import Firebase
 import FirebaseFirestore
-import MapKit
+
+@EnvironmentObject var userManager: FirebaseUserManager
 
 struct CalendarView: View {
     @State private var currentMonth: Date = Date()
     @State private var events: [Event] = []
-    @State private var currentUserOpenid: String = "current_user_openid"
+    @State private var userManager.userOpenId: String = "current_user_openid"
     @State private var scrollToDate: Date?
-    @State private var showEventCreateSheet = false
-    @State private var prefilledDate: Date? = nil
-
-    private let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "M.d（E）"
-        return f
-    }()
-
-    private let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        return f
-    }()
+    @State private var isRefreshing = false
+    @State private var showCreateEvent = false
+    @State private var selectedDateForNewEvent: Date?
 
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                monthSelector
+                // 月份切换
+                HStack {
+                    Spacer()
+                    Button(action: previousMonth) {
+                        Image(systemName: "chevron.left")
+                    }
+                    //Spacer()
+                    Text(monthFormatter.string(from: currentMonth))
+                        .font(.headline)
+                    //Spacer()
+                    Button(action: nextMonth) {
+                        Image(systemName: "chevron.right")
+                    }
+                    Spacer()
+                    
+                    Button {
+                        selectedDateForNewEvent = Date()
+                        showCreateEvent = true
+                    } label: {
+                        Image(systemName: "plus.circle")
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 10)
+
                 Divider()
+
+                // ScrollView + 下拉刷新
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 16) {
-                            let grouped = groupedEventsWithEmptyDays()
-                            ForEach(0..<grouped.count, id: \.self) { index in
-                                let (date, dayEvents) = grouped[index]
-                                DaySectionView(
-                                    date: date,
-                                    events: dayEvents,
-                                    currentUserOpenid: currentUserOpenid,
-                                    dateFormatter: dateFormatter,
-                                    timeFormatter: timeFormatter
-                                )
-                                .contentShape(Rectangle())
-                                .onTapGesture(count: 2) {
-                                    prefilledDate = date
-                                    showEventCreateSheet = true
-                                }
+                            ForEach(groupedEventsWithEmptyDays(), id: \.0) { (date, dayEvents) in
+                                SharedEventSectionView(date: date,
+                                                       events: dayEvents,
+                                                       userManager.userOpenId: userManager.userOpenId)
+                                    .onTapGesture(count: 2) {
+                                        self.selectedDateForNewEvent = date
+                                        self.showCreateEvent = true
+                                    }
                             }
                         }
                         .padding(.vertical)
                         .refreshable {
-                            fetchEvents()
+                            await refreshEvents()
                         }
                     }
                     .onAppear {
-                        fetchEvents()
+                        loadEvents()
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                             if let today = scrollToDate {
                                 withAnimation {
@@ -65,48 +74,23 @@ struct CalendarView: View {
                     }
                 }
             }
+            //.navigationTitle("")
             //.navigationBarHidden(false)
-            //.navigationTitle("行事历")
-//            .toolbar {
-//                ToolbarItem(placement: .navigationBarTrailing) {
-//                    
-//                }
-//            }
-            .sheet(isPresented: $showEventCreateSheet, onDismiss: {
-                fetchEvents()
-            }) {
-                if let selectedDate = prefilledDate {
-                    EventCreateView(viewModel: EventDetailViewModel(event: Event(date: selectedDate)), onComplete: { fetchEvents(); showEventCreateSheet = false })
-                } else {
-                    EventCreateView(onComplete: { fetchEvents(); showEventCreateSheet = false })
+            
+            .sheet(isPresented: $showCreateEvent) {
+                NavigationView {
+                    EventCreateView(viewModel: EventDetailViewModel(event:
+                        Event(date: selectedDateForNewEvent ?? Date(),
+                              startDate: selectedDateForNewEvent ?? Date(),
+                              endDate: Calendar.current.date(byAdding: .hour, value: 1, to: selectedDateForNewEvent ?? Date())!
+                        )
+                    )) {
+                        self.showCreateEvent = false
+                        self.loadEvents()
+                    }
                 }
             }
         }
-    }
-
-    private var monthSelector: some View {
-        HStack {
-            Spacer()
-            Button(action: previousMonth) {
-                Image(systemName: "chevron.left")
-            }
-         //   Spacer()
-            Text(monthFormatter.string(from: currentMonth))
-                .font(.headline)
-         
-            Button(action: nextMonth) {
-                Image(systemName: "chevron.right")
-            }
-             Spacer()
-            Button(action: {
-                prefilledDate = nil
-                showEventCreateSheet = true
-            }) {
-                Image(systemName: "plus")
-            }
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
     }
 
     private func groupedEventsWithEmptyDays() -> [(Date, [Event])] {
@@ -135,15 +119,15 @@ struct CalendarView: View {
 
     private func previousMonth() {
         currentMonth = Calendar.current.date(byAdding: .month, value: -1, to: currentMonth)!
-        fetchEvents()
+        loadEvents()
     }
 
     private func nextMonth() {
         currentMonth = Calendar.current.date(byAdding: .month, value: 1, to: currentMonth)!
-        fetchEvents()
+        loadEvents()
     }
 
-    private func fetchEvents() {
+    private func loadEvents() {
         EventManager.shared.fetchEvents { result in
             switch result {
             case .success(let fetched):
@@ -151,6 +135,21 @@ struct CalendarView: View {
                 self.scrollToDate = Calendar.current.startOfDay(for: Date())
             case .failure(let error):
                 print("读取失败: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func refreshEvents() async {
+        await withCheckedContinuation { continuation in
+            EventManager.shared.fetchEvents { result in
+                switch result {
+                case .success(let fetched):
+                    self.events = fetched
+                    self.scrollToDate = Calendar.current.startOfDay(for: Date())
+                case .failure(let error):
+                    print("刷新失败: \(error.localizedDescription)")
+                }
+                continuation.resume()
             }
         }
     }

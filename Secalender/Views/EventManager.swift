@@ -89,4 +89,6 @@ final class EventManager {
             completion(.success(event))
         }
     }
-}
+}@EnvironmentObject var userManager: FirebaseUserManager
+
+

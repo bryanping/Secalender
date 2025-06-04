@@ -1,99 +1,92 @@
+//
+//  CommunityView.swift
+//  Secalender
+//
+//  Created by linping on 2025/5/29.
+//
 import SwiftUI
-import Firebase
-import FirebaseFirestore
 
-struct CommunityView: View {
-    @State private var friendEmails: [String] = []
-    @State private var friendEvents: [Event] = []
-    @State private var newFriendEmail: String = ""
-    @State private var showingAddFriendAlert = false
-    @State private var currentUserOpenid: String = "current_user_openid" // 替换为当前用户ID
+enum CommunityTab: Int, CaseIterable {
+    case friends, groups, nearby
 
-    var body: some View {
-        NavigationView {
-            List {
-                Section(header: Text("好友公开活动")) {
-                    if friendEvents.isEmpty {
-                        Text("暂无好友活动")
-                            .foregroundColor(.gray)
-                    } else {
-                        ForEach(friendEvents.sorted(by: { $0.startDate < $1.startDate })) { event in
-                            VStack(alignment: .leading) {
-                                Text(event.title)
-                                    .font(.headline)
-                                Text("\(event.startDate, formatter: timeFormatter)")
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                            }
-                            .padding(.vertical, 4)
-                        }
-                    }
-                }
-
-                Section {
-                    Button("添加好友") {
-                        showingAddFriendAlert = true
-                    }
-                }
-            }
-            .navigationTitle("社群互动")
-            .onAppear {
-                loadFriends()
-            }
-            .alert("添加好友", isPresented: $showingAddFriendAlert) {
-                TextField("好友 Email", text: $newFriendEmail)
-                Button("确认", action: addFriend)
-                Button("取消", role: .cancel) {}
-            }
+    var title: String {
+        switch self {
+        case .friends: return "朋友發起"
+        case .groups: return "社群發起"
+        case .nearby: return "附近發起"
         }
     }
+}
 
-    private func loadFriends() {
-        let db = Firestore.firestore()
-        db.collection("friendships")
-            .whereField("owner", isEqualTo: currentUserOpenid)
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    self.friendEmails = documents.compactMap { $0["friend"] as? String }
-                    loadFriendEvents()
+struct CommunityView: View {
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @State private var selectedTab: CommunityTab = .friends
+    @Namespace private var underlineNamespace
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // 上方自定義 Tab Bar
+            HStack {
+                ForEach(CommunityTab.allCases, id: \.self) { tab in
+                    Button(action: {
+                        withAnimation {
+                            selectedTab = tab
+                        }
+                    }) {
+                        VStack(spacing: 4) {
+                            Text(tab.title)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(selectedTab == tab ? .primary : .gray)
+
+                            if selectedTab == tab {
+                                Capsule()
+                                    .fill(Color.green)
+                                    .matchedGeometryEffect(id: "underline", in: underlineNamespace)
+                                    .frame(height: 4)
+                                    .offset(y: 2)
+                            } else {
+                                Capsule()
+                                    .fill(Color.clear)
+                                    .frame(height: 4)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
                 }
             }
-    }
+            .padding(.top, 10)
+            .padding(.horizontal)
+            .background(Color.white)
 
-    private func loadFriendEvents() {
-        let db = Firestore.firestore()
-        db.collection("events")
-            .whereField("openChecked", isEqualTo: true)
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    let allEvents = documents.compactMap { try? $0.data(as: Event.self) }
-                    self.friendEvents = allEvents.filter { friendEmails.contains($0.creatorOpenid) }
-                }
+            Divider()
+
+            // 分頁內容
+            TabView(selection: $selectedTab) {
+                FriendEventsView()
+                    .tag(CommunityTab.friends)
+
+                GroupEventsView()
+                    .tag(CommunityTab.groups)
+
+                NearbyEventsView()
+                    .tag(CommunityTab.nearby)
             }
-    }
-
-    private func addFriend() {
-        guard !newFriendEmail.isEmpty else { return }
-        let db = Firestore.firestore()
-        let data: [String: Any] = [
-            "owner": currentUserOpenid,
-            "friend": newFriendEmail
-        ]
-        db.collection("friendships").addDocument(data: data) { error in
-            if error == nil {
-                newFriendEmail = ""
-                loadFriends()
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+        }
+        .navigationTitle("社群互動")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if selectedTab == .friends {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink(destination: AddFriendView()) {
+                        Image(systemName: "person.badge.plus")
+                    }
+                }
             }
         }
     }
 }
 
-private let timeFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.timeStyle = .short
-    formatter.dateStyle = .none
-    return formatter
-}()
 
 struct CommunityView_Previews: PreviewProvider {
     static var previews: some View {
