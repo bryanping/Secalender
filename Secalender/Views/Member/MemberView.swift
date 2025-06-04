@@ -72,15 +72,6 @@ struct MemberView: View {
                         Label("设定", systemImage: "gearshape.fill")
                     }
                 }
-                
-                Section(header: Text("社群")) {
-                    NavigationLink(destination: CommunityView()) {
-                        Label("社群行程", systemImage: "person.2.wave.2.fill")
-                    }
-                    NavigationLink(destination: MyGroupListView()) {
-                        Label("我的群组", systemImage: "person.3.sequence.fill")
-                    }
-                }
             }
             .navigationTitle("功能")
             .onAppear {

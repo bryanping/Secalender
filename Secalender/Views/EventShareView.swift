@@ -5,34 +5,28 @@ struct EventShareView: View {
 
     var body: some View {
         Form {
-            Section {
-                Text("标题: \(event.title)")
-                Text("日期: \(event.date, formatter: dateFormatter)")
-                Text("开始时间: \(event.startDate, formatter: timeFormatter)")
-                Text("结束时间: \(event.endDate, formatter: timeFormatter)")
-                // 若已移除参与人数，可删掉下面这行
-                // Text("参与人数: \(event.participants)")
-            } header: {
-                Text("活动详情")
+            Section(header: Text("活动标题")) {
+                Text(event.title)
             }
-            
+            Section(header: Text("开始时间")) {
+                Text(formatDate(event.startDate))
+            }
+            Section(header: Text("结束时间")) {
+                Text(formatDate(event.endDate))
+            }
+            Section(header: Text("地点")) {
+                Text(event.destination.isEmpty ? "无" : event.destination)
+            }
+            Section(header: Text("公开状态")) {
+                Text(event.openChecked ? "公开" : "私密")
+            }
         }
         .navigationTitle("查看活动")
     }
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy/MM/dd HH:mm"
+        return formatter.string(from: date)
+    }
 }
-
-private let dateFormatter: DateFormatter = {    
-    let formatter = DateFormatter()   
-    formatter.dateStyle = .medium
-    formatter.timeStyle = .none
-    return formatter
-}()
-
-private let timeFormatter: DateFormatter = {    
-    let formatter = DateFormatter()   
-    formatter.dateStyle = .none
-    formatter.timeStyle = .short
-    return formatter
-}() 
-
-
