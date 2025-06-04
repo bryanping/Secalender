@@ -14,12 +14,17 @@ struct AuthDataResultModel {
     let email: String?
     let photoUrl: String?
     let isAnonymous: Bool
-    
+    // 额外可用字段（未来需要时可扩展）
+    let phoneNumber: String?
+    let displayName: String?
+
     init(user: User) {
         self.uid = user.uid
         self.email = user.email
         self.photoUrl = user.photoURL?.absoluteString
         self.isAnonymous = user.isAnonymous
+        self.phoneNumber = user.phoneNumber
+        self.displayName = user.displayName
     }
 }
 

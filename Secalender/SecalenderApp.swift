@@ -10,12 +10,14 @@ import Firebase
 
 @main
 struct SecalenderApp: App {
-    
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    
+    @StateObject private var userManager = FirebaseUserManager.shared
+    @State private var showSignInView: Bool = false
+
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootView(showSignInView: $showSignInView)
+                .environmentObject(userManager)
         }
     }
 }
@@ -28,3 +30,5 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     return true
   }
 }
+
+

@@ -2,91 +2,73 @@
 //  EventManager.swift
 //  Secalender
 //
-//  Created by linping on 2024/7/9.
+//  Created by linping on 2025/6/5.
 //
 
+import Foundation
+import Firebase
 import FirebaseFirestore
 import FirebaseFirestoreSwift
 
-final class EventManager {
-    
+class EventManager {
     static let shared = EventManager()
-    private init() { }
+    private init() {}
     
-    // 获取所有活动
-    func fetchEvents(completion: @escaping (Result<[Event], Error>) -> Void) {
-        let db = Firestore.firestore()
-        db.collection("events").getDocuments { (snapshot, error) in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let documents = snapshot?.documents else {
-                completion(.success([]))
-                return
-            }
-            
-            let events = documents.compactMap { (doc) -> Event? in
-                try? doc.data(as: Event.self)
-            }
-            completion(.success(events))
-        }
-    }
+    private let db = Firestore.firestore()
     
-    // 添加新活动
+    /// 新增活动
     func addEvent(event: Event, completion: @escaping (Result<Void, Error>) -> Void) {
-        let db = Firestore.firestore()
         do {
-            _ = try db.collection("events").addDocument(from: event)
-            completion(.success(()))
+            var newEvent = event
+            newEvent.createdAt = ISO8601DateFormatter().string(from: Date())
+            newEvent.updatedAt = newEvent.createdAt
+            
+            _ = try db.collection("events").addDocument(from: newEvent) { error in
+                if let error = error {
+                    completion(.failure(error))
+                } else {
+                    completion(.success(()))
+                }
+            }
         } catch {
             completion(.failure(error))
         }
     }
     
-    // 更新活动
+    /// 更新活动
     func updateEvent(event: Event, completion: @escaping (Result<Void, Error>) -> Void) {
-        guard let eventID = event.id else {
-            completion(.failure(URLError(.badURL)))
+        guard let eventId = event.id else {
+            completion(.failure(NSError(domain: "EventManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "活动ID不存在"])))
             return
         }
-        let db = Firestore.firestore()
+        
         do {
-            try db.collection("events").document(eventID).setData(from: event, merge: true)
-            completion(.success(()))
+            var updatedEvent = event
+            updatedEvent.updatedAt = ISO8601DateFormatter().string(from: Date())
+            
+            try db.collection("events").document(eventId).setData(from: updatedEvent, merge: true) { error in
+                if let error = error {
+                    completion(.failure(error))
+                } else {
+                    completion(.success(()))
+                }
+            }
         } catch {
             completion(.failure(error))
         }
     }
     
-    // 删除活动
-    func deleteEvent(eventID: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        let db = Firestore.firestore()
-        db.collection("events").document(eventID).delete { error in
+    /// 读取所有活动
+    func fetchEvents(completion: @escaping (Result<[Event], Error>) -> Void) {
+        db.collection("events").getDocuments { snapshot, error in
             if let error = error {
                 completion(.failure(error))
             } else {
-                completion(.success(()))
+                let events = snapshot?.documents.compactMap {
+                    try? $0.data(as: Event.self)
+                } ?? []
+                completion(.success(events))
             }
-        }
-    }
-    
-    // 获取单个活动
-    func fetchEvent(eventID: String, completion: @escaping (Result<Event, Error>) -> Void) {
-        let db = Firestore.firestore()
-        db.collection("events").document(eventID).getDocument { (snapshot, error) in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let document = snapshot, let event = try? document.data(as: Event.self) else {
-                completion(.failure(URLError(.badServerResponse)))
-                return
-            }
-            
-            completion(.success(event))
         }
     }
 }

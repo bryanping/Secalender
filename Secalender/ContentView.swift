@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 1  // <- 加上可变状态
+    @EnvironmentObject var userManager: FirebaseUserManager
 
     var body: some View {
         TabView(selection: $selectedTab) {  // <- 改为绑定变量
@@ -29,4 +30,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(FirebaseUserManager.shared)
 }
