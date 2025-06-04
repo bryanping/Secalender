@@ -14,8 +14,8 @@ struct SecalenderApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     
     init() {
-            FirebaseApp.configure()
-        }
+        // Configuration is handled in AppDelegate
+    }
     
     var body: some Scene {
         WindowGroup {

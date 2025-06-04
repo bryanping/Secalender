@@ -11,7 +11,8 @@ import GoogleSignInSwift
 
 struct AuthenticationView: View {
     
-    @StateObject private var viewModle = AuthenticationViewModel()
+    // Use the correctly spelled property name
+    @StateObject private var viewModel = AuthenticationViewModel()
     @Binding var showSignInView: Bool
     
     var body: some View {
@@ -20,7 +21,7 @@ struct AuthenticationView: View {
             Button(action: {
                 Task {
                     do {
-                        try await viewModle.signInAnonymous()
+                        try await viewModel.signInAnonymous()
                         showSignInView = false
                     } catch {
                         print(error)
@@ -53,7 +54,7 @@ struct AuthenticationView: View {
             GoogleSignInButton(viewModel: GoogleSignInButtonViewModel(scheme: .light, style: .wide, state: .normal)){
                 Task {
                     do {
-                        try await viewModle.signInGoogle()
+                        try await viewModel.signInGoogle()
                         showSignInView = false
                     } catch {
                         print(error)
@@ -65,7 +66,7 @@ struct AuthenticationView: View {
             Button(action: {
                 Task {
                     do {
-                        try await viewModle.signInApple()
+                        try await viewModel.signInApple()
                         showSignInView = false
                     } catch {
                         print(error)
