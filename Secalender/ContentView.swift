@@ -8,25 +8,42 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedTab = 1  // <- 加上可变状态
+    @State private var selectedTab = 1
+    @EnvironmentObject var userManager: FirebaseUserManager
 
     var body: some View {
-        TabView(selection: $selectedTab) {  // <- 改为绑定变量
+        TabView(selection: $selectedTab) {
             CalendarView()
-                .tabItem { Text("行事历") }
+                .tabItem { Label("行事曆", systemImage: "calendar") }
                 .tag(1)
 
             CommunityView()
-                .tabItem { Text("社群") }
+                .tabItem { Label("社群", systemImage: "person.3") }
                 .tag(2)
 
-            MemberView()
-                .tabItem { Text("功能") }
+            TemplateStoreView()
+                .tabItem { Label("模板市集", systemImage: "bag") }
                 .tag(3)
+
+            AIPlannerView()
+                .tabItem { Label("智能規劃", systemImage: "sparkles") }
+                .tag(4)
+
+            AchievementsView()
+                .tabItem { Label("任務成就", systemImage: "star") }
+                .tag(5)
+
+            MemberView()
+                .tabItem { Label("功能", systemImage: "gearshape") }
+                .tag(6)
         }
     }
 }
 
-#Preview {
-    ContentView()
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+            .environmentObject(FirebaseUserManager.shared)
+    }
 }

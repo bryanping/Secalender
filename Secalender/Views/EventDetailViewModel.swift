@@ -2,53 +2,39 @@
 //  EventDetailViewModel.swift
 //  Secalender
 //
-//  Created by linping on 2024/7/9.
-//
 
-import SwiftUI
+import Foundation
+import FirebaseFirestore
+import FirebaseFirestoreSwift
 
 class EventDetailViewModel: ObservableObject {
     @Published var event: Event
-    
+    @Published var errorMessage: String? = nil
+    @Published var isSaving: Bool = false
+
     init(event: Event = Event()) {
-        var newEvent = event
-        let now = Date()
-        if event.id == nil { // 新建事件才默认赋值
-            newEvent.startDate = now
-            newEvent.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: now) ?? now
-        }
-        self.event = newEvent
+        self.event = event
     }
-    
-    func loadEvent() {
-        // 加载活动的详细信息
-    }
-    
-    func saveEvent(completion: @escaping (Bool) -> Void) {
+
+    func saveEvent(currentUserOpenId: String) async throws {
+        isSaving = true
+        errorMessage = nil
+
         if event.creatorOpenid.isEmpty {
-            event.creatorOpenid = "current_user_openid" // 替换为实际当前用户的 OpenID
+            event.creatorOpenid = currentUserOpenId
         }
-        
-        if let eventID = event.id {
-            EventManager.shared.updateEvent(event: event) { result in
-                switch result {
-                case .success():
-                    completion(true)
-                case .failure(let error):
-                    print(error.localizedDescription)
-                    completion(false)
-                }
+
+        do {
+            if let eventID = event.id {
+                try await EventManager.shared.updateEvent(event: event)
+            } else {
+                try await EventManager.shared.addEvent(event: event)
             }
-        } else {
-            EventManager.shared.addEvent(event: event) { result in
-                switch result {
-                case .success():
-                    completion(true)
-                case .failure(let error):
-                    print(error.localizedDescription)
-                    completion(false)
-                }
-            }
+        } catch {
+            errorMessage = error.localizedDescription
+            throw error
         }
+
+        isSaving = false
     }
 }

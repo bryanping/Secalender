@@ -2,8 +2,8 @@ import Foundation
 
 struct TripPlan {
     let destination: String
-    let startDate: Date
-    let endDate: Date
+    let startDate: String   // "yyyy-MM-dd"
+    let endDate: String     // "yyyy-MM-dd"
     let itinerary: [String]
 }
 
@@ -15,12 +15,12 @@ final class AIPlanner {
     
     private init() {} // 确保外部无法实例化
     
-    func generatePlan(for destination: String, startDate: Date, endDate: Date) async throws -> TripPlan {
+    func generatePlan(for destination: String, startDate: String, endDate: String) async throws -> TripPlan {
         let itinerary = try await fetchItinerary(destination: destination, startDate: startDate, endDate: endDate)
         return TripPlan(destination: destination, startDate: startDate, endDate: endDate, itinerary: itinerary)
     }
     
-    private func fetchItinerary(destination: String, startDate: Date, endDate: Date) async throws -> [String] {
+    private func fetchItinerary(destination: String, startDate: String, endDate: String) async throws -> [String] {
         let prompt = "为我计划一个从 \(startDate) 到 \(endDate) 的 \(destination) 旅游行程。"
         
         guard let url = URL(string: "https://api.openai.com/v1/engines/davinci-codex/completions") else {
@@ -51,11 +51,11 @@ final class AIPlanner {
     }
     
     // 添加 suggestEvents 方法
-    func suggestEvents(for month: Date, completion: @escaping (Result<[Event], Error>) -> Void) {
-        // 模拟生成事件
+    func suggestEvents(for month: String, completion: @escaping (Result<[Event], Error>) -> Void) {
+        // month: "yyyy-MM"
         let simulatedEvents = [
-            Event(title: "AI Event 1", creatorOpenid: "ai_openid", date: month),
-            Event(title: "AI Event 2", creatorOpenid: "ai_openid", date: month)
+            Event(title: "AI Event 1", creatorOpenid: "ai_openid", color: "#FF6280", date: "\(month)-01", startTime: "09:00:00", endTime: "10:00:00", destination: "AI会场", mapObj: "", openChecked: 1, personChecked: 0, createTime: "\(month)-01 08:00:00"),
+            Event(title: "AI Event 2", creatorOpenid: "ai_openid", color: "#5EDA74", date: "\(month)-02", startTime: "14:00:00", endTime: "16:00:00", destination: "AI实验室", mapObj: "", openChecked: 0, personChecked: 1, createTime: "\(month)-02 13:00:00")
         ]
         completion(.success(simulatedEvents))
     }

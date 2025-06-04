@@ -2,106 +2,133 @@
 //  AddFriendView.swift
 //  Secalender
 //
-//  Created by 林平 on 2025/5/22.
+//  Created by linping on 2024/7/1.
 //
 
 import SwiftUI
 import Firebase
-import FirebaseFirestore
 
 struct AddFriendView: View {
-    @State private var newFriendEmail: String = ""
-    @State private var currentUserOpenid: String = "current_user_openid" // 实际应从登录用户读取
-    @State private var showingSuccess = false
-    @State private var friendRequests: [FriendRequest] = []
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @State private var searchInput: String = ""
+    @State private var errorMessage: String?
+    @State private var showSuccessMessage = false
+    @State private var isLoading = false
 
     var body: some View {
-        Form {
-            Section(header: Text("输入好友 Email")) {
-                TextField("friend@example.com", text: $newFriendEmail)
-                    .keyboardType(.emailAddress)
-                    .autocapitalization(.none)
+        VStack(spacing: 20) {
+            if userManager.userOpenId.isEmpty {
+                ProgressView("加载中...") // 防止尚未登入完成就操作
+                    .padding()
+            } else {
+                Text("添加好友")
+                    .font(.title)
+                    .bold()
+
+                TextField("请输入对方的别名或邮箱", text: $searchInput)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding(.horizontal)
 
                 Button("添加好友") {
-                    addFriend()
-                }
-            }
-
-            Section(header: Text("我添加的好友")) {
-                if friendRequests.isEmpty {
-                    Text("尚未添加任何好友")
-                        .foregroundColor(.gray)
-                } else {
-                    ForEach(friendRequests) { request in
-                        HStack {
-                            Text(request.friend)
-                            Spacer()
-                            Text(request.status == "accepted" ? "已接受" : "待确认")
-                                .foregroundColor(request.status == "accepted" ? .green : .orange)
-                                .font(.caption)
-                        }
+                    Task {
+                        await searchAndAddFriend()
                     }
                 }
-            }
-        }
-        .navigationTitle("添加好友")
-        .onAppear {
-            loadFriendRequests()
-        }
-        .alert(isPresented: $showingSuccess) {
-            Alert(title: Text("成功"), message: Text("已发送好友邀请"), dismissButton: .default(Text("好")))
-        }
-    }
+                .buttonStyle(.borderedProminent)
+                .disabled(searchInput.isEmpty || isLoading)
+                .padding()
 
-    private func addFriend() {
-        guard !newFriendEmail.isEmpty else { return }
-        let db = Firestore.firestore()
-        let data: [String: Any] = [
-            "owner": currentUserOpenid,
-            "friend": newFriendEmail,
-            "status": "pending"
-        ]
-        db.collection("friendships").addDocument(data: data) { error in
-            if error == nil {
-                showingSuccess = true
-                newFriendEmail = ""
-                loadFriendRequests()
-            }
-        }
-    }
+                if let message = errorMessage {
+                    Text(message)
+                        .foregroundColor(.red)
+                }
 
-    private func loadFriendRequests() {
-        let db = Firestore.firestore()
-        db.collection("friendships")
-            .whereField("owner", isEqualTo: currentUserOpenid)
-            .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    self.friendRequests = documents.compactMap { doc in
-                        let data = doc.data()
-                        guard let friend = data["friend"] as? String,
-                              let status = data["status"] as? String else { return nil }
-                        return FriendRequest(
-                            id: doc.documentID,
-                            friend: friend,
-                            owner: currentUserOpenid,
-                            status: status
-                        )
-                    }
+                if showSuccessMessage {
+                    Text("好友添加成功 ✅")
+                        .foregroundColor(.green)
                 }
             }
+
+            Spacer()
+        }
+        .padding()
     }
 
+    private func searchAndAddFriend() async {
+        errorMessage = nil
+        showSuccessMessage = false
+        isLoading = true
+
+        guard !userManager.userOpenId.isEmpty else {
+            errorMessage = "用户未登录，请稍后再试"
+            isLoading = false
+            return
+        }
+
+        do {
+            let db = Firestore.firestore()
+            var userIdToAdd: String?
+
+            let aliasSnapshot = try await db.collection("users")
+                .whereField("alias", isEqualTo: searchInput)
+                .getDocuments()
+
+            if let doc = aliasSnapshot.documents.first {
+                userIdToAdd = doc.documentID
+            }
+
+            if userIdToAdd == nil {
+                let emailSnapshot = try await db.collection("users")
+                    .whereField("email", isEqualTo: searchInput)
+                    .getDocuments()
+                if let doc = emailSnapshot.documents.first {
+                    userIdToAdd = doc.documentID
+                }
+            }
+
+            guard let friendId = userIdToAdd else {
+                errorMessage = "找不到该用户"
+                isLoading = false
+                return
+            }
+
+            if friendId == userManager.userOpenId {
+                errorMessage = "无法添加自己为好友"
+                isLoading = false
+                return
+            }
+
+            // 檢查是否已添加過好友（可擴充）
+            let existing = try await db.collection("friends")
+                .whereField("owner", isEqualTo: userManager.userOpenId)
+                .whereField("friend", isEqualTo: friendId)
+                .getDocuments()
+            if !existing.documents.isEmpty {
+                errorMessage = "已经是好友"
+                isLoading = false
+                return
+            }
+
+            try await db.collection("friends").addDocument(data: [
+                "owner": userManager.userOpenId,
+                "friend": friendId,
+                "createdAt": Timestamp()
+            ])
+
+            showSuccessMessage = true
+            searchInput = ""
+        } catch {
+            errorMessage = "添加失败：\(error.localizedDescription)"
+        }
+
+        isLoading = false
+    }
 }
 
-struct FriendRequest: Identifiable {
-    var id: String
-    var friend: String
-    var owner: String
-    var status: String
-}
 
 struct AddFriendView_Previews: PreviewProvider {
     static var previews: some View {
         AddFriendView()
+            .environmentObject(FirebaseUserManager.shared)
     }
 }

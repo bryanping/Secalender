@@ -2,74 +2,98 @@
 //  ReceivedFriendRequestsView.swift
 //  Secalender
 //
-//  Created by 林平 on 2025/5/25.
+//  Created by linping on 2025/6/5.
 //
 
 import SwiftUI
+import Firebase
 import FirebaseFirestore
 
 struct ReceivedFriendRequestsView: View {
-    @State private var currentUserOpenid: String = "current_user_openid" // 实际应从 Auth 获取
-    @State private var receivedRequests: [FriendRequest] = []
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @State private var requests: [QueryDocumentSnapshot] = []
+    @State private var isLoading = true
+    @State private var errorMessage: String?
 
     var body: some View {
-        List {
-            Section(header: Text("收到的好友请求")) {
-                if receivedRequests.isEmpty {
+        NavigationView {
+            VStack {
+                if isLoading {
+                    ProgressView("加载中...")
+                } else if requests.isEmpty {
                     Text("暂无好友请求")
                         .foregroundColor(.gray)
                 } else {
-                    ForEach(receivedRequests) { request in
-                        HStack {
-                            Text(request.owner)
-                            Spacer()
-                            if request.status == "accepted" {
-                                Text("已接受")
-                                    .foregroundColor(.green)
-                                    .font(.caption)
-                            } else {
+                    List {
+                        ForEach(requests, id: \.documentID) { doc in
+                            let data = doc.data()
+                            let friendId = data["owner"] as? String ?? ""
+                            HStack {
+                                Text("请求来自: \(friendId.prefix(10))...")
+                                Spacer()
                                 Button("接受") {
-                                    acceptRequest(id: request.id)
+                                    Task {
+                                        await acceptRequest(from: friendId, requestDocId: doc.documentID)
+                                    }
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .font(.caption)
                             }
                         }
                     }
                 }
+
+                if let message = errorMessage {
+                    Text(message)
+                        .foregroundColor(.red)
+                        .padding()
+                }
             }
-        }
-        .navigationTitle("好友请求")
-        .onAppear {
-            loadReceivedRequests()
+            //.navigationTitle("好友请求")
+            .onAppear {
+                loadRequests()
+            }
         }
     }
 
-    private func loadReceivedRequests() {
+    private func loadRequests() {
+        isLoading = true
+        errorMessage = nil
         let db = Firestore.firestore()
-        db.collection("friendships")
-            .whereField("friend", isEqualTo: currentUserOpenid)
+        db.collection("friends")
+            .whereField("friend", isEqualTo: userManager.userOpenId)
             .getDocuments { snapshot, error in
-                if let documents = snapshot?.documents {
-                    self.receivedRequests = documents.compactMap { doc in
-                        let data = doc.data()
-                        guard let owner = data["owner"] as? String,
-                              let status = data["status"] as? String else { return nil }
-                        return FriendRequest(id: doc.documentID, friend: currentUserOpenid, owner: owner, status: status)
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    if let docs = snapshot?.documents {
+                        self.requests = docs
+                    } else {
+                        self.errorMessage = "加载失败"
                     }
                 }
             }
     }
 
-    private func acceptRequest(id: String) {
+    private func acceptRequest(from senderId: String, requestDocId: String) async {
         let db = Firestore.firestore()
-        db.collection("friendships").document(id).updateData([
-            "status": "accepted"
-        ]) { error in
-            if error == nil {
-                loadReceivedRequests()
+
+        do {
+            // 添加对方为好友（双向）
+            try await db.collection("friends").addDocument(data: [
+                "owner": userManager.userOpenId,
+                "friend": senderId,
+                "createdAt": Timestamp()
+            ])
+
+            // 可选：更新已接受状态／删除请求
+            try await db.collection("friends").document(requestDocId).delete()
+
+            await MainActor.run {
+                self.requests.removeAll { $0.documentID == requestDocId }
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = "接受失败：\(error.localizedDescription)"
             }
         }
     }
 }
-

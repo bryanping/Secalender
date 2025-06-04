@@ -63,4 +63,5 @@ final class SettingsViewModel: ObservableObject {
         self.authUser = try await AuthenticationManager.shared.linkEmail(email: email, password: password)
     }
     
+    
 }

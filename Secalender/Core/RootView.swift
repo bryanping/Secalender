@@ -6,32 +6,43 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 struct RootView: View {
-    
-    @State private var showSignInView: Bool = false
-    
+    @Binding var showSignInView: Bool
+    @EnvironmentObject var userManager: FirebaseUserManager
+
     var body: some View {
-        
-            ZStack {
-                if !showSignInView {
-                    NavigationStack {
-                        ContentView()
-                    }
-                }
+        Group {
+            if showSignInView {
+                AuthenticationView(showSignInView: $showSignInView)
+            } else {
+                ContentView()
             }
-            .onAppear {
-                let authUser = try? AuthenticationManager.shared.getAuthenticatedUser()
+        }
+        .onAppear {
+            checkAuthStatus()
+        }
+    }
+
+    private func checkAuthStatus() {
+        Task {
+            let authUser = try? AuthenticationManager.shared.getAuthenticatedUser()
+            DispatchQueue.main.async {
                 self.showSignInView = authUser == nil
             }
-            .fullScreenCover(isPresented: $showSignInView) { 
-                NavigationStack {
-                    AuthenticationView(showSignInView: $showSignInView)
-                }
+            if let user = authUser {
+                // 登入後主動載入 Firestore 資料
+                FirebaseUserManager.shared.userOpenId = user.uid
+                FirebaseUserManager.shared.refresh()
             }
+        }
     }
 }
 
+
+
 #Preview {
-    RootView()
+    RootView(showSignInView: .constant(false))
+        .environmentObject(FirebaseUserManager.shared)
 }

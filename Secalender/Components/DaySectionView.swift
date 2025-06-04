@@ -34,7 +34,9 @@ struct DaySectionView: View {
             if events.isEmpty {
                 Divider().padding(.horizontal)
             } else {
-                ForEach(events.sorted(by: { $0.startDate < $1.startDate })) { event in
+                ForEach(events.sorted(by: { 
+                    ($0.startDateTime ?? .distantPast) < ($1.startDateTime ?? .distantPast) 
+                })) { event in
                     let destination: AnyView = {
                         if event.creatorOpenid == currentUserOpenid {
                             return AnyView(EventEditView(viewModel: EventDetailViewModel(event: event)))
@@ -45,11 +47,12 @@ struct DaySectionView: View {
 
                     NavigationLink(destination: destination) {
                         HStack(spacing: 12) {
-                            Text(timeFormatter.string(from: event.startDate))
+                            if let start = event.startDateTime {
+                                Text(timeFormatter.string(from: start))
                                 .foregroundColor(.gray)
                                 .font(.subheadline)
                                 .frame(width: 60, alignment: .trailing)
-
+                            }
                             Text(event.title)
                                 .font(.subheadline)
                                 .foregroundColor(.white)
@@ -68,13 +71,32 @@ struct DaySectionView: View {
     }
 
     private func getColor(for event: Event) -> Color {
+        let now = Date()
+        let isPast = (event.endDateTime ?? .distantPast) < now
+
         if event.creatorOpenid == currentUserOpenid {
-            return .red
-        } else if event.openChecked {
-            return .green
-        } else {
-            return .blue
+            return isPast ? Color(hex: "#CCCCCC") : Color(hex: "#FF6280")
         }
+        if event.isOpenChecked {
+            return isPast ? Color(hex: "#AAAAAA") : Color(hex: "#5EDA74")
+        }
+        // 群组相关逻辑已移除
+        return Color.gray.opacity(0.3)
+    }
+}
+
+extension Color {
+    init(hex: String) {
+        let hex = hex.replacingOccurrences(of: "#", with: "")
+        let scanner = Scanner(string: hex)
+        var rgb: UInt64 = 0
+        scanner.scanHexInt64(&rgb)
+
+        let r = Double((rgb >> 16) & 0xFF) / 255.0
+        let g = Double((rgb >> 8) & 0xFF) / 255.0
+        let b = Double(rgb & 0xFF) / 255.0
+
+        self.init(red: r, green: g, blue: b)
     }
 }
 

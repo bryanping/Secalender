@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSRemindersUsageDescription</key>
+	<string>我们需要访问提醒事项以支持日程功能。</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>我们需要访问您的行事历以显示与添加活动。</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -12,6 +16,16 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>com.googleusercontent.apps.271916944141-37cvu7h4souk41tok7ejb1mldc66aicj</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>Secalender Location</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>secalender</string>
 			</array>
 		</dict>
 	</array>
