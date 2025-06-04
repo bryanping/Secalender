@@ -53,7 +53,13 @@ final class UserManager {
         let isAnonymous = data["is_anonymous"] as? Bool
         let email = data["email"] as? String
         let photoUrl = data["photo_url"] as? String
-        let dateCreated = data["date_created"] as? Date
+
+        let dateCreated: Date?
+        if let timestamp = data["date_created"] as? Timestamp {
+            dateCreated = timestamp.dateValue()
+        } else {
+            dateCreated = nil
+        }
         
         return DBUser(userId: userId, isAnonymous: isAnonymous, email: email, photoUrl: photoUrl, dateCreated: dateCreated)
     }
