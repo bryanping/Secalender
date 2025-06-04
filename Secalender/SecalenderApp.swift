@@ -11,11 +11,10 @@ import Firebase
 @main
 struct SecalenderApp: App {
 
+    // Firebase configuration is performed in AppDelegate.
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     
-    init() {
-        // Configuration is handled in AppDelegate
-    }
+
     
     var body: some Scene {
         WindowGroup {
