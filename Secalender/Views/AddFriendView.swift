@@ -9,9 +9,11 @@ import SwiftUI
 import Firebase
 import FirebaseFirestore
 
+
+
 struct AddFriendView: View {
+    @EnvironmentObject var userManager: FirebaseUserManager
     @State private var newFriendEmail: String = ""
-    @State private var currentUserOpenid: String = "current_user_openid" // 实际应从登录用户读取
     @State private var showingSuccess = false
     @State private var friendRequests: [FriendRequest] = []
 
@@ -57,7 +59,7 @@ struct AddFriendView: View {
         guard !newFriendEmail.isEmpty else { return }
         let db = Firestore.firestore()
         let data: [String: Any] = [
-            "owner": currentUserOpenid,
+            "owner": userManager.userOpenId,
             "friend": newFriendEmail,
             "status": "pending"
         ]
@@ -73,7 +75,7 @@ struct AddFriendView: View {
     private func loadFriendRequests() {
         let db = Firestore.firestore()
         db.collection("friendships")
-            .whereField("owner", isEqualTo: currentUserOpenid)
+            .whereField("owner", isEqualTo: userManager.userOpenId)
             .getDocuments { snapshot, error in
                 if let documents = snapshot?.documents {
                     self.friendRequests = documents.compactMap { doc in
@@ -83,7 +85,7 @@ struct AddFriendView: View {
                         return FriendRequest(
                             id: doc.documentID,
                             friend: friend,
-                            owner: currentUserOpenid,
+                            owner: userManager.userOpenId,
                             status: status
                         )
                     }
