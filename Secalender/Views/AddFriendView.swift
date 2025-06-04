@@ -105,5 +105,6 @@ struct FriendRequest: Identifiable {
 struct AddFriendView_Previews: PreviewProvider {
     static var previews: some View {
         AddFriendView()
+            .environmentObject(FirebaseUserManager.shared)
     }
 }
