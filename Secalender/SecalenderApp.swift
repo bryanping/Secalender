@@ -10,15 +10,17 @@ import Firebase
 
 @main
 struct SecalenderApp: App {
-    
+
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @StateObject private var userManager = FirebaseUserManager()
     
     var body: some Scene {
-        WindowGroup {
-            RootView()
+            WindowGroup {
+                RootView()
+                    .environmentObject(userManager)
+            }
         }
     }
-}
 
 class AppDelegate: NSObject, UIApplicationDelegate {
   func application(_ application: UIApplication,
