@@ -24,40 +24,40 @@ struct EventShareView: View {
                 Section(header: Text("标题: \(event.title)")) {
                     // 日期和時間顯示
                     if event.isAllDay ?? false {
-                        Text("日期: \(event.date ?? "")")
+                        Text("日期: \(event.date)")
                         if let endDate = event.endDate, endDate != event.date {
                             Text("結束日期: \(endDate)")
                         }
                         Text("全天事件")
                             .foregroundColor(.blue)
                     } else {
-                        Text("開始: \(event.date ?? "") \(event.startTime ?? "")")
+                        Text("開始: \(event.date) \(event.startTime)")
                         if let endDate = event.endDate, endDate != event.date {
-                            Text("結束: \(endDate) \(event.endTime ?? "")")
+                            Text("結束: \(endDate) \(event.endTime)")
                         } else {
-                            Text("結束時間: \(event.endTime ?? "")")
+                            Text("結束時間: \(event.endTime)")
                         }
                     }
-                
+
                     // 重複設置
-                    if event.repeatType != "never" {
-                        Text("重複: \(getRepeatDisplayText(event.repeatType))")
+                    if (event.repeatType ?? "never") != "never" {
+                        Text("重複: \(getRepeatDisplayText(event.repeatType ?? "never"))")
                             .foregroundColor(.orange)
                     }
-                
+
                     // 日曆組件
-                    if !event.calendarComponent.isEmpty {
-                        Text("日曆: \(getCalendarDisplayText(event.calendarComponent))")
+                    if let calendarComponent = event.calendarComponent, !calendarComponent.isEmpty {
+                        Text("日曆: \(getCalendarDisplayText(calendarComponent))")
                             .foregroundColor(.green)
                     }
 
-                    if !(event.destination ?? "").isEmpty {
+                    if !event.destination.isEmpty {
                         Button(action: {
-                            openMapForDestination(event.destination ?? "")
+                            openMapForDestination(event.destination)
                         }) {
                             HStack {
                                 Image(systemName: "location")
-                                Text("地点: \(event.destination ?? "")")
+                                Text("地点: \(event.destination)")
                                 Spacer()
                                 Image(systemName: "chevron.right")
                             }
@@ -96,10 +96,10 @@ struct EventShareView: View {
 
                 Section {
                     HStack {
-                        Image(systemName: (event.isOpenChecked ?? false) ? "eye.fill" : "eye.slash.fill")
-                        Text((event.isOpenChecked ?? false) ? "公开给好友" : "仅自己可见")
+                        Image(systemName: event.isOpenChecked ? "eye.fill" : "eye.slash.fill")
+                        Text(event.isOpenChecked ? "公开给好友" : "仅自己可见")
                     }
-                    .foregroundColor((event.isOpenChecked ?? false) ? .green : .gray)
+                    .foregroundColor(event.isOpenChecked ? .green : .gray)
                 } header: {
                     Text("权限设置")
                 }
