@@ -34,6 +34,9 @@
 		A2848C9F2DE9828F00C0773B /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2848C9E2DE9828F00C0773B /* CalendarView.swift */; };
 		A29AA4832E48850400EDB8CF /* CommunityGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29AA4822E48850200EDB8CF /* CommunityGroup.swift */; };
 		A29AA4852E48851D00EDB8CF /* AddGroupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29AA4842E48851C00EDB8CF /* AddGroupView.swift */; };
+		A29AA4972E48B2CC00EDB8CF /* OpenAIManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29AA4942E48B2CC00EDB8CF /* OpenAIManager.swift */; };
+		A29AA4982E48B2CC00EDB8CF /* ScheduleItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29AA4952E48B2CC00EDB8CF /* ScheduleItem.swift */; };
+		A29AA49A2E48B2DA00EDB8CF /* AIPlanResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29AA4992E48B2DA00EDB8CF /* AIPlanResultView.swift */; };
 		A2A2A65C2C2AAEE600247342 /* SignInAppleHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2A2A65B2C2AAEE600247342 /* SignInAppleHelper.swift */; };
 		A2AB94952C2EA0B200C4FF73 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = A2AB94942C2EA0B200C4FF73 /* FirebaseFirestore */; };
 		A2AB94972C2EA0B200C4FF73 /* FirebaseFirestoreSwift in Frameworks */ = {isa = PBXBuildFile; productRef = A2AB94962C2EA0B200C4FF73 /* FirebaseFirestoreSwift */; };
@@ -99,6 +102,9 @@
 		A2848C9E2DE9828F00C0773B /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		A29AA4822E48850200EDB8CF /* CommunityGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityGroup.swift; sourceTree = "<group>"; };
 		A29AA4842E48851C00EDB8CF /* AddGroupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddGroupView.swift; sourceTree = "<group>"; };
+		A29AA4942E48B2CC00EDB8CF /* OpenAIManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIManager.swift; sourceTree = "<group>"; };
+		A29AA4952E48B2CC00EDB8CF /* ScheduleItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleItem.swift; sourceTree = "<group>"; };
+		A29AA4992E48B2DA00EDB8CF /* AIPlanResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIPlanResultView.swift; sourceTree = "<group>"; };
 		A2A2A65A2C2A6DCB00247342 /* Secalender.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Secalender.entitlements; sourceTree = "<group>"; };
 		A2A2A65B2C2AAEE600247342 /* SignInAppleHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInAppleHelper.swift; sourceTree = "<group>"; };
 		A2B0DB3C2C3C3BDA00733BD8 /* Secalender.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Secalender.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -191,6 +197,7 @@
 		A280B4FB2C295AFE00CC4A45 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A29AA4992E48B2DA00EDB8CF /* AIPlanResultView.swift */,
 				A29AA4842E48851C00EDB8CF /* AddGroupView.swift */,
 				A2F153EB2E45D5AF00158F94 /* AchievementsView.swift */,
 				A2F153E92E45D59F00158F94 /* AIPlannerView.swift */,
@@ -236,6 +243,15 @@
 			path = Group;
 			sourceTree = "<group>";
 		};
+		A29AA4962E48B2CC00EDB8CF /* AIgeneration */ = {
+			isa = PBXGroup;
+			children = (
+				A29AA4942E48B2CC00EDB8CF /* OpenAIManager.swift */,
+				A29AA4952E48B2CC00EDB8CF /* ScheduleItem.swift */,
+			);
+			path = AIgeneration;
+			sourceTree = "<group>";
+		};
 		A2E93C512C32915A00516E52 /* Core */ = {
 			isa = PBXGroup;
 			children = (
@@ -243,6 +259,7 @@
 				A2E93C562C32924E00516E52 /* Authentication */,
 				A2E93C5C2C32932D00516E52 /* Profile */,
 				A2E93C522C3291B900516E52 /* Settings */,
+				A29AA4962E48B2CC00EDB8CF /* AIgeneration */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -434,6 +451,8 @@
 				A280B4FF2C295B2F00CC4A45 /* CommunityView.swift in Sources */,
 				A2E913B12DE801E700629016 /* NearbyEventsView.swift in Sources */,
 				A2E93C5B2C3292EE00516E52 /* SignInEmailViewModel.swift in Sources */,
+				A29AA4972E48B2CC00EDB8CF /* OpenAIManager.swift in Sources */,
+				A29AA4982E48B2CC00EDB8CF /* ScheduleItem.swift in Sources */,
 				A229AEA52D965F2700B710E3 /* DaySectionView.swift in Sources */,
 				A2706CF72C1BF8A3004AB455 /* SettingsView.swift in Sources */,
 				A2C21B2C2DE2248700D588C3 /* ReceivedFriendRequestsView.swift in Sources */,
@@ -463,6 +482,7 @@
 				A2FEEA2A2E09D423006696EC /* EventInvitationsView.swift in Sources */,
 				A280B5012C295C4F00CC4A45 /* MemberView.swift in Sources */,
 				A232A9142E0A48A200E4739F /* AppleCalendarManager.swift in Sources */,
+				A29AA49A2E48B2DA00EDB8CF /* AIPlanResultView.swift in Sources */,
 				A29AA4832E48850400EDB8CF /* CommunityGroup.swift in Sources */,
 				A21B71D22DF1D16400FE7CD6 /* MyFriendListView.swift in Sources */,
 				A2E913AF2DE801DD00629016 /* GroupEventsView.swift in Sources */,
