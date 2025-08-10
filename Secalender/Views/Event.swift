@@ -28,9 +28,10 @@ struct Event: Identifiable, Codable {
     var information: String?           // 备注信息
     var groupId: String?               // 新增屬性對應所屬社群（若非社群活動則為 nil）
 
-    var isAllDay: Bool = false         // 是否整日活動
-    var repeatType: String = "never"   // 重複類型: never, daily, weekly, monthly, yearly
-    var calendarComponent: String = "default" // 行事曆組件
+
+    var isAllDay: Bool? = false         // 是否整日活動
+    var repeatType: String? = "never"   // 重複類型: never, daily, weekly, monthly, yearly
+    var calendarComponent: String? = "default" // 行事曆組件
     var travelTime: String?            // 路程時間
     var invitees: [String]?            // 邀請對象
     

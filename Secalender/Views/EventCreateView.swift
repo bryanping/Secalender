@@ -79,17 +79,20 @@ struct EventCreateView: View {
                     }
                 }
                 
-                // 整日活動開關
+                // 整日活動開關（Bool? 修正）
                 Section {
-                    Toggle("整日", isOn: $viewModel.event.isAllDay)
-                        .onChange(of: viewModel.event.isAllDay) { isAllDay in
-                            if isAllDay {
-                                // 整日活動時設置為全天
-                                let calendar = Calendar.current
-                                selectedStartTime = calendar.startOfDay(for: selectedStartDate)
-                                selectedEndTime = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: selectedStartDate)) ?? selectedStartDate
-                            }
+                    Toggle("整日", isOn: Binding(
+                        get: { viewModel.event.isAllDay ?? false },
+                        set: { viewModel.event.isAllDay = $0 }
+                    ))
+                    .onChange(of: viewModel.event.isAllDay ?? false) { isAllDay in
+                        if isAllDay {
+                            // 整日活動時設置為全天
+                            let calendar = Calendar.current
+                            selectedStartTime = calendar.startOfDay(for: selectedStartDate)
+                            selectedEndTime = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: selectedStartDate)) ?? selectedStartDate
                         }
+                    }
                 }
                 
                 // 時間設置
@@ -99,14 +102,14 @@ struct EventCreateView: View {
                         Text("開始")
                             .foregroundColor(.primary)
                         Spacer()
-                        if viewModel.event.isAllDay {
+                        if viewModel.event.isAllDay ?? false {
                             DatePicker("", selection: $selectedStartDate, displayedComponents: .date)
                                 .labelsHidden()
                         } else {
                             VStack(alignment: .trailing, spacing: 4) {
                                 DatePicker("", selection: $selectedStartDate, displayedComponents: .date)
                                     .labelsHidden()
-                                DatePicker("", selection: $selectedStartTime, displayedComponents: .hourAndMinute)
+                                DatePicker("", selection: $selectedStartTime, displayedComponents: [.hourAndMinute])
                                     .labelsHidden()
                             }
                         }
@@ -130,7 +133,7 @@ struct EventCreateView: View {
                     }
                     
                     // 結束時間
-                    if !viewModel.event.isAllDay {
+                    if !(viewModel.event.isAllDay ?? false) {
                         HStack {
                             Text("結束")
                                 .foregroundColor(.primary)
@@ -138,7 +141,7 @@ struct EventCreateView: View {
                             VStack(alignment: .trailing, spacing: 4) {
                                 DatePicker("", selection: $selectedEndDate, displayedComponents: .date)
                                     .labelsHidden()
-                                DatePicker("", selection: $selectedEndTime, displayedComponents: .hourAndMinute)
+                                DatePicker("", selection: $selectedEndTime, displayedComponents: [.hourAndMinute])
                                     .labelsHidden()
                             }
                         }
@@ -211,7 +214,7 @@ struct EventCreateView: View {
                     }
                 }
                 
-                // 其他設置
+                // 其他設置（Bool? 修正）
                 Section {
                     Toggle("公開給好友", isOn: Binding(
                         get: { viewModel.event.isOpenChecked },
@@ -242,17 +245,28 @@ struct EventCreateView: View {
         }
 
         .sheet(isPresented: $showRepeatOptions) {
-            RepeatOptionsView(selectedRepeat: $viewModel.event.repeatType)
+            RepeatOptionsView(selectedRepeat: Binding(
+                get: { viewModel.event.repeatType ?? "never" },
+                set: { viewModel.event.repeatType = $0 }
+            ))
         }
+
         .sheet(isPresented: $showCalendarOptions) {
-            CalendarOptionsView(selectedCalendar: $viewModel.event.calendarComponent)
+            CalendarOptionsView(selectedCalendar: Binding(
+                get: { viewModel.event.calendarComponent ?? "default" },
+                set: { viewModel.event.calendarComponent = $0 }
+            ))
         }
+
         .sheet(isPresented: $showTravelTimeOptions) {
-            TravelTimeOptionsView(selectedTravelTime: $viewModel.event.travelTime)
+            TravelTimeOptionsView(selectedTravelTime: Binding(
+                get: { viewModel.event.travelTime ?? "無" },
+                set: { viewModel.event.travelTime = $0 }
+            ))
         }
+
         .onAppear {
             initializeDatePickers()
-            // 监听地址选择通知
             NotificationCenter.default.addObserver(
                 forName: NSNotification.Name("LocationSelected"),
                 object: nil,
@@ -264,7 +278,6 @@ struct EventCreateView: View {
             }
         }
         .onDisappear {
-            // 移除通知监听
             NotificationCenter.default.removeObserver(
                 self,
                 name: NSNotification.Name("LocationSelected"),
@@ -276,13 +289,10 @@ struct EventCreateView: View {
     // MARK: - 私有方法
     
     private func initializeDatePickers() {
-        // 智能時間初始化：調整到下一個整點
         let now = Date()
         let calendar = Calendar.current
         let currentHour = calendar.component(.hour, from: now)
         let currentMinute = calendar.component(.minute, from: now)
-        
-        // 如果當前時間不是整點，調整到下一個整點
         let nextHour = currentMinute > 0 ? currentHour + 1 : currentHour
         let roundedStartTime = calendar.date(bySettingHour: nextHour, minute: 0, second: 0, of: now) ?? now
         let roundedEndTime = calendar.date(byAdding: .hour, value: 1, to: roundedStartTime) ?? roundedStartTime
@@ -315,7 +325,6 @@ struct EventCreateView: View {
             viewModel.event.endTime = dateToString(roundedEndTime, format: "HH:mm:ss")
         }
         
-        // 更新事件的日期信息
         viewModel.event.date = dateToString(selectedStartDate, format: "yyyy-MM-dd")
         if !Calendar.current.isDate(selectedStartDate, inSameDayAs: selectedEndDate) {
             viewModel.event.endDate = dateToString(selectedEndDate, format: "yyyy-MM-dd")
@@ -323,7 +332,7 @@ struct EventCreateView: View {
     }
     
     private func saveEvent() {
-        if !viewModel.event.isAllDay {
+        if !(viewModel.event.isAllDay ?? false) {
             if (viewModel.event.startDateTime ?? Date()) >= (viewModel.event.endDateTime ?? Date()) {
                 errorMessage = "開始時間必須早於結束時間"
                 showErrorAlert = true
@@ -334,11 +343,9 @@ struct EventCreateView: View {
         Task {
             do {
                 try await viewModel.saveEvent(currentUserOpenId: userManager.userOpenId)
-
                 if syncToAppleCalendar {
                     // TODO: 實現同步到 Apple 日曆
                 }
-
                 onComplete?()
                 dismiss()
             } catch {
@@ -373,30 +380,22 @@ struct EventCreateView: View {
         }
     }
     
-    // 使用地图应用进行地址选择
     private func openMapForLocationInput() {
         if isInChina() {
-            // 在中国大陆使用高德地图
             if let url = URL(string: "iosamap://poi?sourceApplication=secalender&backScheme=secalender://location&keywords=地点") {
                 if UIApplication.shared.canOpenURL(url) {
                     UIApplication.shared.open(url)
-                } else {
-                    // 如果没有安装高德地图，使用网页版
-                    if let webUrl = URL(string: "https://uri.amap.com/search?query=地点&callnative=1&backurl=secalender://location") {
-                        UIApplication.shared.open(webUrl)
-                    }
+                } else if let webUrl = URL(string: "https://uri.amap.com/search?query=地点&callnative=1&backurl=secalender://location") {
+                    UIApplication.shared.open(webUrl)
                 }
             }
         } else {
-            // 其他地区使用Google Maps或Apple Maps
             if let googleMapsUrl = URL(string: "comgooglemaps://?q=location&callback=secalender://location") {
                 if UIApplication.shared.canOpenURL(googleMapsUrl) {
                     UIApplication.shared.open(googleMapsUrl)
                 } else {
-                    // 使用Apple Maps
                     let searchRequest = MKLocalSearch.Request()
                     searchRequest.naturalLanguageQuery = "地点"
-                    
                     let search = MKLocalSearch(request: searchRequest)
                     search.start { response, error in
                         if let response = response, let firstItem = response.mapItems.first {
@@ -414,13 +413,11 @@ struct EventCreateView: View {
         }
     }
     
-    // 检测是否在中国大陆
     private func isInChina() -> Bool {
         let timeZone = TimeZone.current
         return timeZone.identifier.contains("Asia/Shanghai") || timeZone.identifier.contains("Asia/Chongqing")
     }
     
-    // 輔助方法
     private func dateToString(_ date: Date, format: String) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = format
