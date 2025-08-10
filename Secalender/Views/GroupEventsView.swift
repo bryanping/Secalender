@@ -1,12 +1,9 @@
-//
-//  GroupEventsView.swift
-//  Secalender
-//
-//  Created by 林平 on 2025/5/29.
-//
+// GroupEventsView.swift
+
 import SwiftUI
 import Firebase
 
+/// 顯示用戶加入的社群中公開活動
 struct GroupEventsView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
     @State private var groupIds: [String] = []
@@ -23,7 +20,6 @@ struct GroupEventsView: View {
             } else if let err = errorMessage {
                 Text(err).foregroundColor(.red)
             } else if groupIds.isEmpty {
-                // 尚未加入任何社群
                 VStack {
                     Spacer()
                     Text("尚未加入任何社群")
@@ -32,7 +28,6 @@ struct GroupEventsView: View {
                     Spacer()
                 }
             } else {
-                // 顯示社群活動
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         if groupEvents.isEmpty {
@@ -95,12 +90,12 @@ struct GroupEventsView: View {
         .refreshable { await refreshEvents() }
     }
 
-    // 依月份產生所有日期並組合對應活動
+    /// 將活動依當月日期分組，無活動的日期也會返回
     private func groupedEventsWithEmptyDays() -> [(Date, [Event])] {
         let calendar = Calendar.current
         let range = calendar.range(of: .day, in: .month, for: Date())!
-        let components = calendar.dateComponents([.year, .month], from: Date())
-        let startOfMonth = calendar.date(from: components)!
+        let comps = calendar.dateComponents([.year, .month], from: Date())
+        let startOfMonth = calendar.date(from: comps)!
         var result: [(Date, [Event])] = []
         let eventDict = Dictionary(grouping: groupEvents, by: { $0.dateObj ?? Date() })
         for day in range {
@@ -112,34 +107,34 @@ struct GroupEventsView: View {
         return result
     }
 
-    // 重新載入社群列表與活動
+    /// 從 Firestore 載入社群列表與公開活動
     private func refreshEvents() async {
         guard !userManager.userOpenId.isEmpty else { return }
         isLoading = true
         errorMessage = nil
         do {
             let db = Firestore.firestore()
-            // 讀取使用者加入的社群
+            // 取出當前用戶參與的社群 ID
             let groupSnapshot = try await db.collection("groups")
                 .whereField("members", arrayContains: userManager.userOpenId)
                 .getDocuments()
             let ids = groupSnapshot.documents.map { $0.documentID }
             groupIds = ids
-            // 若無社群則清空活動
             guard !ids.isEmpty else {
                 groupEvents = []
                 isLoading = false
                 return
             }
-            // 讀取公開活動並篩選屬於這些社群的事件
+            // 讀取公開活動
             let eventSnapshot = try await db.collection("events")
                 .whereField("openChecked", isEqualTo: 1)
                 .getDocuments()
             var events: [Event] = []
             for doc in eventSnapshot.documents {
                 let data = doc.data()
+                // 只保留 groupId 為當前社群之一的事件
                 guard let gid = data["groupId"] as? String, ids.contains(gid) else { continue }
-                // 只解析我們需要的欄位。若資料庫欄位名稱不同，需相應調整。
+                // 建立 Event，解析必要欄位
                 let id = data["id"] as? Int
                 let title = data["title"] as? String ?? ""
                 let creatorOpenid = data["creatorOpenid"] as? String ?? ""
@@ -163,7 +158,7 @@ struct GroupEventsView: View {
                 let calendarComponent = data["calendarComponent"] as? String ?? "default"
                 let travelTime = data["travelTime"] as? String
                 let invitees = data["invitees"] as? [String]
-                let event = Event(
+                var event = Event(
                     id: id, title: title, creatorOpenid: creatorOpenid, color: color,
                     date: date, startTime: startTime, endTime: endTime,
                     endDate: endDate, destination: destination, mapObj: mapObj,
@@ -172,8 +167,9 @@ struct GroupEventsView: View {
                     category: category, createTime: createTime, deleted: deleted,
                     information: information, isAllDay: isAllDay, repeatType: repeatType,
                     calendarComponent: calendarComponent, travelTime: travelTime,
-                    invitees: invitees, groupId: gid
+                    invitees: invitees
                 )
+                event.groupId = gid    // 初始化後再賦值，避免參數順序問題
                 events.append(event)
             }
             groupEvents = events
@@ -184,6 +180,7 @@ struct GroupEventsView: View {
         isLoading = false
     }
 
+    // 日期格式器
     private let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "M.d（E）"

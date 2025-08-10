@@ -8,7 +8,7 @@
 import FirebaseFirestoreSwift
 import Foundation
 
-struct Group: Identifiable, Codable {
+struct CommunityGroup: Identifiable, Codable {
     @DocumentID var id: String?
     var name: String
     var description: String

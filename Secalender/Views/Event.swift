@@ -85,8 +85,9 @@ struct Event: Identifiable, Codable {
         self.repeatType = repeatType
         self.calendarComponent = calendarComponent
         self.travelTime = travelTime
-        self.invitees = invitees
         self.groupId = groupId
+        self.invitees = invitees
+        
     }
 }
 
