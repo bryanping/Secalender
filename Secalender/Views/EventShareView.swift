@@ -23,59 +23,57 @@ struct EventShareView: View {
             Form {
                 Section(header: Text("标题: \(event.title)")) {
                     // 日期和時間顯示
-                if event.isAllDay {
-                    Text("日期: \(event.date)")
-                    if let endDate = event.endDate, endDate != event.date {
-                        Text("結束日期: \(endDate)")
-                    }
-                    Text("全天事件")
-                        .foregroundColor(.blue)
-                } else {
-                    Text("開始: \(event.date) \(event.startTime)")
-                    if let endDate = event.endDate, endDate != event.date {
-                        Text("結束: \(endDate) \(event.endTime)")
+                    if event.isAllDay ?? false {
+                        Text("日期: \(event.date ?? "")")
+                        if let endDate = event.endDate, endDate != event.date {
+                            Text("結束日期: \(endDate)")
+                        }
+                        Text("全天事件")
+                            .foregroundColor(.blue)
                     } else {
-                        Text("結束時間: \(event.endTime)")
-                    }
-                }
-                
-                // 重複設置
-                if event.repeatType != "never" {
-                    Text("重複: \(getRepeatDisplayText(event.repeatType))")
-                        .foregroundColor(.orange)
-                }
-                
-
-                
-                // 日曆組件
-                if !event.calendarComponent.isEmpty {
-                    Text("日曆: \(getCalendarDisplayText(event.calendarComponent))")
-                        .foregroundColor(.green)
-                }
-
-                if !event.destination.isEmpty {
-                    Button(action: {
-                        openMapForDestination(event.destination)
-                    }) {
-                        HStack {
-                            Image(systemName: "location")
-                            Text("地点: \(event.destination)")
-                            Spacer()
-                            Image(systemName: "chevron.right")
+                        Text("開始: \(event.date ?? "") \(event.startTime ?? "")")
+                        if let endDate = event.endDate, endDate != event.date {
+                            Text("結束: \(endDate) \(event.endTime ?? "")")
+                        } else {
+                            Text("結束時間: \(event.endTime ?? "")")
                         }
                     }
-                    .foregroundColor(.blue)
-                }
                 
-                // 邀請人員
-                if let invitees = event.invitees, !invitees.isEmpty {
-                    Text("邀請人員: \(invitees.joined(separator: ", "))")
-                        .foregroundColor(.blue)
-                }
+                    // 重複設置
+                    if event.repeatType != "never" {
+                        Text("重複: \(getRepeatDisplayText(event.repeatType))")
+                            .foregroundColor(.orange)
+                    }
+                
+                    // 日曆組件
+                    if !event.calendarComponent.isEmpty {
+                        Text("日曆: \(getCalendarDisplayText(event.calendarComponent))")
+                            .foregroundColor(.green)
+                    }
 
-                if let info = event.information, !info.isEmpty {
-                    Text("备注: \(info)")
-                }
+                    if !(event.destination ?? "").isEmpty {
+                        Button(action: {
+                            openMapForDestination(event.destination ?? "")
+                        }) {
+                            HStack {
+                                Image(systemName: "location")
+                                Text("地点: \(event.destination ?? "")")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                            }
+                        }
+                        .foregroundColor(.blue)
+                    }
+                
+                    // 邀請人員
+                    if let invitees = event.invitees, !invitees.isEmpty {
+                        Text("邀請人員: \(invitees.joined(separator: ", "))")
+                            .foregroundColor(.blue)
+                    }
+
+                    if let info = event.information, !info.isEmpty {
+                        Text("备注: \(info)")
+                    }
                 }
                 
                 if event.creatorOpenid == userManager.userOpenId {
@@ -98,10 +96,10 @@ struct EventShareView: View {
 
                 Section {
                     HStack {
-                        Image(systemName: event.isOpenChecked ? "eye.fill" : "eye.slash.fill")
-                        Text(event.isOpenChecked ? "公开给好友" : "仅自己可见")
+                        Image(systemName: (event.isOpenChecked ?? false) ? "eye.fill" : "eye.slash.fill")
+                        Text((event.isOpenChecked ?? false) ? "公开给好友" : "仅自己可见")
                     }
-                    .foregroundColor(event.isOpenChecked ? .green : .gray)
+                    .foregroundColor((event.isOpenChecked ?? false) ? .green : .gray)
                 } header: {
                     Text("权限设置")
                 }
@@ -144,7 +142,7 @@ struct EventShareView: View {
                 onEventUpdated?()
                 dismiss()
             })
-                .environmentObject(userManager)
+            .environmentObject(userManager)
         }
         .alert("无法添加到行事历", isPresented: Binding(get: {
             calendarError != nil
@@ -170,8 +168,6 @@ struct EventShareView: View {
         }
     }
     
-
-    
     private func getCalendarDisplayText(_ calendarComponent: String) -> String {
         switch calendarComponent {
         case "event": return "活動安排"
@@ -187,36 +183,24 @@ struct EventShareView: View {
     private func openMapForDestination(_ destination: String) {
         let encodedDestination = destination.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? destination
         
-        // 检测是否在中国大陆
         if isInChina() {
-            // 使用高德地图
             let gaodeURL = "iosamap://path?sourceApplication=Secalender&dname=\(encodedDestination)"
             if let url = URL(string: gaodeURL) {
                 openURL(url)
-            } else {
-                // 如果没有安装高德地图，使用网页版
-                let webGaodeURL = "https://uri.amap.com/marker?position=\(encodedDestination)"
-                if let webUrl = URL(string: webGaodeURL) {
-                    openURL(webUrl)
-                }
+            } else if let webUrl = URL(string: "https://uri.amap.com/marker?position=\(encodedDestination)") {
+                openURL(webUrl)
             }
         } else {
-            // 使用Google Maps
             let googleMapsURL = "comgooglemaps://?q=\(encodedDestination)"
             if let url = URL(string: googleMapsURL) {
                 openURL(url)
-            } else {
-                // 如果没有安装Google Maps，使用Apple Maps
-                let appleMapsURL = "http://maps.apple.com/?q=\(encodedDestination)"
-                if let appleUrl = URL(string: appleMapsURL) {
-                    openURL(appleUrl)
-                }
+            } else if let appleUrl = URL(string: "http://maps.apple.com/?q=\(encodedDestination)") {
+                openURL(appleUrl)
             }
         }
     }
     
     private func isInChina() -> Bool {
-        // 通过时区检测是否在中国
         let timeZone = TimeZone.current
         let chinaTimeZones = ["Asia/Shanghai", "Asia/Chongqing", "Asia/Harbin", "Asia/Urumqi"]
         return chinaTimeZones.contains(timeZone.identifier)
