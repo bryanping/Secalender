@@ -217,7 +217,7 @@ struct EventCreateView: View {
                 // 其他設置（Bool? 修正）
                 Section {
                     Toggle("公開給好友", isOn: Binding(
-                        get: { viewModel.event.isOpenChecked ?? false },
+                        get: { viewModel.event.isOpenChecked },
                         set: { viewModel.event.openChecked = $0 ? 1 : 0 }
                     ))
                     Toggle("同步到 Apple 日曆", isOn: $syncToAppleCalendar)
@@ -225,12 +225,12 @@ struct EventCreateView: View {
             }
             .navigationTitle("新增")
             .toolbar {
-                ToolbarItemGroup(placement: .cancellationAction) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("取消") {
                         dismiss()
                     }
                 }
-                ToolbarItemGroup(placement: .primaryAction) {
+                ToolbarItem(placement: .primaryAction) {
                     Button("完成") {
                         saveEvent()
                     }
