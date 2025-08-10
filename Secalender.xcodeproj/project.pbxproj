@@ -32,6 +32,8 @@
 		A280B5012C295C4F00CC4A45 /* MemberView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A280B5002C295C4F00CC4A45 /* MemberView.swift */; };
 		A2848C9D2DE97F2400C0773B /* FirebaseUserManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2848C9C2DE97F2300C0773B /* FirebaseUserManager.swift */; };
 		A2848C9F2DE9828F00C0773B /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2848C9E2DE9828F00C0773B /* CalendarView.swift */; };
+		A29AA4832E48850400EDB8CF /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29AA4822E48850200EDB8CF /* Group.swift */; };
+		A29AA4852E48851D00EDB8CF /* AddGroupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29AA4842E48851C00EDB8CF /* AddGroupView.swift */; };
 		A2A2A65C2C2AAEE600247342 /* SignInAppleHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2A2A65B2C2AAEE600247342 /* SignInAppleHelper.swift */; };
 		A2AB94952C2EA0B200C4FF73 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = A2AB94942C2EA0B200C4FF73 /* FirebaseFirestore */; };
 		A2AB94972C2EA0B200C4FF73 /* FirebaseFirestoreSwift in Frameworks */ = {isa = PBXBuildFile; productRef = A2AB94962C2EA0B200C4FF73 /* FirebaseFirestoreSwift */; };
@@ -95,6 +97,8 @@
 		A280B5002C295C4F00CC4A45 /* MemberView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberView.swift; sourceTree = "<group>"; };
 		A2848C9C2DE97F2300C0773B /* FirebaseUserManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseUserManager.swift; sourceTree = "<group>"; };
 		A2848C9E2DE9828F00C0773B /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
+		A29AA4822E48850200EDB8CF /* Group.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Group.swift; sourceTree = "<group>"; };
+		A29AA4842E48851C00EDB8CF /* AddGroupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddGroupView.swift; sourceTree = "<group>"; };
 		A2A2A65A2C2A6DCB00247342 /* Secalender.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Secalender.entitlements; sourceTree = "<group>"; };
 		A2A2A65B2C2AAEE600247342 /* SignInAppleHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInAppleHelper.swift; sourceTree = "<group>"; };
 		A2B0DB3C2C3C3BDA00733BD8 /* Secalender.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Secalender.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -187,6 +191,7 @@
 		A280B4FB2C295AFE00CC4A45 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A29AA4842E48851C00EDB8CF /* AddGroupView.swift */,
 				A2F153EB2E45D5AF00158F94 /* AchievementsView.swift */,
 				A2F153E92E45D59F00158F94 /* AIPlannerView.swift */,
 				A2F153E72E45D58E00158F94 /* TemplateDetailView.swift */,
@@ -221,6 +226,14 @@
 				A2E66AB22E35C1800025E244 /* TravelTimeOptionsView.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		A29AA4812E4884F900EDB8CF /* Group */ = {
+			isa = PBXGroup;
+			children = (
+				A29AA4822E48850200EDB8CF /* Group.swift */,
+			);
+			path = Group;
 			sourceTree = "<group>";
 		};
 		A2E93C512C32915A00516E52 /* Core */ = {
@@ -305,6 +318,7 @@
 		A2F8E6C22C1944A700AA109D /* Secalender */ = {
 			isa = PBXGroup;
 			children = (
+				A29AA4812E4884F900EDB8CF /* Group */,
 				A251BF682DF927520024A02C /* Preview */,
 				A2A2A65A2C2A6DCB00247342 /* Secalender.entitlements */,
 				A2F8E6C32C1944A700AA109D /* SecalenderApp.swift */,
@@ -449,6 +463,7 @@
 				A2FEEA2A2E09D423006696EC /* EventInvitationsView.swift in Sources */,
 				A280B5012C295C4F00CC4A45 /* MemberView.swift in Sources */,
 				A232A9142E0A48A200E4739F /* AppleCalendarManager.swift in Sources */,
+				A29AA4832E48850400EDB8CF /* Group.swift in Sources */,
 				A21B71D22DF1D16400FE7CD6 /* MyFriendListView.swift in Sources */,
 				A2E913AF2DE801DD00629016 /* GroupEventsView.swift in Sources */,
 				A2E93C5E2C32938E00516E52 /* ProfileView.swift in Sources */,
@@ -461,6 +476,7 @@
 				A2F229B82D41DDAE00B4CA4D /* EventCreateView.swift in Sources */,
 				A2706CED2C1B2DDB004AB455 /* AuthenticationView.swift in Sources */,
 				A251BF672DF83BFA0024A02C /* PreviewHostView.swift in Sources */,
+				A29AA4852E48851D00EDB8CF /* AddGroupView.swift in Sources */,
 				A22A187D2DF5624200FF4B1C /* EventAccessManager.swift in Sources */,
 				A2706CF12C1B36EC004AB455 /* AuthenticationManager.swift in Sources */,
 				A2EDD8F52C2484B00098B31A /* Utilities.swift in Sources */,

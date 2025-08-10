@@ -8,12 +8,11 @@ import SwiftUI
 
 enum CommunityTab: Int, CaseIterable {
     case friends, groups, nearby
-
     var title: String {
         switch self {
-        case .friends: return "朋友發起"
-        case .groups: return "社群發起"
-        case .nearby: return "附近發起"
+        case .friends: return "朋友分享"
+        case .groups:  return "社群分享"
+        case .nearby:  return "附近活動"
         }
     }
 }
@@ -28,16 +27,13 @@ struct CommunityView: View {
             // 上方自定義 Tab Bar
             HStack {
                 ForEach(CommunityTab.allCases, id: \.self) { tab in
-                    Button(action: {
-                        withAnimation {
-                            selectedTab = tab
-                        }
-                    }) {
+                    Button {
+                        withAnimation { selectedTab = tab }
+                    } label: {
                         VStack(spacing: 4) {
                             Text(tab.title)
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(selectedTab == tab ? .primary : .gray)
-
                             if selectedTab == tab {
                                 Capsule()
                                     .fill(Color.green)
@@ -45,9 +41,7 @@ struct CommunityView: View {
                                     .frame(height: 4)
                                     .offset(y: 2)
                             } else {
-                                Capsule()
-                                    .fill(Color.clear)
-                                    .frame(height: 4)
+                                Capsule().fill(Color.clear).frame(height: 4)
                             }
                         }
                         .frame(maxWidth: .infinity)
@@ -57,28 +51,36 @@ struct CommunityView: View {
             .padding(.top, 10)
             .padding(.horizontal)
             .background(Color.white)
-
             Divider()
 
             // 分頁內容
             TabView(selection: $selectedTab) {
-                FriendEventsView()
-                    .tag(CommunityTab.friends)
-
-                GroupEventsView()
-                    .tag(CommunityTab.groups)
-
-                NearbyEventsView()
-                    .tag(CommunityTab.nearby)
+                FriendEventsView().tag(CommunityTab.friends)
+                GroupEventsView().tag(CommunityTab.groups)
+                NearbyEventsView().tag(CommunityTab.nearby)
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         }
-       // .navigationTitle("社群互動")
+        .navigationTitle("社群互動")
         .navigationBarTitleDisplayMode(.inline)
-        
-        
+        .toolbar {
+            if selectedTab == .friends {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink(destination: AddFriendView()) {
+                        Image(systemName: "person.badge.plus")
+                    }
+                }
+            } else if selectedTab == .groups {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink(destination: AddGroupView()) {
+                        Image(systemName: "person.3.fill")
+                    }
+                }
+            }
+        }
     }
 }
+
 
 
 struct CommunityView_Previews: PreviewProvider {

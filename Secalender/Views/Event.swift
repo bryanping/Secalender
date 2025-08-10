@@ -26,8 +26,8 @@ struct Event: Identifiable, Codable {
     var createTime: String             // "yyyy-MM-dd HH:mm:ss"
     var deleted: Int?                  // 是否删除
     var information: String?           // 备注信息
-    
-    // 新增屬性
+    var groupId: String?               // 新增屬性對應所屬社群（若非社群活動則為 nil）
+
     var isAllDay: Bool = false         // 是否整日活動
     var repeatType: String = "never"   // 重複類型: never, daily, weekly, monthly, yearly
     var calendarComponent: String = "default" // 行事曆組件
@@ -60,6 +60,7 @@ struct Event: Identifiable, Codable {
         repeatType: String = "never",
         calendarComponent: String = "default",
         travelTime: String? = nil,
+        groupId: String? = nil,
         invitees: [String]? = nil
     ) {
         self.id = id
@@ -85,6 +86,7 @@ struct Event: Identifiable, Codable {
         self.calendarComponent = calendarComponent
         self.travelTime = travelTime
         self.invitees = invitees
+        self.groupId = groupId
     }
 }
 
