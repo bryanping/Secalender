@@ -72,7 +72,14 @@ struct CommunityView: View {
                 }
             } else if selectedTab == .groups {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: AddGroupView()) {
+                    Menu {
+                        NavigationLink(destination: AddGroupView()) {
+                            Label("創建新社群", systemImage: "plus.circle")
+                        }
+                        NavigationLink(destination: SearchGroupView()) {
+                            Label("搜索社群", systemImage: "magnifyingglass")
+                        }
+                    } label: {
                         Image(systemName: "person.3.fill")
                     }
                 }

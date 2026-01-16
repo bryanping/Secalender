@@ -90,6 +90,81 @@ struct Event: Identifiable, Codable {
         self.invitees = invitees
         
     }
+    
+    // MARK: - Custom Decoding
+    enum CodingKeys: String, CodingKey {
+        case id, title, creatorOpenid, color, date, startTime, endTime, endDate
+        case destination, mapObj, openChecked, personChecked, personNumber
+        case sponsorType, category, createTime, deleted, information, groupId
+        case isAllDay, repeatType, calendarComponent, travelTime, invitees
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // 处理可能缺失的字段
+        id = try container.decodeIfPresent(Int.self, forKey: .id)
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? ""
+        creatorOpenid = try container.decodeIfPresent(String.self, forKey: .creatorOpenid) ?? ""
+        color = try container.decodeIfPresent(String.self, forKey: .color) ?? "#FF0000" // 默认红色
+        
+        // 处理date字段：优先尝试String，如果失败则尝试其他类型
+        if let dateString = try? container.decode(String.self, forKey: .date) {
+            date = dateString
+        } else {
+            // 如果解码失败，使用空字符串（会在EventManager中手动处理）
+            date = ""
+        }
+        
+        startTime = try container.decodeIfPresent(String.self, forKey: .startTime) ?? ""
+        endTime = try container.decodeIfPresent(String.self, forKey: .endTime) ?? ""
+        endDate = try container.decodeIfPresent(String.self, forKey: .endDate)
+        destination = try container.decodeIfPresent(String.self, forKey: .destination) ?? ""
+        mapObj = try container.decodeIfPresent(String.self, forKey: .mapObj) ?? ""
+        openChecked = try container.decodeIfPresent(Int.self, forKey: .openChecked) ?? 0
+        personChecked = try container.decodeIfPresent(Int.self, forKey: .personChecked) ?? 0
+        personNumber = try container.decodeIfPresent(Int.self, forKey: .personNumber)
+        sponsorType = try container.decodeIfPresent(String.self, forKey: .sponsorType)
+        category = try container.decodeIfPresent(String.self, forKey: .category)
+        createTime = try container.decodeIfPresent(String.self, forKey: .createTime) ?? ""
+        deleted = try container.decodeIfPresent(Int.self, forKey: .deleted)
+        information = try container.decodeIfPresent(String.self, forKey: .information)
+        groupId = try container.decodeIfPresent(String.self, forKey: .groupId)
+        isAllDay = try container.decodeIfPresent(Bool.self, forKey: .isAllDay) ?? false
+        repeatType = try container.decodeIfPresent(String.self, forKey: .repeatType) ?? "never"
+        calendarComponent = try container.decodeIfPresent(String.self, forKey: .calendarComponent) ?? "default"
+        travelTime = try container.decodeIfPresent(String.self, forKey: .travelTime)
+        invitees = try container.decodeIfPresent([String].self, forKey: .invitees)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encodeIfPresent(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(creatorOpenid, forKey: .creatorOpenid)
+        try container.encode(color, forKey: .color)
+        try container.encode(date, forKey: .date)
+        try container.encode(startTime, forKey: .startTime)
+        try container.encode(endTime, forKey: .endTime)
+        try container.encodeIfPresent(endDate, forKey: .endDate)
+        try container.encode(destination, forKey: .destination)
+        try container.encode(mapObj, forKey: .mapObj)
+        try container.encode(openChecked, forKey: .openChecked)
+        try container.encode(personChecked, forKey: .personChecked)
+        try container.encodeIfPresent(personNumber, forKey: .personNumber)
+        try container.encodeIfPresent(sponsorType, forKey: .sponsorType)
+        try container.encodeIfPresent(category, forKey: .category)
+        try container.encode(createTime, forKey: .createTime)
+        try container.encodeIfPresent(deleted, forKey: .deleted)
+        try container.encodeIfPresent(information, forKey: .information)
+        try container.encodeIfPresent(groupId, forKey: .groupId)
+        try container.encodeIfPresent(isAllDay, forKey: .isAllDay)
+        try container.encodeIfPresent(repeatType, forKey: .repeatType)
+        try container.encodeIfPresent(calendarComponent, forKey: .calendarComponent)
+        try container.encodeIfPresent(travelTime, forKey: .travelTime)
+        try container.encodeIfPresent(invitees, forKey: .invitees)
+    }
 }
 
 // 辅助扩展
@@ -100,6 +175,19 @@ extension Event {
             let f = DateFormatter()
             f.dateFormat = format
             if let date = f.date(from: self.date) {
+                return date
+            }
+        }
+        return nil
+    }
+    
+    var endDateObj: Date? {
+        guard let endDate = self.endDate else { return nil }
+        let formats = ["yyyy-MM-dd", "yyyy/MM/dd", "MM/dd/yyyy"]
+        for format in formats {
+            let f = DateFormatter()
+            f.dateFormat = format
+            if let date = f.date(from: endDate) {
                 return date
             }
         }
@@ -178,6 +266,25 @@ extension Event {
     
     var isOpenChecked: Bool { self.openChecked == 1 }
     var isPersonChecked: Bool { self.personChecked == 1 }
+    
+    /// 推断是否有结束时间（用于 UI 显示）
+    /// isHasEnd 是一个 UI 状态，不需要存储到 Firebase
+    /// 它可以从 endTime 和 endDate 推断出来
+    var inferredIsHasEnd: Bool {
+        // 如果是整日活动，没有结束时间
+        if isAllDay == true {
+            return false
+        }
+        // 如果有结束日期且不等于开始日期，则认为有结束时间
+        if let endDate = endDate, endDate != date {
+            return true
+        }
+        // 如果有结束时间且不等于开始时间，则认为有结束时间
+        if !endTime.isEmpty && endTime != startTime {
+            return true
+        }
+        return false
+    }
 }
 
 private let dateFormatter: DateFormatter = {

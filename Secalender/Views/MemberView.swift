@@ -6,11 +6,51 @@
 //
 
 import SwiftUI
-import Firebase
+import FirebaseFirestore
 
 struct MemberView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
     @State private var showSignInView: Bool = false
+    @State private var pendingRequestCount: Int = 0
+    @State private var listener: ListenerRegistration?
+
+    @State private var hasInitialized = false //修改内容：避免重复初始化
+    
+    // MARK: - Private Methods
+    
+    private func setupRequestCountListener() {
+        //修改内容：如果已存在 listener，先移除再建（保留你的逻辑）
+        listener?.remove()
+        listener = nil
+        
+        guard !userManager.userOpenId.isEmpty else { return }
+        
+        let db = Firestore.firestore()
+        let query = db.collection("friend_requests")
+            .whereField("to", isEqualTo: userManager.userOpenId)
+            .whereField("status", isEqualTo: "pending")
+        
+        print("🔍 设置请求数量监听器，用户ID: \(userManager.userOpenId)")
+        
+        listener = query.addSnapshotListener { snapshot, error in
+            if let error = error {
+                print("❌ 请求数量监听器错误: \(error.localizedDescription)")
+                return
+            }
+            
+            //修改内容：用 MainActor 统一处理 UI 状态
+            Task { @MainActor in
+                let count = snapshot?.documents.count ?? 0
+                print("📊 待处理请求数量: \(count)")
+                self.pendingRequestCount = count
+            }
+        }
+    }
+    
+    private func refreshData() async {
+        //修改内容：如果你选择用 listener，当 refresh 时只 refresh user 资料即可
+        userManager.refresh()
+    }
     
     var body: some View {
         NavigationView {
@@ -36,8 +76,8 @@ struct MemberView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(userManager.displayName ?? userManager.alias ?? "用户")
                                 .font(.headline)
-                            if let email = userManager.alias {
-                                Text(email)
+                            if let alias = userManager.alias { //修改内容：变量命名修正
+                                Text(alias)
                                     .font(.subheadline)
                                     .foregroundColor(.gray)
                             }
@@ -55,7 +95,19 @@ struct MemberView: View {
                         Label("好友清单", systemImage: "person.3.fill")
                     }
                     NavigationLink(destination: ReceivedFriendRequestsView()) {
-                        Label("收到的请求", systemImage: "envelope")
+                        HStack {
+                            Label("收到的请求", systemImage: "envelope")
+                            Spacer()
+                            if pendingRequestCount > 0 {
+                                Text("\(pendingRequestCount)")
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.red)
+                                    .clipShape(Capsule())
+                            }
+                        }
                     }
                 }
 
@@ -72,10 +124,10 @@ struct MemberView: View {
                     }
                 }
 
-                // MARK: - 社群功能
-                Section(header: Text("社群")) {
-                    NavigationLink(destination: CommunityView()) {
-                        Label("社群行程", systemImage: "person.2.wave.2.fill")
+                // MARK: - 任务成就
+                Section(header: Text("任务成就")) {
+                    NavigationLink(destination: AchievementsContentView()) {
+                        Label("成就与任务", systemImage: "star.fill")
                     }
                 }
 
@@ -87,10 +139,70 @@ struct MemberView: View {
                 }
             }
             .navigationTitle("功能")
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: 80)
+            }
+            .refreshable {
+                await refreshData()
+            }
             .onAppear {
+                //修改内容：避免每次出现都重复 refresh + 重建监听
+                guard !hasInitialized else { return }
+                hasInitialized = true
+                
                 userManager.refresh()
+                setupRequestCountListener()
+            }
+            .onChange(of: userManager.userOpenId) { _ in
+                //修改内容：如果用户切换（登出/登入），重新绑定监听
+                setupRequestCountListener()
+            }
+            .onDisappear {
+                listener?.remove()
+                listener = nil
+                hasInitialized = false //修改内容：如果你希望 Tab 切回来要重新建 listener，就保留；否则可删掉这行
             }
         }
+    }
+}
+
+// MARK: - 成就内容视图（从AchievementsView整合）
+struct AchievementsContentView: View {
+    @State private var achievements: [Achievement] = [
+        Achievement(title: "連續早起七天",
+                    description: "培養早睡早起的好習慣",
+                    progress: 0.5),
+        Achievement(title: "完成五套親子行程",
+                    description: "與孩子共享愉快時光",
+                    progress: 0.2),
+        Achievement(title: "低碳出行十次",
+                    description: "乘坐公共交通或騎乘自行車",
+                    progress: 0.7)
+    ]
+
+    var body: some View {
+        List {
+            ForEach(achievements) { achievement in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(achievement.title).font(.headline)
+                        Spacer()
+                        Text(String(format: "%.0f%%", achievement.progress * 100))
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    Text(achievement.description)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    ProgressView(value: achievement.progress)
+                        .progressViewStyle(LinearProgressViewStyle(tint: .green))
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .listStyle(InsetGroupedListStyle())
+        .navigationTitle("成就與任務")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

@@ -24,11 +24,15 @@ class EventDetailViewModel: ObservableObject {
             event.creatorOpenid = currentUserOpenId
         }
 
+        // 注意：这个方法现在只用于后台同步到 Firebase
+        // 本地缓存应该在调用此方法之前已经更新
         do {
             if let eventID = event.id {
-                try await EventManager.shared.updateEvent(event: event)
+                // 更新事件：只更新 Firebase，本地缓存应该已经更新
+                try await EventManager.shared.updateEventInFirebaseOnly(event: event)
             } else {
-                try await EventManager.shared.addEvent(event: event)
+                // 新建事件：添加到 Firebase，本地缓存应该已经添加
+                try await EventManager.shared.addEventToFirebaseOnly(event: event)
             }
         } catch {
             errorMessage = error.localizedDescription

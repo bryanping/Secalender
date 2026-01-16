@@ -81,22 +81,6 @@ struct MyFriendListView: View {
     }
 }
 
-// FriendEntry 定义
-struct FriendEntry: Identifiable, Equatable {
-    let id: String
-    let alias: String?
-    let name: String?
-    let email: String?
-    let photoUrl: String?
-    let gender: String?
-
-    var isSelected: Bool? = false
-
-    static func == (lhs: FriendEntry, rhs: FriendEntry) -> Bool {
-        lhs.id == rhs.id
-    }
-}
-
 struct MyFriendListView_Previews: PreviewProvider {
     static var previews: some View {
         MyFriendListView()

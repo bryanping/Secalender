@@ -77,4 +77,49 @@ final class AppleCalendarManager: ObservableObject {
             self.fetchedEvents = events
         }
     }
+    
+    /// 获取用户的所有日历列表
+    func getUserCalendars() -> [EKCalendar] {
+        let status = EKEventStore.authorizationStatus(for: .event)
+        guard status == .authorized else {
+            return []
+        }
+        
+        // 获取所有可用的日历
+        let calendars = eventStore.calendars(for: .event)
+        // 过滤掉只读日历，只返回可写入的日历
+        return calendars.filter { $0.allowsContentModifications }
+    }
+    
+    /// 将EKCalendar转换为UserCalendar
+    func convertToUserCalendars(_ ekCalendars: [EKCalendar]) -> [UserCalendar] {
+        return ekCalendars.map { calendar in
+            guard let color = calendar.cgColor else {
+                return UserCalendar(
+                    id: calendar.calendarIdentifier,
+                    title: calendar.title,
+                    colorHex: "FF0000" // 默认红色
+                )
+            }
+            let colorHex = colorToHex(color)
+            return UserCalendar(
+                id: calendar.calendarIdentifier,
+                title: calendar.title,
+                colorHex: colorHex
+            )
+        }
+    }
+    
+    /// 将CGColor转换为十六进制字符串
+    private func colorToHex(_ color: CGColor) -> String {
+        guard let components = color.components, components.count >= 3 else {
+            return "FF0000" // 默认红色
+        }
+        
+        let r = Int(components[0] * 255)
+        let g = Int(components[1] * 255)
+        let b = Int(components[2] * 255)
+        
+        return String(format: "%02X%02X%02X", r, g, b)
+    }
 }

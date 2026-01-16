@@ -10,6 +10,7 @@ import Firebase
 
 struct AddFriendView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
+    @Environment(\.dismiss) var dismiss
     @State private var searchInput: String = ""
     @State private var errorMessage: String?
     @State private var showSuccessMessage = false
@@ -25,13 +26,13 @@ struct AddFriendView: View {
                     .font(.title)
                     .bold()
 
-                TextField("请输入对方的别名或邮箱", text: $searchInput)
+                TextField("请输入对方的别名、邮箱或用户ID", text: $searchInput)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding(.horizontal)
 
-                Button("添加好友") {
+                Button("发送好友请求") {
                     Task {
-                        await searchAndAddFriend()
+                        await searchAndSendRequest()
                     }
                 }
                 .buttonStyle(.borderedProminent)
@@ -44,7 +45,7 @@ struct AddFriendView: View {
                 }
 
                 if showSuccessMessage {
-                    Text("好友添加成功 ✅")
+                    Text("好友请求已发送 ✅")
                         .foregroundColor(.green)
                 }
             }
@@ -54,7 +55,7 @@ struct AddFriendView: View {
         .padding()
     }
 
-    private func searchAndAddFriend() async {
+    private func searchAndSendRequest() async {
         errorMessage = nil
         showSuccessMessage = false
         isLoading = true
@@ -69,14 +70,47 @@ struct AddFriendView: View {
             let db = Firestore.firestore()
             var userIdToAdd: String?
 
-            let aliasSnapshot = try await db.collection("users")
-                .whereField("alias", isEqualTo: searchInput)
-                .getDocuments()
-
-            if let doc = aliasSnapshot.documents.first {
-                userIdToAdd = doc.documentID
+            // 首先尝试通过user_code（8位ID）搜索
+            if !searchInput.isEmpty {
+                let userCodeSnapshot = try await db.collection("users")
+                    .whereField("user_code", isEqualTo: searchInput.uppercased())
+                    .getDocuments()
+                if let doc = userCodeSnapshot.documents.first {
+                    userIdToAdd = doc.documentID
+                }
             }
 
+            // 如果还没找到，尝试通过user_id字段搜索
+            if userIdToAdd == nil && !searchInput.isEmpty {
+                // 尝试直接通过文档ID查找
+                let userDocRef = db.collection("users").document(searchInput)
+                let userDoc = try await userDocRef.getDocument()
+                if userDoc.exists {
+                    userIdToAdd = userDoc.documentID
+                }
+                
+                // 如果文档ID不匹配，尝试通过user_id字段查找
+                if userIdToAdd == nil {
+                    let userIdSnapshot = try await db.collection("users")
+                        .whereField("user_id", isEqualTo: searchInput)
+                        .getDocuments()
+                    if let doc = userIdSnapshot.documents.first {
+                        userIdToAdd = doc.documentID
+                    }
+                }
+            }
+
+            // 如果还没找到，尝试通过别名搜索
+            if userIdToAdd == nil {
+                let aliasSnapshot = try await db.collection("users")
+                    .whereField("alias", isEqualTo: searchInput)
+                    .getDocuments()
+                if let doc = aliasSnapshot.documents.first {
+                    userIdToAdd = doc.documentID
+                }
+            }
+
+            // 如果还没找到，尝试通过邮箱搜索
             if userIdToAdd == nil {
                 let emailSnapshot = try await db.collection("users")
                     .whereField("email", isEqualTo: searchInput)
@@ -86,39 +120,33 @@ struct AddFriendView: View {
                 }
             }
 
-            guard let friendId = userIdToAdd else {
-                errorMessage = "找不到该用户"
+            guard let targetUserId = userIdToAdd else {
+                errorMessage = "找不到该用户，请检查别名、邮箱或用户ID是否正确"
                 isLoading = false
                 return
             }
 
-            if friendId == userManager.userOpenId {
+            if targetUserId == userManager.userOpenId {
                 errorMessage = "无法添加自己为好友"
                 isLoading = false
                 return
             }
 
-            // 檢查是否已添加過好友（可擴充）
-            let existing = try await db.collection("friends")
-                .whereField("owner", isEqualTo: userManager.userOpenId)
-                .whereField("friend", isEqualTo: friendId)
-                .getDocuments()
-            if !existing.documents.isEmpty {
-                errorMessage = "已经是好友"
-                isLoading = false
-                return
-            }
-
-            try await db.collection("friends").addDocument(data: [
-                "owner": userManager.userOpenId,
-                "friend": friendId,
-                "createdAt": Timestamp()
-            ])
+            // 使用FriendManager发送好友请求
+            try await FriendManager.shared.sendFriendRequest(
+                from: userManager.userOpenId,
+                to: targetUserId
+            )
 
             showSuccessMessage = true
             searchInput = ""
+            
+            // 延迟关闭，让用户看到成功消息
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5秒
+            dismiss()
         } catch {
-            errorMessage = "添加失败：\(error.localizedDescription)"
+            let nsError = error as NSError
+            errorMessage = nsError.localizedDescription
         }
 
         isLoading = false

@@ -75,28 +75,13 @@ struct DaySectionView: View {
         let isPast = (event.endDateTime ?? .distantPast) < now
 
         if event.creatorOpenid == currentUserOpenid {
-            return isPast ? Color(hex: "#CCCCCC") : Color(hex: "#FF6280")
+            return isPast ? (Color(hex: "#CCCCCC") ?? .gray) : (Color(hex: "#FF6280") ?? .pink)
         }
         if event.isOpenChecked {
-            return isPast ? Color(hex: "#AAAAAA") : Color(hex: "#5EDA74")
+            return isPast ? (Color(hex: "#AAAAAA") ?? .gray) : (Color(hex: "#5EDA74") ?? .green)
         }
         // 群组相关逻辑已移除
         return Color.gray.opacity(0.3)
-    }
-}
-
-extension Color {
-    init(hex: String) {
-        let hex = hex.replacingOccurrences(of: "#", with: "")
-        let scanner = Scanner(string: hex)
-        var rgb: UInt64 = 0
-        scanner.scanHexInt64(&rgb)
-
-        let r = Double((rgb >> 16) & 0xFF) / 255.0
-        let g = Double((rgb >> 8) & 0xFF) / 255.0
-        let b = Double(rgb & 0xFF) / 255.0
-
-        self.init(red: r, green: g, blue: b)
     }
 }
 

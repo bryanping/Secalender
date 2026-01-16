@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+/// 编辑来源类型
+enum EditSource {
+    case singleView    // 从单一行程检视页面进入
+    case multiView     // 从多行程检视页面进入
+    case calendar      // 从行事历直接进入
+}
+
 struct EventEditView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
     @Environment(\.dismiss) var dismiss
@@ -16,59 +23,161 @@ struct EventEditView: View {
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
     @State private var showDeleteConfirmation = false
+    @State private var hasInitialized = false
 
-    // 新增本地状态用于 DatePicker
+    // 使用本地状态保存用户输入，避免被外部更新覆盖
+    @State private var title: String = ""
+    @State private var destination: String = ""
+    @State private var information: String = ""
+    @State private var isOpenChecked: Bool = false
+    @State private var isAllDay: Bool = false
+    @State private var repeatType: String = "never"
+    @State private var calendarComponent: String = "default"
+    
+    // Date/Time 本地状态
     @State private var selectedDate: Date = Date()
     @State private var selectedStartTime: Date = Date()
     @State private var selectedEndTime: Date = Date().addingTimeInterval(3600)
+    @State private var selectedEndDate: Date = Date()
+    
+    @State private var isHasEnd: Bool = false //修改内容：作为 UI 意图层开关（唯一真相）
 
-    var onComplete: (() -> Void)? = nil
+    let onComplete: (() -> Void)?
+    let onDelete: (() -> Void)?  // 删除后的回调
+    let source: EditSource  // 编辑来源
+
+    // 显式初始化器
+    init(
+        viewModel: EventDetailViewModel,
+        onComplete: (() -> Void)? = nil,
+        onDelete: (() -> Void)? = nil,
+        source: EditSource = .singleView
+    ) {
+        self.viewModel = viewModel
+        self.onComplete = onComplete
+        self.onDelete = onDelete
+        self.source = source
+    }
 
     var body: some View {
-        Form {
-            Section(header: Text("基本信息")) {
-                TextField("输入标题", text: $viewModel.event.title)
-                DatePicker("日期", selection: $selectedDate, displayedComponents: .date)
-                DatePicker("开始时间", selection: $selectedStartTime, displayedComponents: .hourAndMinute)
-                DatePicker("结束时间", selection: $selectedEndTime, displayedComponents: .hourAndMinute)
-                TextField("地点", text: $viewModel.event.destination)
-                Toggle("公开给好友", isOn: Binding(
-                    get: { viewModel.event.openChecked == 1 },
-                    set: { viewModel.event.openChecked = $0 ? 1 : 0 }
-                ))
-            }
-
-            Button("更新活动") {
-                Task {
-                    do {
-                        try await viewModel.saveEvent(currentUserOpenId: userManager.userOpenId)
-                        onComplete?()
-                        dismiss()
-                    } catch {
-                        errorMessage = error.localizedDescription
-                        showErrorAlert = true
+        ScrollView {
+            VStack(spacing: 16) {
+                // 标题卡片
+                EventTitleCard(title: $title)
+                
+                // 活動介紹卡片
+                EventInformationCard(information: $information)
+                
+                // 时间信息卡片
+                EventTimeCard(
+                    startDate: $selectedDate,
+                    startTime: $selectedStartTime,
+                    endDate: Binding(
+                        get: { isHasEnd ? selectedEndDate : nil },
+                        set: { if let date = $0 { selectedEndDate = date } }
+                    ),
+                    endTime: Binding(
+                        get: { isHasEnd ? selectedEndTime : nil },
+                        set: { if let time = $0 { selectedEndTime = time } }
+                    ),
+                    isAllDay: $isAllDay,
+                    isHasEnd: $isHasEnd
+                )
+                .padding(.leading, 0.0)
+                
+                // 地点信息卡片
+                EventLocationCard(destination: $destination)
+                
+                // 其他设置卡片
+                EventSettingsCard(
+                    isOpenChecked: $isOpenChecked,
+                    repeatType: $repeatType,
+                    calendarComponent: $calendarComponent
+                )
+                
+                // 操作按钮
+                VStack(spacing: 16) {
+                    EventActionButton(
+                        title: "更新活动",
+                        icon: "checkmark.circle.fill",
+                        style: .primary
+                    ) {
+                        updateEvent()
+                    }
+                    
+                    EventActionButton(
+                        title: "删除活动",
+                        icon: "trash.fill",
+                        style: .destructive
+                    ) {
+                        showDeleteConfirmation = true
                     }
                 }
+                .padding(.horizontal)
+            }
+            .padding()
+            .padding(.bottom, 80) // 为底部按钮留出空间
+        }
+        .background(Color(.systemGroupedBackground))
+        .onAppear {
+            guard !hasInitialized else { return }
+            hasInitialized = true
+            
+            // 初始化本地状态
+            title = viewModel.event.title
+            destination = viewModel.event.destination
+            information = viewModel.event.information ?? ""
+            isOpenChecked = viewModel.event.openChecked == 1
+            isAllDay = viewModel.event.isAllDay ?? false
+            repeatType = viewModel.event.repeatType ?? "never"
+            calendarComponent = viewModel.event.calendarComponent ?? "default"
+            
+            // 初始化日期
+            if let dateObj = viewModel.event.dateObj {
+                selectedDate = dateObj
+            } else {
+                selectedDate = Date()
             }
             
-            Button("删除活动", role: .destructive) {
-                showDeleteConfirmation = true
+            // 初始化开始时间
+            if let startDateTime = viewModel.event.startDateTime {
+                selectedStartTime = startDateTime
+            } else {
+                selectedStartTime = Date()
+            }
+            
+            // 初始化结束日期（若没存就等于开始日期）
+            if let endDateString = viewModel.event.endDate,
+               let endDateObj = stringToDate(endDateString, format: "yyyy-MM-dd") {
+                selectedEndDate = endDateObj
+            } else {
+                selectedEndDate = selectedDate
+            }
+            
+            // 初始化结束时间（若没存就给一个“备用值”，但 UI 是否显示由 isHasEnd 决定）
+            if let endDateTime = viewModel.event.endDateTime {
+                selectedEndTime = endDateTime
+            } else {
+                selectedEndTime = Calendar.current.date(byAdding: .hour, value: 1, to: selectedStartTime) ?? Date().addingTimeInterval(3600) //修改内容
+            }
+            
+            //修改内容：isHasEnd 初始化只看“是否真的有结束字段”，不做推断
+            if !isAllDay {
+                isHasEnd = (viewModel.event.endTime != nil) || (viewModel.event.endDate != nil)
+            } else {
+                isHasEnd = false
             }
         }
-        .onAppear {
-            // 初始化本地 DatePicker 状态
-            selectedDate = stringToDate(viewModel.event.date, format: "yyyy-MM-dd") ?? Date()
-            selectedStartTime = stringToDate(viewModel.event.startTime, format: "HH:mm:ss") ?? Date()
-            selectedEndTime = stringToDate(viewModel.event.endTime, format: "HH:mm:ss") ?? Date().addingTimeInterval(3600)
-        }
-        .onChange(of: selectedDate) { newValue in
-            viewModel.event.date = dateToString(newValue, format: "yyyy-MM-dd")
-        }
-        .onChange(of: selectedStartTime) { newValue in
-            viewModel.event.startTime = dateToString(newValue, format: "HH:mm:ss")
-        }
-        .onChange(of: selectedEndTime) { newValue in
-            viewModel.event.endTime = dateToString(newValue, format: "HH:mm:ss")
+        .onChange(of: isAllDay) { newValue in
+            if newValue {
+                //修改内容：整日时与控制器逻辑保持一致 -> 强制关闭结束时间
+                isHasEnd = false
+                
+                let calendar = Calendar.current
+                selectedStartTime = calendar.startOfDay(for: selectedDate)
+                selectedEndDate = selectedDate
+                selectedEndTime = calendar.date(byAdding: .hour, value: 1, to: selectedStartTime) ?? selectedStartTime
+            }
         }
         .alert("错误", isPresented: $showErrorAlert) {
             Button("好") {}
@@ -81,8 +190,14 @@ struct EventEditView: View {
                 Task {
                     do {
                         if let eventId = viewModel.event.id {
-                            try await EventManager.shared.deleteEvent(eventId: eventId)
-                            onComplete?()
+                            // 使用软删除
+                            try await EventManager.shared.softDeleteEvent(eventId: eventId)
+                            // 调用删除回调（如果存在）
+                            onDelete?()
+                            // 如果没有删除回调，调用完成回调
+                            if onDelete == nil {
+                                onComplete?()
+                            }
                             dismiss()
                         }
                     } catch {
@@ -95,6 +210,74 @@ struct EventEditView: View {
             Text("确定要删除这个活动吗？此操作无法撤销。")
         }
         .navigationTitle("编辑活动")
+        .navigationBarTitleDisplayMode(.large)
+    }
+    
+    // MARK: - 私有方法
+    
+    private func updateEvent() {
+        viewModel.event.title = title
+        viewModel.event.destination = destination
+        viewModel.event.information = information.isEmpty ? nil : information
+        viewModel.event.openChecked = isOpenChecked ? 1 : 0
+        viewModel.event.isAllDay = isAllDay
+        viewModel.event.repeatType = repeatType
+        viewModel.event.calendarComponent = calendarComponent
+        
+        // 日期
+        viewModel.event.date = dateToString(selectedDate, format: "yyyy-MM-dd")
+        
+        if !isAllDay {
+            // 开始时间
+            viewModel.event.startTime = dateToString(selectedStartTime, format: "HH:mm:ss")
+            
+            //修改内容：结束字段完全由 isHasEnd 决定
+            if isHasEnd {
+                viewModel.event.endTime = dateToString(selectedEndTime, format: "HH:mm:ss")
+                
+                if selectedEndDate != selectedDate {
+                    viewModel.event.endDate = dateToString(selectedEndDate, format: "yyyy-MM-dd")
+                } else {
+                    viewModel.event.endDate = nil
+                }
+            } else {
+                // endTime 是 String 类型（非可选），不能为 nil，使用开始时间作为默认值
+                viewModel.event.endTime = dateToString(selectedStartTime, format: "HH:mm:ss")
+                viewModel.event.endDate = nil
+            }
+        } else {
+            // 整日活动（你原逻辑保留）
+            viewModel.event.startTime = "00:00:00"
+            viewModel.event.endTime = "23:59:59"
+            
+            //修改内容：整日强制不写 endDate（避免被当成“结束区间”）
+            viewModel.event.endDate = nil
+        }
+        
+        // 先更新本地缓存（立即响应，不等待网络）
+        let userId = userManager.userOpenId
+        if let eventId = viewModel.event.id {
+            // 更新事件：先更新本地缓存
+            EventCacheManager.shared.updateEventInCache(viewModel.event, for: userId)
+        } else {
+            // 新建事件：先添加到本地缓存
+            EventCacheManager.shared.addEventToCache(viewModel.event, for: userId)
+        }
+        
+        // 立即调用完成回调和关闭页面（不等待网络）
+        onComplete?()
+        dismiss()
+        
+        // 后台异步更新 Firebase（不阻塞 UI）
+        Task.detached {
+            do {
+                try await viewModel.saveEvent(currentUserOpenId: userId)
+            } catch {
+                // 后台更新失败，记录错误但不影响用户体验
+                // 因为本地缓存已经更新，用户可以继续使用
+                print("⚠️ 后台更新 Firebase 失败：\(error.localizedDescription)")
+            }
+        }
     }
 }
 

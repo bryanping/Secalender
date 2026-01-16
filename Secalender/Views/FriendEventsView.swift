@@ -100,11 +100,16 @@ struct FriendEventsView: View {
 
     private func refreshEvents() async {
         do {
+            // 確保好友列表已加載
+            await FriendManager.shared.loadFriends(for: userManager.userOpenId)
+            
+            // 獲取所有事件
             let events = try await EventManager.shared.fetchEvents()
 
             let myId = userManager.userOpenId
             let role = userManager.userRole
 
+            // 過濾出朋友的事件
             let filtered = await EventAccessManager.shared.filterEventsForCurrentUser(
                 events,
                 currentUserOpenId: myId,
@@ -115,10 +120,14 @@ struct FriendEventsView: View {
 
             await MainActor.run {
                 self.allEvents = events
+                // 過濾掉自己的事件，只顯示朋友的事件
                 self.filteredEvents = filtered.filter { $0.creatorOpenid != myId }
             }
         } catch {
             print("取得事件失敗：\(error.localizedDescription)")
+            await MainActor.run {
+                self.filteredEvents = []
+            }
         }
     }
 

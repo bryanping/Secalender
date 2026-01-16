@@ -5,11 +5,17 @@ import Firebase
 
 /// 顯示用戶加入的社群中公開活動
 struct GroupEventsView: View {
+    let groupId: String?  // 可選的特定社群 ID，如果為 nil 則顯示所有社群活動
+    
     @EnvironmentObject var userManager: FirebaseUserManager
     @State private var groupIds: [String] = []
     @State private var groupEvents: [Event] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    
+    init(groupId: String? = nil) {
+        self.groupId = groupId
+    }
 
     var body: some View {
         VStack {
@@ -19,7 +25,7 @@ struct GroupEventsView: View {
                 ProgressView().padding()
             } else if let err = errorMessage {
                 Text(err).foregroundColor(.red)
-            } else if groupIds.isEmpty {
+            } else if groupIds.isEmpty && groupId == nil {
                 VStack {
                     Spacer()
                     Text("尚未加入任何社群")
@@ -85,7 +91,7 @@ struct GroupEventsView: View {
                 }
             }
         }
-        .navigationTitle("社群活動")
+        .navigationTitle(groupId != nil ? "社群活動" : "社群活動")
         .onAppear { Task { await refreshEvents() } }
         .refreshable { await refreshEvents() }
     }
@@ -114,63 +120,83 @@ struct GroupEventsView: View {
         errorMessage = nil
         do {
             let db = Firestore.firestore()
-            // 取出當前用戶參與的社群 ID
-            let groupSnapshot = try await db.collection("groups")
-                .whereField("members", arrayContains: userManager.userOpenId)
-                .getDocuments()
-            let ids = groupSnapshot.documents.map { $0.documentID }
-            groupIds = ids
+            var ids: [String] = []
+            
+            if let specificGroupId = groupId {
+                // 如果指定了特定社群 ID，只使用該社群
+                ids = [specificGroupId]
+                groupIds = ids
+            } else {
+                // 取出當前用戶參與的社群 ID
+                let groupSnapshot = try await db.collection("groups")
+                    .whereField("members", arrayContains: userManager.userOpenId)
+                    .getDocuments()
+                ids = groupSnapshot.documents.map { $0.documentID }
+                groupIds = ids
+            }
+            
             guard !ids.isEmpty else {
                 groupEvents = []
                 isLoading = false
                 return
             }
-            // 讀取公開活動
-            let eventSnapshot = try await db.collection("events")
-                .whereField("openChecked", isEqualTo: 1)
-                .getDocuments()
+            
+            // 從 groups/{groupId}/groupEvents 讀取社群活動
             var events: [Event] = []
-            for doc in eventSnapshot.documents {
-                let data = doc.data()
-                // 只保留 groupId 為當前社群之一的事件
-                guard let gid = data["groupId"] as? String, ids.contains(gid) else { continue }
-                // 建立 Event，解析必要欄位
-                let id = data["id"] as? Int
-                let title = data["title"] as? String ?? ""
-                let creatorOpenid = data["creatorOpenid"] as? String ?? ""
-                let color = data["color"] as? String ?? ""
-                let date = data["date"] as? String ?? ""
-                let startTime = data["startTime"] as? String ?? ""
-                let endTime = data["endTime"] as? String ?? ""
-                let endDate = data["endDate"] as? String
-                let destination = data["destination"] as? String ?? ""
-                let mapObj = data["mapObj"] as? String ?? ""
-                let openChecked = data["openChecked"] as? Int ?? 0
-                let personChecked = data["personChecked"] as? Int ?? 0
-                let personNumber = data["personNumber"] as? Int
-                let sponsorType = data["sponsorType"] as? String
-                let category = data["category"] as? String
-                let createTime = data["createTime"] as? String ?? ""
-                let deleted = data["deleted"] as? Int
-                let information = data["information"] as? String
-                let isAllDay = data["isAllDay"] as? Bool ?? false
-                let repeatType = data["repeatType"] as? String ?? "never"
-                let calendarComponent = data["calendarComponent"] as? String ?? "default"
-                let travelTime = data["travelTime"] as? String
-                let invitees = data["invitees"] as? [String]
-                var event = Event(
-                    id: id, title: title, creatorOpenid: creatorOpenid, color: color,
-                    date: date, startTime: startTime, endTime: endTime,
-                    endDate: endDate, destination: destination, mapObj: mapObj,
-                    openChecked: openChecked, personChecked: personChecked,
-                    personNumber: personNumber, sponsorType: sponsorType,
-                    category: category, createTime: createTime, deleted: deleted,
-                    information: information, isAllDay: isAllDay, repeatType: repeatType,
-                    calendarComponent: calendarComponent, travelTime: travelTime,
-                    invitees: invitees
-                )
-                event.groupId = gid    // 初始化後再賦值，避免參數順序問題
-                events.append(event)
+            for groupId in ids {
+                let groupEventsSnapshot = try await db.collection("groups")
+                    .document(groupId)
+                    .collection("groupEvents")
+                    .whereField("openChecked", isEqualTo: 1)  // 只讀取公開的社群活動
+                    .getDocuments()
+                
+                for doc in groupEventsSnapshot.documents {
+                    let data = doc.data()
+                    
+                    // 建立 Event，解析必要欄位
+                    let id = data["id"] as? Int
+                    let title = data["title"] as? String ?? ""
+                    let creatorOpenid = data["creatorOpenid"] as? String ?? ""
+                    let color = data["color"] as? String ?? ""
+                    let date = data["date"] as? String ?? ""
+                    let startTime = data["startTime"] as? String ?? ""
+                    let endTime = data["endTime"] as? String ?? ""
+                    let endDate = data["endDate"] as? String
+                    let destination = data["destination"] as? String ?? ""
+                    let mapObj = data["mapObj"] as? String ?? ""
+                    let openChecked = data["openChecked"] as? Int ?? 0
+                    let personChecked = data["personChecked"] as? Int ?? 0
+                    let personNumber = data["personNumber"] as? Int
+                    let sponsorType = data["sponsorType"] as? String
+                    let category = data["category"] as? String
+                    let createTime = data["createTime"] as? String ?? ""
+                    let deleted = data["deleted"] as? Int
+                    let information = data["information"] as? String
+                    let isAllDay = data["isAllDay"] as? Bool ?? false
+                    let repeatType = data["repeatType"] as? String ?? "never"
+                    let calendarComponent = data["calendarComponent"] as? String ?? "default"
+                    let travelTime = data["travelTime"] as? String
+                    let invitees = data["invitees"] as? [String]
+                    
+                    // 跳過已刪除的事件
+                    if deleted == 1 {
+                        continue
+                    }
+                    
+                    var event = Event(
+                        id: id, title: title, creatorOpenid: creatorOpenid, color: color,
+                        date: date, startTime: startTime, endTime: endTime,
+                        endDate: endDate, destination: destination, mapObj: mapObj,
+                        openChecked: openChecked, personChecked: personChecked,
+                        personNumber: personNumber, sponsorType: sponsorType,
+                        category: category, createTime: createTime, deleted: deleted,
+                        information: information, isAllDay: isAllDay, repeatType: repeatType,
+                        calendarComponent: calendarComponent, travelTime: travelTime,
+                        invitees: invitees
+                    )
+                    event.groupId = groupId    // 設置 groupId
+                    events.append(event)
+                }
             }
             groupEvents = events
         } catch {

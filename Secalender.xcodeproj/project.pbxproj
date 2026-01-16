@@ -3,10 +3,12 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 71;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2EF93F830C8249DA9F49C3F5 /* EventCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EF93F830C8249DA9F49C3F4 /* EventCacheManager.swift */; };
+		4EC8718C51114332971CDA1F /* UserCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EC8718B51114332971CDA1E /* UserCalendar.swift */; };
 		A21B71D22DF1D16400FE7CD6 /* MyFriendListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A21B71D12DF1D16300FE7CD6 /* MyFriendListView.swift */; };
 		A229AEA52D965F2700B710E3 /* DaySectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A229AEA42D965F2100B710E3 /* DaySectionView.swift */; };
 		A22A187D2DF5624200FF4B1C /* EventAccessManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22A187C2DF5624100FF4B1C /* EventAccessManager.swift */; };
@@ -44,6 +46,29 @@
 		A2B0DB402C3C49E200733BD8 /* EventManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B0DB3F2C3C49E200733BD8 /* EventManager.swift */; };
 		A2B0DB442C3C4CCF00733BD8 /* EventDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B0DB432C3C4CCF00733BD8 /* EventDetailViewModel.swift */; };
 		A2C21B2C2DE2248700D588C3 /* ReceivedFriendRequestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C21B2B2DE2248600D588C3 /* ReceivedFriendRequestsView.swift */; };
+		A2DB300A2F160DCC00ADB775 /* FriendsAndGroupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2DB30092F160DCC00ADB775 /* FriendsAndGroupsView.swift */; };
+		A2DB300C2F161CD000ADB775 /* LiquidGlassStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2DB300B2F161CD000ADB775 /* LiquidGlassStyle.swift */; };
+		A2DB300E2F17317A00ADB775 /* EventUIStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2DB300D2F17317A00ADB775 /* EventUIStyle.swift */; };
+		A2E0F99B2F19389D00DA4FC9 /* GroupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F99A2F19389D00DA4FC9 /* GroupManager.swift */; };
+		A2E0F99D2F19416A00DA4FC9 /* GroupSelectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F99C2F19416A00DA4FC9 /* GroupSelectorView.swift */; };
+		A2E0F9A12F1A76F000DA4FC9 /* FollowUpManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9A02F1A76F000DA4FC9 /* FollowUpManager.swift */; };
+		A2E0F9A32F1A76F600DA4FC9 /* InputClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9A22F1A76F600DA4FC9 /* InputClassifier.swift */; };
+		A2E0F9A52F1A77B900DA4FC9 /* PlanGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9A42F1A77B900DA4FC9 /* PlanGenerator.swift */; };
+		A2E0F9AF2F1A853C00DA4FC9 /* TripPlanCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9AE2F1A853C00DA4FC9 /* TripPlanCard.swift */; };
+		A2E0F9B12F1A857000DA4FC9 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9B02F1A857000DA4FC9 /* MessageBubble.swift */; };
+		A2E0F9B32F1A85A300DA4FC9 /* MultiDayPlanDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9B22F1A85A300DA4FC9 /* MultiDayPlanDetailView.swift */; };
+		A2E0F9B52F1A86F300DA4FC9 /* AITripGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9B42F1A86F300DA4FC9 /* AITripGenerator.swift */; };
+		A2E0F9B72F1A89F500DA4FC9 /* PlanDaySectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9B62F1A89F500DA4FC9 /* PlanDaySectionView.swift */; };
+		A2E0F9B92F1B1B7600DA4FC9 /* AIConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9B82F1B1B7600DA4FC9 /* AIConfig.swift */; };
+		A2E0F9BB2F1B1CAB00DA4FC9 /* PlanDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9BA2F1B1CAB00DA4FC9 /* PlanDetailView.swift */; };
+		A2E0F9BF2F1B1E8000DA4FC9 /* ChatMessageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9BE2F1B1E8000DA4FC9 /* ChatMessageManager.swift */; };
+		A2E0F9C12F1B1ECE00DA4FC9 /* PlanEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9C02F1B1ECE00DA4FC9 /* PlanEditView.swift */; };
+		A2E0F9C32F1B87F100DA4FC9 /* TripTemplateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9C22F1B87F100DA4FC9 /* TripTemplateManager.swift */; };
+		A2E0F9C72F1B8C3A00DA4FC9 /* BatchShareEventsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9C62F1B8C3A00DA4FC9 /* BatchShareEventsView.swift */; };
+		A2E0F9C92F1B8F6300DA4FC9 /* FriendSelectionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9C82F1B8F6300DA4FC9 /* FriendSelectionRow.swift */; };
+		A2E0F9CB2F1DC79C00DA4FC9 /* MultiEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9CA2F1DC79C00DA4FC9 /* MultiEventView.swift */; };
+		A2E0F9CD2F1E6F7500DA4FC9 /* SearchGroupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9CC2F1E6F7500DA4FC9 /* SearchGroupView.swift */; };
+		A2E0F9CF2F1F16D300DA4FC9 /* GroupDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9CE2F1F16C800DA4FC9 /* GroupDetailView.swift */; };
 		A2E66AB02E35C1670025E244 /* CalendarOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E66AAF2E35C1670025E244 /* CalendarOptionsView.swift */; };
 		A2E66AB32E35C1800025E244 /* RepeatOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E66AB12E35C1800025E244 /* RepeatOptionsView.swift */; };
 		A2E66AB42E35C1800025E244 /* TravelTimeOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E66AB22E35C1800025E244 /* TravelTimeOptionsView.swift */; };
@@ -76,9 +101,17 @@
 		A2FEEA292E09D423006696EC /* ShareNotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2FEEA272E09D423006696EC /* ShareNotificationsView.swift */; };
 		A2FEEA2A2E09D423006696EC /* EventInvitationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2FEEA252E09D423006696EC /* EventInvitationsView.swift */; };
 		A2FEEA2C2E09D45E006696EC /* InviteFriendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2FEEA2B2E09D45E006696EC /* InviteFriendsView.swift */; };
+		B5C6D7E8F9A0B1C2D3E4F5A6 /* LocationPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5C6D7E8F9A0B1C2D3E4F5A5 /* LocationPickerView.swift */; };
+		C7D8E9F0A1B2C3D4E5F6A7 /* TravelTimeCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7D8E9F0A1B2C3D4E5F6A6 /* TravelTimeCalculator.swift */; };
+		C9E04527658D41DB8D5F74BD /* UserPreferencesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9E04526658D41DB8D5F74BC /* UserPreferencesManager.swift */; };
+		D4E5F6A7B8C9D0E1F2A3B4 /* InviteLinkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E5F6A7B8C9D0E1F2A3B3 /* InviteLinkManager.swift */; };
+		E5F6A7B8C9D0E1F2A3B4C5 /* ContactManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F6A7B8C9D0E1F2A3B4C4 /* ContactManager.swift */; };
+		F1A2B3C4D5E6F7A8B9C0D1 /* LocationCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F7A8B9C0D0 /* LocationCacheManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		2EF93F830C8249DA9F49C3F4 /* EventCacheManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventCacheManager.swift; sourceTree = "<group>"; };
+		4EC8718B51114332971CDA1E /* UserCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserCalendar.swift; sourceTree = "<group>"; };
 		A21B71D12DF1D16300FE7CD6 /* MyFriendListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyFriendListView.swift; sourceTree = "<group>"; };
 		A229AEA42D965F2100B710E3 /* DaySectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaySectionView.swift; sourceTree = "<group>"; };
 		A22A187C2DF5624100FF4B1C /* EventAccessManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventAccessManager.swift; sourceTree = "<group>"; };
@@ -112,6 +145,30 @@
 		A2B0DB3F2C3C49E200733BD8 /* EventManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventManager.swift; sourceTree = "<group>"; };
 		A2B0DB432C3C4CCF00733BD8 /* EventDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventDetailViewModel.swift; sourceTree = "<group>"; };
 		A2C21B2B2DE2248600D588C3 /* ReceivedFriendRequestsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceivedFriendRequestsView.swift; sourceTree = "<group>"; };
+		A2DB30092F160DCC00ADB775 /* FriendsAndGroupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsAndGroupsView.swift; sourceTree = "<group>"; };
+		A2DB300B2F161CD000ADB775 /* LiquidGlassStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassStyle.swift; sourceTree = "<group>"; };
+		A2DB300D2F17317A00ADB775 /* EventUIStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventUIStyle.swift; sourceTree = "<group>"; };
+		A2E0F99A2F19389D00DA4FC9 /* GroupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupManager.swift; sourceTree = "<group>"; };
+		A2E0F99C2F19416A00DA4FC9 /* GroupSelectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupSelectorView.swift; sourceTree = "<group>"; };
+		A2E0F9A02F1A76F000DA4FC9 /* FollowUpManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowUpManager.swift; sourceTree = "<group>"; };
+		A2E0F9A22F1A76F600DA4FC9 /* InputClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputClassifier.swift; sourceTree = "<group>"; };
+		A2E0F9A42F1A77B900DA4FC9 /* PlanGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanGenerator.swift; sourceTree = "<group>"; };
+		A2E0F9AA2F1A7F7E00DA4FC9 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
+		A2E0F9AE2F1A853C00DA4FC9 /* TripPlanCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripPlanCard.swift; sourceTree = "<group>"; };
+		A2E0F9B02F1A857000DA4FC9 /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
+		A2E0F9B22F1A85A300DA4FC9 /* MultiDayPlanDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiDayPlanDetailView.swift; sourceTree = "<group>"; };
+		A2E0F9B42F1A86F300DA4FC9 /* AITripGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AITripGenerator.swift; sourceTree = "<group>"; };
+		A2E0F9B62F1A89F500DA4FC9 /* PlanDaySectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanDaySectionView.swift; sourceTree = "<group>"; };
+		A2E0F9B82F1B1B7600DA4FC9 /* AIConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConfig.swift; sourceTree = "<group>"; };
+		A2E0F9BA2F1B1CAB00DA4FC9 /* PlanDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanDetailView.swift; sourceTree = "<group>"; };
+		A2E0F9BE2F1B1E8000DA4FC9 /* ChatMessageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageManager.swift; sourceTree = "<group>"; };
+		A2E0F9C02F1B1ECE00DA4FC9 /* PlanEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanEditView.swift; sourceTree = "<group>"; };
+		A2E0F9C22F1B87F100DA4FC9 /* TripTemplateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripTemplateManager.swift; sourceTree = "<group>"; };
+		A2E0F9C62F1B8C3A00DA4FC9 /* BatchShareEventsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchShareEventsView.swift; sourceTree = "<group>"; };
+		A2E0F9C82F1B8F6300DA4FC9 /* FriendSelectionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendSelectionRow.swift; sourceTree = "<group>"; };
+		A2E0F9CA2F1DC79C00DA4FC9 /* MultiEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiEventView.swift; sourceTree = "<group>"; };
+		A2E0F9CC2F1E6F7500DA4FC9 /* SearchGroupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchGroupView.swift; sourceTree = "<group>"; };
+		A2E0F9CE2F1F16C800DA4FC9 /* GroupDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupDetailView.swift; sourceTree = "<group>"; };
 		A2E66AAF2E35C1670025E244 /* CalendarOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarOptionsView.swift; sourceTree = "<group>"; };
 		A2E66AB12E35C1800025E244 /* RepeatOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepeatOptionsView.swift; sourceTree = "<group>"; };
 		A2E66AB22E35C1800025E244 /* TravelTimeOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelTimeOptionsView.swift; sourceTree = "<group>"; };
@@ -144,7 +201,17 @@
 		A2FEEA262E09D423006696EC /* ShareHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareHistoryView.swift; sourceTree = "<group>"; };
 		A2FEEA272E09D423006696EC /* ShareNotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareNotificationsView.swift; sourceTree = "<group>"; };
 		A2FEEA2B2E09D45E006696EC /* InviteFriendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteFriendsView.swift; sourceTree = "<group>"; };
+		B5C6D7E8F9A0B1C2D3E4F5A5 /* LocationPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationPickerView.swift; sourceTree = "<group>"; };
+		C7D8E9F0A1B2C3D4E5F6A6 /* TravelTimeCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelTimeCalculator.swift; sourceTree = "<group>"; };
+		C9E04526658D41DB8D5F74BC /* UserPreferencesManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferencesManager.swift; sourceTree = "<group>"; };
+		D4E5F6A7B8C9D0E1F2A3B3 /* InviteLinkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteLinkManager.swift; sourceTree = "<group>"; };
+		E5F6A7B8C9D0E1F2A3B4C4 /* ContactManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactManager.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E6F7A8B9C0D0 /* LocationCacheManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationCacheManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		A2E0F9A92F1A7DD100DA4FC9 /* Config */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Config; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A2F8E6BD2C1944A700AA109D /* Frameworks */ = {
@@ -164,12 +231,12 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		A229AEA32D965F0B00B710E3 /* Components */ = {
+		2EF93F830C8249DA9F49C3F3 /* Cache */ = {
 			isa = PBXGroup;
 			children = (
-				A229AEA42D965F2100B710E3 /* DaySectionView.swift */,
+				2EF93F830C8249DA9F49C3F4 /* EventCacheManager.swift */,
 			);
-			path = Components;
+			path = Cache;
 			sourceTree = "<group>";
 		};
 		A251BF682DF927520024A02C /* Preview */ = {
@@ -198,38 +265,53 @@
 			isa = PBXGroup;
 			children = (
 				A29AA4992E48B2DA00EDB8CF /* AIPlanResultView.swift */,
-				A29AA4842E48851C00EDB8CF /* AddGroupView.swift */,
-				A2F153EB2E45D5AF00158F94 /* AchievementsView.swift */,
 				A2F153E92E45D59F00158F94 /* AIPlannerView.swift */,
+				B5C6D7E8F9A0B1C2D3E4F5A5 /* LocationPickerView.swift */,
+				A29AA4842E48851C00EDB8CF /* AddGroupView.swift */,
+				A256F6282DDF0A5800A71EC0 /* AddFriendView.swift */,
+				A229AEA42D965F2100B710E3 /* DaySectionView.swift */,
+				A2E0F99C2F19416A00DA4FC9 /* GroupSelectorView.swift */,
+				A2E913AE2DE801DB00629016 /* GroupEventsView.swift */,
+				A2E0F9CC2F1E6F7500DA4FC9 /* SearchGroupView.swift */,
+				A2F153EB2E45D5AF00158F94 /* AchievementsView.swift */,
 				A2F153E72E45D58E00158F94 /* TemplateDetailView.swift */,
 				A2F153E52E45D57300158F94 /* TemplateStoreView.swift */,
+				A2E0F9C62F1B8C3A00DA4FC9 /* BatchShareEventsView.swift */,
 				A2F8F1332E0CEBA500C64BE7 /* StaticSkeletonView.swift */,
 				A251BF642DF7CC330024A02C /* FriendManager.swift */,
-				A2E80DC62DF1D81700651E91 /* EditProfileView.swift */,
-				A21B71D12DF1D16300FE7CD6 /* MyFriendListView.swift */,
-				A2700EA02DF136EE009E8955 /* FriendMultiSelectView.swift */,
-				A2E913B02DE801E600629016 /* NearbyEventsView.swift */,
-				A2E913AE2DE801DB00629016 /* GroupEventsView.swift */,
 				A2E913AC2DE801CC00629016 /* FriendEventsView.swift */,
-				A2E913AA2DE7656100629016 /* SharedEventSectionView.swift */,
-				A2C21B2B2DE2248600D588C3 /* ReceivedFriendRequestsView.swift */,
-				A256F6282DDF0A5800A71EC0 /* AddFriendView.swift */,
+				A2700EA02DF136EE009E8955 /* FriendMultiSelectView.swift */,
+				A2E0F9C82F1B8F6300DA4FC9 /* FriendSelectionRow.swift */,
+				A2DB30092F160DCC00ADB775 /* FriendsAndGroupsView.swift */,
+				A29AA4812E4884F900EDB8CF /* Group */,
+				A2B0DB3D2C3C499F00733BD8 /* Event.swift */,
+				A2B0DB3F2C3C49E200733BD8 /* EventManager.swift */,
+				A2E80DC62DF1D81700651E91 /* EditProfileView.swift */,
 				A2F229BB2D41DDC100B4CA4D /* EventShareView.swift */,
 				A2F229B92D41DDB800B4CA4D /* EventEditView.swift */,
 				A2F229B72D41DDAE00B4CA4D /* EventCreateView.swift */,
+				A2B0DB432C3C4CCF00733BD8 /* EventDetailViewModel.swift */,
+				A2FEEA232E09D3F3006696EC /* EventShareActionView.swift */,
+				A2E0F9CA2F1DC79C00DA4FC9 /* MultiEventView.swift */,
+				A2E0F9C02F1B1ECE00DA4FC9 /* PlanEditView.swift */,
+				A2E0F9B62F1A89F500DA4FC9 /* PlanDaySectionView.swift */,
+				A2E0F9BA2F1B1CAB00DA4FC9 /* PlanDetailView.swift */,
+				A2FEEA252E09D423006696EC /* EventInvitationsView.swift */,
+				A21B71D12DF1D16300FE7CD6 /* MyFriendListView.swift */,
+				A2E913B02DE801E600629016 /* NearbyEventsView.swift */,
+				A2E0F9B22F1A85A300DA4FC9 /* MultiDayPlanDetailView.swift */,
+				A2E0F9B02F1A857000DA4FC9 /* MessageBubble.swift */,
+				A2E913AA2DE7656100629016 /* SharedEventSectionView.swift */,
+				A2C21B2B2DE2248600D588C3 /* ReceivedFriendRequestsView.swift */,
 				A2848C9E2DE9828F00C0773B /* CalendarView.swift */,
 				A280B4FE2C295B2F00CC4A45 /* CommunityView.swift */,
 				A280B5002C295C4F00CC4A45 /* MemberView.swift */,
-				A2B0DB3D2C3C499F00733BD8 /* Event.swift */,
-				A2B0DB3F2C3C49E200733BD8 /* EventManager.swift */,
-				A2B0DB432C3C4CCF00733BD8 /* EventDetailViewModel.swift */,
-				A2FEEA232E09D3F3006696EC /* EventShareActionView.swift */,
-				A2FEEA252E09D423006696EC /* EventInvitationsView.swift */,
 				A2FEEA262E09D423006696EC /* ShareHistoryView.swift */,
 				A2FEEA272E09D423006696EC /* ShareNotificationsView.swift */,
 				A2FEEA2B2E09D45E006696EC /* InviteFriendsView.swift */,
 				A2E66AAF2E35C1670025E244 /* CalendarOptionsView.swift */,
 				A2E66AB12E35C1800025E244 /* RepeatOptionsView.swift */,
+				A2E0F9AE2F1A853C00DA4FC9 /* TripPlanCard.swift */,
 				A2E66AB22E35C1800025E244 /* TravelTimeOptionsView.swift */,
 			);
 			path = Views;
@@ -238,6 +320,8 @@
 		A29AA4812E4884F900EDB8CF /* Group */ = {
 			isa = PBXGroup;
 			children = (
+				A2E0F9CE2F1F16C800DA4FC9 /* GroupDetailView.swift */,
+				A2E0F99A2F19389D00DA4FC9 /* GroupManager.swift */,
 				A29AA4822E48850200EDB8CF /* CommunityGroup.swift */,
 			);
 			path = Group;
@@ -246,10 +330,25 @@
 		A29AA4962E48B2CC00EDB8CF /* AIgeneration */ = {
 			isa = PBXGroup;
 			children = (
+				A2E0F9B82F1B1B7600DA4FC9 /* AIConfig.swift */,
+				A2E0F9B42F1A86F300DA4FC9 /* AITripGenerator.swift */,
+				A2E0F9A02F1A76F000DA4FC9 /* FollowUpManager.swift */,
+				A2E0F9BE2F1B1E8000DA4FC9 /* ChatMessageManager.swift */,
+				A2E0F9C22F1B87F100DA4FC9 /* TripTemplateManager.swift */,
+				A2E0F9A22F1A76F600DA4FC9 /* InputClassifier.swift */,
+				A2E0F9A42F1A77B900DA4FC9 /* PlanGenerator.swift */,
 				A29AA4942E48B2CC00EDB8CF /* OpenAIManager.swift */,
 				A29AA4952E48B2CC00EDB8CF /* ScheduleItem.swift */,
 			);
 			path = AIgeneration;
+			sourceTree = "<group>";
+		};
+		A2E0F9AB2F1A7F7E00DA4FC9 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				A2E0F9AA2F1A7F7E00DA4FC9 /* Secrets.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		A2E93C512C32915A00516E52 /* Core */ = {
@@ -260,6 +359,9 @@
 				A2E93C5C2C32932D00516E52 /* Profile */,
 				A2E93C522C3291B900516E52 /* Settings */,
 				A29AA4962E48B2CC00EDB8CF /* AIgeneration */,
+				2EF93F830C8249DA9F49C3F3 /* Cache */,
+				BC2A6D0ADCAE4056802B261C /* Location */,
+				F6A7B8C9D0E1F2A3B4C5D6 /* Share */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -269,6 +371,7 @@
 			children = (
 				A2706CF62C1BF8A3004AB455 /* SettingsView.swift */,
 				A2E93C542C32920300516E52 /* SettingsViewModel.swift */,
+				C9E04526658D41DB8D5F74BC /* UserPreferencesManager.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -311,6 +414,8 @@
 		A2EDD8F32C2484600098B31A /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				A2DB300D2F17317A00ADB775 /* EventUIStyle.swift */,
+				A2DB300B2F161CD000ADB775 /* LiquidGlassStyle.swift */,
 				A2EDD8F42C2484B00098B31A /* Utilities.swift */,
 			);
 			path = Utilities;
@@ -320,6 +425,7 @@
 			isa = PBXGroup;
 			children = (
 				A2F229B42D40CC9400B4CA4D /* AIPlanner.swift */,
+				4EC8718B51114332971CDA1E /* UserCalendar.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -327,20 +433,20 @@
 		A2F8E6B72C1944A700AA109D = {
 			isa = PBXGroup;
 			children = (
+				A2E0F9A92F1A7DD100DA4FC9 /* Config */,
 				A2F8E6C22C1944A700AA109D /* Secalender */,
 				A2B0DB3C2C3C3BDA00733BD8 /* Secalender.app */,
+				A2E0F9AB2F1A7F7E00DA4FC9 /* Config */,
 			);
 			sourceTree = "<group>";
 		};
 		A2F8E6C22C1944A700AA109D /* Secalender */ = {
 			isa = PBXGroup;
 			children = (
-				A29AA4812E4884F900EDB8CF /* Group */,
 				A251BF682DF927520024A02C /* Preview */,
 				A2A2A65A2C2A6DCB00247342 /* Secalender.entitlements */,
 				A2F8E6C32C1944A700AA109D /* SecalenderApp.swift */,
 				A2F8E6C52C1944A700AA109D /* ContentView.swift */,
-				A229AEA32D965F0B00B710E3 /* Components */,
 				A2669F212C233432000BEC6E /* Info.plist */,
 				A2E93C512C32915A00516E52 /* Core */,
 				A280B4FB2C295AFE00CC4A45 /* Views */,
@@ -361,6 +467,24 @@
 				A2F8E6CA2C1944AA00AA109D /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		BC2A6D0ADCAE4056802B261C /* Location */ = {
+			isa = PBXGroup;
+			children = (
+				C7D8E9F0A1B2C3D4E5F6A6 /* TravelTimeCalculator.swift */,
+				F1A2B3C4D5E6F7A8B9C0D0 /* LocationCacheManager.swift */,
+			);
+			path = Location;
+			sourceTree = "<group>";
+		};
+		F6A7B8C9D0E1F2A3B4C5D6 /* Share */ = {
+			isa = PBXGroup;
+			children = (
+				D4E5F6A7B8C9D0E1F2A3B3 /* InviteLinkManager.swift */,
+				E5F6A7B8C9D0E1F2A3B4C4 /* ContactManager.swift */,
+			);
+			path = Share;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -448,6 +572,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A2E93C612C32ADEF00516E52 /* UserManager.swift in Sources */,
+				A2E0F9AF2F1A853C00DA4FC9 /* TripPlanCard.swift in Sources */,
 				A280B4FF2C295B2F00CC4A45 /* CommunityView.swift in Sources */,
 				A2E913B12DE801E700629016 /* NearbyEventsView.swift in Sources */,
 				A2E93C5B2C3292EE00516E52 /* SignInEmailViewModel.swift in Sources */,
@@ -455,47 +580,77 @@
 				A29AA4982E48B2CC00EDB8CF /* ScheduleItem.swift in Sources */,
 				A229AEA52D965F2700B710E3 /* DaySectionView.swift in Sources */,
 				A2706CF72C1BF8A3004AB455 /* SettingsView.swift in Sources */,
+				C9E04527658D41DB8D5F74BD /* UserPreferencesManager.swift in Sources */,
+				2EF93F830C8249DA9F49C3F5 /* EventCacheManager.swift in Sources */,
+				B5C6D7E8F9A0B1C2D3E4F5A6 /* LocationPickerView.swift in Sources */,
+				C7D8E9F0A1B2C3D4E5F6A7 /* TravelTimeCalculator.swift in Sources */,
+				F1A2B3C4D5E6F7A8B9C0D1 /* LocationCacheManager.swift in Sources */,
+				D4E5F6A7B8C9D0E1F2A3B4 /* InviteLinkManager.swift in Sources */,
+				E5F6A7B8C9D0E1F2A3B4C5 /* ContactManager.swift in Sources */,
 				A2C21B2C2DE2248700D588C3 /* ReceivedFriendRequestsView.swift in Sources */,
 				A2F8E6C62C1944A700AA109D /* ContentView.swift in Sources */,
 				A2F229B62D40CC9400B4CA4D /* AIPlanner.swift in Sources */,
+				4EC8718C51114332971CDA1F /* UserCalendar.swift in Sources */,
 				A2B0DB442C3C4CCF00733BD8 /* EventDetailViewModel.swift in Sources */,
 				A256F6292DDF0A5A00A71EC0 /* AddFriendView.swift in Sources */,
 				A2B0DB3E2C3C499F00733BD8 /* Event.swift in Sources */,
+				A2E0F9C92F1B8F6300DA4FC9 /* FriendSelectionRow.swift in Sources */,
 				A2E66AB32E35C1800025E244 /* RepeatOptionsView.swift in Sources */,
 				A2E66AB42E35C1800025E244 /* TravelTimeOptionsView.swift in Sources */,
+				A2E0F9A52F1A77B900DA4FC9 /* PlanGenerator.swift in Sources */,
+				A2E0F9B72F1A89F500DA4FC9 /* PlanDaySectionView.swift in Sources */,
 				A2F229BA2D41DDB800B4CA4D /* EventEditView.swift in Sources */,
 				A251BF6A2DF927980024A02C /* MockFirebaseUserManager.swift in Sources */,
 				A2F153EA2E45D5A100158F94 /* AIPlannerView.swift in Sources */,
 				A2848C9D2DE97F2400C0773B /* FirebaseUserManager.swift in Sources */,
 				A2F8E6C42C1944A700AA109D /* SecalenderApp.swift in Sources */,
+				A2E0F9C72F1B8C3A00DA4FC9 /* BatchShareEventsView.swift in Sources */,
+				A2E0F9BB2F1B1CAB00DA4FC9 /* PlanDetailView.swift in Sources */,
+				A2E0F9C12F1B1ECE00DA4FC9 /* PlanEditView.swift in Sources */,
+				A2E0F9B12F1A857000DA4FC9 /* MessageBubble.swift in Sources */,
 				A2F153E62E45D57400158F94 /* TemplateStoreView.swift in Sources */,
 				A2F229BC2D41DDC100B4CA4D /* EventShareView.swift in Sources */,
+				A2E0F9B92F1B1B7600DA4FC9 /* AIConfig.swift in Sources */,
 				A2706CF52C1BF335004AB455 /* RootView.swift in Sources */,
+				A2E0F99B2F19389D00DA4FC9 /* GroupManager.swift in Sources */,
+				A2DB300C2F161CD000ADB775 /* LiquidGlassStyle.swift in Sources */,
 				A2E93C582C32928600516E52 /* AuthenticationViewModel.swift in Sources */,
 				A2E80DC72DF1D81800651E91 /* EditProfileView.swift in Sources */,
+				A2E0F9CD2F1E6F7500DA4FC9 /* SearchGroupView.swift in Sources */,
 				A251BF652DF7CC340024A02C /* FriendManager.swift in Sources */,
+				A2DB300E2F17317A00ADB775 /* EventUIStyle.swift in Sources */,
 				A2E66AB02E35C1670025E244 /* CalendarOptionsView.swift in Sources */,
 				A2B0DB402C3C49E200733BD8 /* EventManager.swift in Sources */,
 				A2FEEA282E09D423006696EC /* ShareHistoryView.swift in Sources */,
 				A2F153EC2E45D5B100158F94 /* AchievementsView.swift in Sources */,
 				A2FEEA292E09D423006696EC /* ShareNotificationsView.swift in Sources */,
+				A2E0F99D2F19416A00DA4FC9 /* GroupSelectorView.swift in Sources */,
 				A2FEEA2A2E09D423006696EC /* EventInvitationsView.swift in Sources */,
+				A2E0F9B52F1A86F300DA4FC9 /* AITripGenerator.swift in Sources */,
 				A280B5012C295C4F00CC4A45 /* MemberView.swift in Sources */,
 				A232A9142E0A48A200E4739F /* AppleCalendarManager.swift in Sources */,
+				A2DB300A2F160DCC00ADB775 /* FriendsAndGroupsView.swift in Sources */,
 				A29AA49A2E48B2DA00EDB8CF /* AIPlanResultView.swift in Sources */,
 				A29AA4832E48850400EDB8CF /* CommunityGroup.swift in Sources */,
 				A21B71D22DF1D16400FE7CD6 /* MyFriendListView.swift in Sources */,
+				A2E0F9A32F1A76F600DA4FC9 /* InputClassifier.swift in Sources */,
 				A2E913AF2DE801DD00629016 /* GroupEventsView.swift in Sources */,
 				A2E93C5E2C32938E00516E52 /* ProfileView.swift in Sources */,
 				A2FEEA2C2E09D45E006696EC /* InviteFriendsView.swift in Sources */,
 				A2700EA12DF136EF009E8955 /* FriendMultiSelectView.swift in Sources */,
 				A280B4FA2C291AE500CC4A45 /* SignInGoogleHelper.swift in Sources */,
+				A2E0F9A12F1A76F000DA4FC9 /* FollowUpManager.swift in Sources */,
+				A2E0F9C32F1B87F100DA4FC9 /* TripTemplateManager.swift in Sources */,
 				A2F153E82E45D58F00158F94 /* TemplateDetailView.swift in Sources */,
 				A2E913AD2DE801CD00629016 /* FriendEventsView.swift in Sources */,
+				A2E0F9CB2F1DC79C00DA4FC9 /* MultiEventView.swift in Sources */,
 				A2E913AB2DE7656200629016 /* SharedEventSectionView.swift in Sources */,
 				A2F229B82D41DDAE00B4CA4D /* EventCreateView.swift in Sources */,
 				A2706CED2C1B2DDB004AB455 /* AuthenticationView.swift in Sources */,
+				A2E0F9B32F1A85A300DA4FC9 /* MultiDayPlanDetailView.swift in Sources */,
+				A2E0F9CF2F1F16D300DA4FC9 /* GroupDetailView.swift in Sources */,
 				A251BF672DF83BFA0024A02C /* PreviewHostView.swift in Sources */,
+				A2E0F9BF2F1B1E8000DA4FC9 /* ChatMessageManager.swift in Sources */,
 				A29AA4852E48851D00EDB8CF /* AddGroupView.swift in Sources */,
 				A22A187D2DF5624200FF4B1C /* EventAccessManager.swift in Sources */,
 				A2706CF12C1B36EC004AB455 /* AuthenticationManager.swift in Sources */,
@@ -514,6 +669,8 @@
 /* Begin XCBuildConfiguration section */
 		A2F8E6CC2C1944AA00AA109D /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = A2E0F9A92F1A7DD100DA4FC9 /* Config */;
+			baseConfigurationReferenceRelativePath = Secrets.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -577,6 +734,8 @@
 		};
 		A2F8E6CD2C1944AA00AA109D /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = A2E0F9A92F1A7DD100DA4FC9 /* Config */;
+			baseConfigurationReferenceRelativePath = Secrets.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -633,6 +792,7 @@
 		};
 		A2F8E6CF2C1944AA00AA109D /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A2E0F9AA2F1A7F7E00DA4FC9 /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -645,6 +805,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Secalender/Info.plist;
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "我们需要访问您的行事历以显示与添加活动。";
+				INFOPLIST_KEY_NSContactsUsageDescription = "我们需要访问您的通讯录以邀请联系人参加活动。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "是否同意使用您的位置资讯";
 				INFOPLIST_KEY_NSRemindersUsageDescription = "我们需要访问提醒事项以支持日程功能。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -667,6 +828,7 @@
 		};
 		A2F8E6D02C1944AA00AA109D /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A2E0F9AA2F1A7F7E00DA4FC9 /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -679,6 +841,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Secalender/Info.plist;
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "我们需要访问您的行事历以显示与添加活动。";
+				INFOPLIST_KEY_NSContactsUsageDescription = "我们需要访问您的通讯录以邀请联系人参加活动。";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "是否同意使用您的位置资讯";
 				INFOPLIST_KEY_NSRemindersUsageDescription = "我们需要访问提醒事项以支持日程功能。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

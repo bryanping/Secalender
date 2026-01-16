@@ -53,3 +53,11 @@ struct AchievementsView: View {
         }
     }
 }
+
+
+struct AchievementsView_Previews: PreviewProvider {
+    static var previews: some View {
+        AchievementsView()
+            .environmentObject(FirebaseUserManager.shared)
+    }
+}
