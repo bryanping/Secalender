@@ -12,3 +12,4 @@ DerivedData/
 # macOS 系统文件
 .DS_Store
 
+Config/Secrets.xcconfig
