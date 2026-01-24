@@ -53,7 +53,7 @@ struct MultiEventView: View {
                     if !eventsToView.isEmpty {
                         Text("共 \(eventsToView.count) 個行程")
                             .font(.system(size: 15))
-                            .foregroundColor(.secondary)
+                        .foregroundColor(.secondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

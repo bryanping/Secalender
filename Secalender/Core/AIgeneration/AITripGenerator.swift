@@ -57,7 +57,8 @@ final class AITripGenerator {
         interestTags: [String],
         pace: Pace,
         walkingLevel: WalkingLevel?,
-        transportPreference: TransportPreference?
+        transportPreference: TransportPreference?,
+        selectedAttractions: [String] = []
     ) async throws -> AITripPlan {
         
         // 检查 OpenAI 开关
@@ -82,7 +83,8 @@ final class AITripGenerator {
             interestTags: interestTags,
             pace: pace,
             walkingLevel: walkingLevel,
-            transportPreference: transportPreference
+            transportPreference: transportPreference,
+            selectedAttractions: selectedAttractions
         )
         
         print("🤖 [AITripGenerator] 提示词构建完成，长度: \(prompt.count) 字符")
@@ -106,7 +108,8 @@ final class AITripGenerator {
         interestTags: [String],
         pace: Pace,
         walkingLevel: WalkingLevel?,
-        transportPreference: TransportPreference?
+        transportPreference: TransportPreference?,
+        selectedAttractions: [String] = []
     ) -> String {
         var prompt = """
         请为\(destination)规划一套**第一次来也适用、节奏合理、不走马看花**的\(durationDays)天行程规划。
@@ -123,6 +126,11 @@ final class AITripGenerator {
         
         if !interestTags.isEmpty {
             prompt += "\n- 兴趣偏好：\(interestTags.joined(separator: "、"))"
+        }
+        
+        // 添加用户选中的周边特色
+        if !selectedAttractions.isEmpty {
+            prompt += "\n- 必须包含的景点：\(selectedAttractions.joined(separator: "、"))（这些景点必须出现在行程中，请合理安排到每天的活动中）"
         }
         
         // 根据节奏给出更具体的指导
@@ -231,46 +239,112 @@ final class AITripGenerator {
     
     /// 解析OpenAI的JSON响应
     private func parseAIResponse(_ jsonString: String, destination: String, startDate: String, endDate: String) throws -> AITripPlan {
+        print("🔍 [AITripGenerator] 开始解析JSON响应，原始长度: \(jsonString.count) 字符")
+        
         // 尝试提取JSON（可能包含markdown代码块）
         var cleanedJson = jsonString.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // 移除markdown代码块标记
         if cleanedJson.hasPrefix("```json") {
             cleanedJson = String(cleanedJson.dropFirst(7))
+            print("🔍 [AITripGenerator] 移除了 ```json 前缀")
         } else if cleanedJson.hasPrefix("```") {
             cleanedJson = String(cleanedJson.dropFirst(3))
+            print("🔍 [AITripGenerator] 移除了 ``` 前缀")
         }
         if cleanedJson.hasSuffix("```") {
             cleanedJson = String(cleanedJson.dropLast(3))
+            print("🔍 [AITripGenerator] 移除了 ``` 后缀")
         }
         cleanedJson = cleanedJson.trimmingCharacters(in: .whitespacesAndNewlines)
         
+        print("🔍 [AITripGenerator] 清理后JSON长度: \(cleanedJson.count) 字符")
+        print("🔍 [AITripGenerator] JSON预览（前300字符）: \(String(cleanedJson.prefix(300)))")
+        
         guard let jsonData = cleanedJson.data(using: .utf8) else {
+            print("❌ [AITripGenerator] 无法将字符串转换为UTF-8数据")
             throw AITripGenerationError.invalidJSON("无法转换为JSON数据")
+        }
+        
+        // 首先验证JSON格式是否正确
+        do {
+            _ = try JSONSerialization.jsonObject(with: jsonData, options: [])
+            print("✅ [AITripGenerator] JSON格式验证通过")
+        } catch {
+            print("❌ [AITripGenerator] JSON格式验证失败: \(error.localizedDescription)")
+            print("📄 [AITripGenerator] 原始JSON内容: \(cleanedJson)")
+            throw AITripGenerationError.invalidJSON("JSON格式无效: \(error.localizedDescription)")
         }
         
         do {
             let decoder = JSONDecoder()
             let plan = try decoder.decode(AITripPlan.self, from: jsonData)
+            print("✅ [AITripGenerator] JSON解析成功，共 \(plan.days.count) 天行程")
             return plan
-        } catch {
+        } catch let decodingError as DecodingError {
+            print("❌ [AITripGenerator] JSON解码失败: \(decodingError)")
+            
+            // 打印详细的解码错误信息
+            switch decodingError {
+            case .typeMismatch(let type, let context):
+                print("❌ [AITripGenerator] 类型不匹配: 期望 \(type), 路径: \(context.codingPath)")
+            case .valueNotFound(let type, let context):
+                print("❌ [AITripGenerator] 值未找到: 类型 \(type), 路径: \(context.codingPath)")
+            case .keyNotFound(let key, let context):
+                print("❌ [AITripGenerator] 键未找到: \(key.stringValue), 路径: \(context.codingPath)")
+            case .dataCorrupted(let context):
+                print("❌ [AITripGenerator] 数据损坏: \(context.debugDescription), 路径: \(context.codingPath)")
+            @unknown default:
+                print("❌ [AITripGenerator] 未知解码错误")
+            }
+            
             // 尝试修复常见JSON问题
+            print("🔧 [AITripGenerator] 尝试修复JSON...")
             if let fixedJson = try? fixJSON(cleanedJson),
                let fixedData = fixedJson.data(using: .utf8) {
                 let decoder = JSONDecoder()
                 if let plan = try? decoder.decode(AITripPlan.self, from: fixedData) {
+                    print("✅ [AITripGenerator] JSON修复成功")
                     return plan
+                } else {
+                    print("❌ [AITripGenerator] JSON修复后仍无法解析")
                 }
             }
+            
+            throw AITripGenerationError.invalidJSON("JSON解析失败: \(decodingError.localizedDescription)")
+        } catch {
+            print("❌ [AITripGenerator] 未知错误: \(error.localizedDescription)")
             throw AITripGenerationError.invalidJSON("JSON解析失败: \(error.localizedDescription)")
         }
     }
     
     /// 修复常见的JSON问题
     private func fixJSON(_ json: String) throws -> String {
+        print("🔧 [AITripGenerator] 开始修复JSON...")
+        
+        var fixed = json
+        
         // 移除尾随逗号
-        var fixed = json.replacingOccurrences(of: ",\\s*\\}", with: "}", options: .regularExpression)
+        fixed = fixed.replacingOccurrences(of: ",\\s*\\}", with: "}", options: .regularExpression)
         fixed = fixed.replacingOccurrences(of: ",\\s*\\]", with: "]", options: .regularExpression)
+        
+        // 修复单引号（JSON要求双引号）
+        fixed = fixed.replacingOccurrences(of: "'", with: "\"")
+        
+        // 修复未转义的控制字符
+        fixed = fixed.replacingOccurrences(of: "\n", with: "\\n")
+        fixed = fixed.replacingOccurrences(of: "\r", with: "\\r")
+        fixed = fixed.replacingOccurrences(of: "\t", with: "\\t")
+        
+        // 尝试提取JSON对象（如果被其他文本包围）
+        if let jsonStart = fixed.range(of: "\\{"),
+           let jsonEnd = fixed.range(of: "\\}", options: .backwards) {
+            let startIndex = fixed.index(jsonStart.lowerBound, offsetBy: 0)
+            let endIndex = fixed.index(jsonEnd.upperBound, offsetBy: 0)
+            fixed = String(fixed[startIndex..<endIndex])
+        }
+        
+        print("🔧 [AITripGenerator] JSON修复完成，新长度: \(fixed.count) 字符")
         
         return fixed
     }

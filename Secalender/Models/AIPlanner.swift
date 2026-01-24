@@ -23,7 +23,41 @@ final class AIPlanner {
     
     static let shared = AIPlanner() // 添加单例支持
     
-    private let apiKey = "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" // 替换为你的 OpenAI API 密钥
+    /// 从 Info.plist 读取 OpenAI API Key（通过 Secrets.xcconfig 配置）
+    private var apiKey: String {
+        get throws {
+            // 方法1: 从 Info.plist 读取（从 Secrets.xcconfig 传递）
+            if let key = Bundle.main.infoDictionary?["OPENAI_API_KEY"] as? String,
+               !key.isEmpty,
+               key != "$(OPENAI_API_KEY)" {  // 检查是否被正确替换
+                return key
+            }
+            
+            // 方法2: 尝试从环境变量读取（用于调试）
+            if let envKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"],
+               !envKey.isEmpty {
+                print("⚠️ [AIPlanner] 从环境变量读取 API Key")
+                return envKey
+            }
+            
+            // 如果都无法读取，抛出错误
+            let errorMessage = """
+            ⚠️ OpenAI API Key 未配置
+            
+            请检查以下配置：
+            1. Secrets.xcconfig 文件中的 OPENAI_API_KEY 是否已设置
+            2. Info.plist 中是否包含 OPENAI_API_KEY = $(OPENAI_API_KEY)
+            3. Xcode 项目 Build Settings 中是否正确引用了 Secrets.xcconfig
+            
+            当前 Info.plist 中的值: \(Bundle.main.infoDictionary?["OPENAI_API_KEY"] ?? "nil")
+            """
+            throw NSError(
+                domain: "AIPlanner",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: errorMessage]
+            )
+        }
+    }
     
     private init() {} // 确保外部无法实例化
     
@@ -33,6 +67,9 @@ final class AIPlanner {
     }
     
     private func fetchItinerary(destination: String, startDate: String, endDate: String) async throws -> [String] {
+        // 获取 API Key
+        let key = try apiKey
+        
         let prompt = "为我计划一个从 \(startDate) 到 \(endDate) 的 \(destination) 旅游行程。"
         
         guard let url = URL(string: "https://api.openai.com/v1/engines/davinci-codex/completions") else {
@@ -41,7 +78,7 @@ final class AIPlanner {
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.addValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let body: [String: Any] = [

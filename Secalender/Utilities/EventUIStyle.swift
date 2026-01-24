@@ -37,9 +37,9 @@ struct EventCardHeader: View {
             // 如果是系统图标，使用 Image(systemName:)
             // 如果是emoji或文字，直接显示 Text
             if isSystemIcon {
-                Image(systemName: icon)
+            Image(systemName: icon)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(iconColor)
+                .foregroundStyle(iconColor)
             } else {
                 Text(icon)
                     .font(.system(size: 16, weight: .semibold))
@@ -86,7 +86,7 @@ struct GlassTextEditor: View {
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
                 .padding(.trailing, 20) // 为右下角标识留出空间
-            
+
             // Placeholder文本
             if text.isEmpty {
                 Text(placeholder)
@@ -243,7 +243,7 @@ struct DateTimePickerView: View {
             
             // 如果跨日期，显示开始日期时间
             if startDay != endDay {
-                let mergedStart = merge(date: startDate, time: startTime)
+        let mergedStart = merge(date: startDate, time: startTime)
                 let df = DateFormatter()
                 df.locale = locale
                 df.dateFormat = "M月d日 EEE a h:mm"
@@ -282,13 +282,13 @@ struct DateTimePickerView: View {
                 return df.string(from: mergedEnd)
             } else {
                 // 不跨日期时，显示时间范围
-                let tf = DateFormatter()
-                tf.locale = locale
-                tf.dateFormat = "a h:mm"
+            let tf = DateFormatter()
+            tf.locale = locale
+            tf.dateFormat = "a h:mm"
                 let startTimeString = tf.string(from: mergedStart)
                 let endTimeString = tf.string(from: mergedEnd)
                 return "\(startTimeString) - \(endTimeString)"
-            }
+        }
         }
         
         // 没有结束时间，只显示开始时间

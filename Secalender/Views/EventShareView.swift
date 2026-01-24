@@ -30,141 +30,91 @@ struct EventShareView: View {
     @State private var userGroupIds: Set<String> = []
     @State private var friendIds: Set<String> = []
     
+    // 参与人员列表
+    @State private var participants: [(userId: String, name: String, photoUrl: String?)] = []
+    @State private var isLoadingParticipants = false
+    
     var onEventUpdated: (() -> Void)? = nil
 
     var body: some View {
         ScrollView {
+            VStack(spacing: 24) {
+                // 單一卡片包含所有字段：行程標題、活動內容、地點、時間
+                EventFormCard(icon: "calendar", title: "行程資訊", iconColor: .blue) {
             VStack(spacing: 16) {
-                // 标题卡片
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: "textformat")
-                            .foregroundColor(.blue)
-                            .font(.title)
+                        // 行程標題
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("行程標題")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                            
                         Text(event.title)
-                            .font(.title)
-                        Spacer()
-                    }
-                }
-                .padding()
-                .background(Color(.systemBackground))
-                .cornerRadius(12)
-                .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-                
-                // 活動介紹卡片
-                if let info = event.information, !info.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "text.alignleft")
-                                .foregroundColor(.purple)
-                            Text("活動介紹")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                            Spacer()
+                                .font(.system(size: 17))
+                                .foregroundColor(.primary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color(UIColor.systemGray6))
+                                )
                         }
                         
-                        Divider()
+                        // 活動內容
+                if let info = event.information, !info.isEmpty {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("活動內容")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
                         
                         Text(info)
-                            .font(.body)
+                                    .font(.system(size: 15))
                             .foregroundColor(.primary)
-                            .lineSpacing(4)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
-                    .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-                }
-                
-                // 基本信息卡片
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        Image(systemName: "clock.fill")
-                            .foregroundColor(.blue)
-                        Text("时间信息")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                        Spacer()
-                    }
-                    
-                    Divider()
-                    
-                    if event.isAllDay ?? false {
-                        InfoRow(icon: "calendar", iconColor: .blue, title: "日期", value: event.date)
-                        if let endDate = event.endDate, endDate != event.date {
-                            InfoRow(icon: "calendar.badge.clock", iconColor: .blue, title: "結束日期", value: endDate)
-                        }
-                        Label("全天事件", systemImage: "sun.max.fill")
-                            .foregroundColor(.blue)
-                            .font(.subheadline)
-                    } else {
-                        InfoRow(icon: "play.circle.fill", iconColor: .green, title: "開始", value: "\(event.date) \(event.startTime)")
-                        if let endDate = event.endDate, endDate != event.date {
-                            InfoRow(icon: "stop.circle.fill", iconColor: .red, title: "結束", value: "\(endDate) \(event.endTime)")
-                        } else {
-                            InfoRow(icon: "stop.circle.fill", iconColor: .red, title: "結束時間", value: event.endTime)
-                        }
-                    }
-                    
-                    // 重複設置
-                    if (event.repeatType ?? "never") != "never" {
-                        Divider()
-                        InfoRow(icon: "repeat", iconColor: .orange, title: "重複", value: getRepeatDisplayText(event.repeatType ?? "never"))
-                    }
-                    
-                    // 日曆組件
-                    if let calendarComponent = event.calendarComponent, !calendarComponent.isEmpty {
-                        Divider()
-                        InfoRow(icon: "calendar.badge.plus", iconColor: .green, title: "日曆", value: getCalendarDisplayText(calendarComponent))
-                    }
-                }
-                .padding()
-                .background(Color(.systemBackground))
-                .cornerRadius(12)
-                .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-                
-                // 地点信息卡片
-                if !event.destination.isEmpty {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            Image(systemName: "location.fill")
-                                .foregroundColor(.red)
-                            Text("地点信息")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                            Spacer()
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 12)
+                                    .frame(minHeight: 80)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color(UIColor.systemGray6))
+                                    )
+                            }
                         }
                         
-                        Divider()
+                        // 選擇地點
+                if !event.destination.isEmpty {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("選擇地點")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
                         
                         Button(action: {
                             openMapForDestination(event.destination)
                         }) {
-                            HStack(alignment: .top, spacing: 12) {
+                                    HStack(spacing: 12) {
                                 Image(systemName: "mappin.circle.fill")
-                                    .foregroundColor(.red)
-                                    .font(.title3)
-                                VStack(alignment: .leading, spacing: 4) {
+                                            .foregroundColor(.blue)
+                                            .font(.system(size: 20))
+                                        
                                     Text(event.destination)
-                                        .font(.body)
                                         .foregroundColor(.primary)
-                                        .multilineTextAlignment(.leading)
-                                    Text("点击查看地图")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                }
+                                            .multilineTextAlignment(.center)
+                                            .lineLimit(2)
+                                        
                                 Spacer()
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.gray)
-                            }
-                            .padding(.vertical, 4)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 12)
+                                    .frame(maxWidth: .infinity)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color(UIColor.systemGray6))
+                                    )
                         }
                         .buttonStyle(PlainButtonStyle())
                         
                         // 路程时间显示
                         if let travelInfo = travelTimeInfo {
-                            Divider()
                             VStack(alignment: .leading, spacing: 8) {
                                 if let routeInfo = travelInfo.routeInfo {
                                     HStack {
@@ -225,8 +175,8 @@ struct EventShareView: View {
                                     }
                                 }
                             }
+                                    .padding(.top, 8)
                         } else if isCalculatingTravelTime {
-                            Divider()
                             HStack {
                                 ProgressView()
                                     .scaleEffect(0.8)
@@ -234,8 +184,8 @@ struct EventShareView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
+                                    .padding(.top, 8)
                         } else if eventLocationManager.currentLocation != nil {
-                            Divider()
                             Button(action: {
                                 calculateTravelTime()
                             }) {
@@ -247,39 +197,79 @@ struct EventShareView: View {
                                 }
                                 .font(.subheadline)
                             }
+                                    .padding(.top, 8)
                         }
                     }
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
-                    .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                }
+                
+                        // 設定時間（只读显示）
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("設定時間")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                
+                            EventTimeDisplayView(event: event)
+                        }
+                    }
                 }
                 
                 
                 
-                // 邀請人員
-                if let invitees = event.invitees, !invitees.isEmpty {
+                // 參與人員名單
                     VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "person.2.fill")
-                                .foregroundColor(.blue)
-                            Text("邀請人員")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                            Spacer()
+                    Text("SHARED WITH")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                    
+                    HStack(spacing: -8) {
+                        // 参与人员头像
+                        ForEach(participants.prefix(3), id: \.userId) { participant in
+                            AsyncImage(url: participant.photoUrl.map { URL(string: $0) } ?? nil) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Image(systemName: "person.circle.fill")
+                                    .foregroundColor(.gray)
+                            }
+                            .frame(width: 36, height: 36)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(Color(.systemBackground), lineWidth: 2)
+                            )
                         }
                         
-                        Divider()
+                        // 如果有更多参与者或可以添加，显示添加按钮
+                        if participants.count < 3 || (event.creatorOpenid == userManager.userOpenId || viewerRole == .groupAdminOrOwner) {
+                            Button(action: {
+                                showInviteFriends = true
+                            }) {
+                                Circle()
+                                    .fill(Color(.systemGray5))
+                                    .frame(width: 36, height: 36)
+                                    .overlay(
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(.secondary)
+                                    )
+                        }
+                        }
                         
-                        Text(invitees.joined(separator: ", "))
-                            .font(.body)
-                            .foregroundColor(.primary)
+                        Spacer()
+                        
+                        // 参与者数量
+                        Text("\(participants.count) Participants")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
                     }
                     .padding()
                     .background(Color(.systemBackground))
                     .cornerRadius(12)
                     .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-                }
+                .padding(.horizontal)
                 
                 // 分享和权限设置
                 if event.creatorOpenid == userManager.userOpenId {
@@ -311,6 +301,7 @@ struct EventShareView: View {
                     .background(Color(.systemBackground))
                     .cornerRadius(12)
                     .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                    .padding(.horizontal)
                 }
                 
                 // 权限设置
@@ -337,8 +328,8 @@ struct EventShareView: View {
                 .background(Color(.systemBackground))
                 .cornerRadius(12)
                 .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                .padding(.horizontal)
             }
-            .padding()
             .padding(.bottom, 80) // 为底部按钮留出空间
         }
         .background(Color(.systemGroupedBackground))
@@ -355,6 +346,13 @@ struct EventShareView: View {
         }
         .task {
             await loadViewerRole()
+            await loadParticipants()
+        }
+        .onChange(of: participationStatus) { _, _ in
+            // 当参与状态改变时，重新加载参与人员列表
+            Task {
+                await loadParticipants()
+            }
         }
         .navigationTitle("查看活动")
         .navigationBarTitleDisplayMode(.large)
@@ -627,6 +625,56 @@ struct EventShareView: View {
         }
         
         isLoadingRole = false
+    }
+    
+    // MARK: - 加载参与人员列表
+    
+    private func loadParticipants() async {
+        guard let eventId = event.id else { return }
+        
+        isLoadingParticipants = true
+        
+        do {
+            // 从 event_shares 集合中获取状态为 "joined" 的用户
+            let db = Firestore.firestore()
+            let snapshot = try await db.collection("event_shares")
+                .whereField("eventId", isEqualTo: eventId)
+                .whereField("status", isEqualTo: "joined")
+                .getDocuments()
+            
+            var loadedParticipants: [(userId: String, name: String, photoUrl: String?)] = []
+            
+            // 获取每个用户的信息
+            for doc in snapshot.documents {
+                let data = doc.data()
+                guard let userId = data["receiverId"] as? String else { continue }
+                
+                // 从 users 集合获取用户信息
+                let userDoc = try? await db.collection("users")
+                    .whereField("openid", isEqualTo: userId)
+                    .limit(to: 1)
+                    .getDocuments()
+                
+                if let userData = userDoc?.documents.first?.data() {
+                    let name = (userData["name"] as? String) ?? (userData["displayName"] as? String) ?? "Unknown"
+                    let photoUrl = userData["photoUrl"] as? String
+                    loadedParticipants.append((userId: userId, name: name, photoUrl: photoUrl))
+                } else {
+                    // 如果找不到用户信息，使用默认值
+                    loadedParticipants.append((userId: userId, name: "Unknown", photoUrl: nil))
+                }
+            }
+            
+            await MainActor.run {
+                self.participants = loadedParticipants
+                self.isLoadingParticipants = false
+            }
+        } catch {
+            print("加载参与人员列表失败: \(error.localizedDescription)")
+            await MainActor.run {
+                self.isLoadingParticipants = false
+            }
+        }
     }
     
     // MARK: - 参与状态更新

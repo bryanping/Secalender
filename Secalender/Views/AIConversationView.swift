@@ -1,8 +1,9 @@
 //
-//  AIPlannerView.swift
+//  AIConversationView.swift
 //  Secalender
 //
 //  Created by 林平 on 2025/8/8.
+//  原 AIPlannerView 代码，保留对话式AI规划功能
 //
 
 import SwiftUI
@@ -10,30 +11,22 @@ import SwiftUI
 import UIKit
 #endif
 
-enum PlannerTab {
-    case aiPlanning      // AI 規劃
-    case myTemplates     // 行程模板（保存的行程建议）
-    case templateStore   // 模板市集（付费模板）
-}
+//enum PlannerTab {
+//    case aiPlanning      // AI 規劃
+//    case myTemplates     // 行程模板（保存的行程建议）
+//    case templateStore   // 模板市集（付费模板）
+//}
 
 /// 模板排序选项
-enum TemplateSortOption: String, CaseIterable {
-    case dateDescending = "最近保存"
-    case dateAscending = "最早保存"
-    case usageCount = "使用次数"
-    case title = "标题"
-}
 
-struct AIPlannerView: View {
+
+struct AIConversationView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
     
-    @State private var selectedTab: PlannerTab = .aiPlanning
     @State private var inputText: String = ""
-    @State private var scheduleItems: [ScheduleItem] = []
     @State private var isLoading = false
-    @State private var showResult = false
     
-    // 改用 Bool 控制彈窗，errorMessage 使用 String（非 Optional）
+    // 错误提示
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
     
@@ -42,7 +35,6 @@ struct AIPlannerView: View {
     @State private var followUpAnswer: String = ""
     @State private var classificationResult: ClassificationResult?
     @State private var planResult: PlanResult?
-    @State private var showAssumptions = false
     
     // 对话和行程卡片状态
     @State private var chatMessages: [ChatMessage] = []
@@ -56,115 +48,7 @@ struct AIPlannerView: View {
     // 行程编辑状态
     @State private var editingPlan: PlanResult? = nil
     
-    // 行程模板数据（保存的行程建议）
-    @State private var savedTemplates: [SavedTripTemplate] = []
-    @State private var searchText: String = ""
-    @State private var selectedTag: String? = nil
-    @State private var sortOption: TemplateSortOption = .dateDescending
-    @State private var showOnlyFavorites: Bool = false
-    
-    // 模板市集数据（付费模板）
-    @State private var templates: [Template] = [
-        Template(title: "日本三天兩夜自由行",
-                 description: "包含住宿、景點與交通的完整行程規劃範本",
-                 price: 149.0,
-                 tags: ["旅遊", "日本", "自由行"]),
-        Template(title: "親子樂園一日遊",
-                 description: "適合帶孩子出遊的遊樂園行程安排",
-                 price: 99.0,
-                 tags: ["親子", "一日遊"]),
-        Template(title: "高效工作日程規劃",
-                 description: "專為自由工作者設計的時間管理模板",
-                 price: 49.0,
-                 tags: ["工作", "效率"])
-    ]
-    
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // 分段控制器（三个选项）
-                Picker("", selection: $selectedTab) {
-                    Text("AI 規劃").tag(PlannerTab.aiPlanning)
-                    Text("行程模板").tag(PlannerTab.myTemplates)
-                    Text("模板市集").tag(PlannerTab.templateStore)
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .padding()
-                
-                // 内容区域
-                Group {
-                    switch selectedTab {
-                    case .aiPlanning:
-                        aiPlanningView
-                    case .myTemplates:
-                        myTemplatesView
-                    case .templateStore:
-                        templateStoreView
-                    }
-                }
-            }
-            .navigationTitle("智能規劃")
-            .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showResult) {
-                AIPlanResultView(scheduleItems: $scheduleItems) {
-                    saveToCalendar()
-                }
-                .environmentObject(userManager)
-            }
-            .sheet(item: $selectedPlanForDetails) { plan in
-                PlanDetailView(
-                    plan: plan,
-                    onEdit: { planToEdit in
-                        selectedPlanForDetails = nil
-                        editingPlan = planToEdit
-                    },
-                    onAddToCalendar: {
-                        savePlanToCalendar(plan)
-                        selectedPlanForDetails = nil
-                    },
-                    onSaveToTemplate: { title in
-                        savePlanToTemplate(plan, withTitle: title)
-                        selectedPlanForDetails = nil
-                    }
-                )
-                .environmentObject(userManager)
-            }
-            .alert(isPresented: $showErrorAlert) {
-                Alert(title: Text("錯誤"), message: Text(errorMessage), dismissButton: .default(Text("好")))
-            }
-            .sheet(item: $editingPlan) { plan in
-                PlanEditView(plan: plan) { updatedPlan in
-                    // 更新行程
-                    if let index = generatedPlans.firstIndex(where: { $0.id == updatedPlan.id }) {
-                        generatedPlans[index] = updatedPlan
-                    }
-                    editingPlan = nil
-                }
-                .environmentObject(userManager)
-            }
-            .onAppear {
-                // 加载聊天记录
-                loadChatHistory()
-                // 加载行程模板
-                loadSavedTemplates()
-                // 监听键盘
-                setupKeyboardObservers()
-                // 显示AI配置状态（仅在调试时）
-#if DEBUG
-                AIConfig.shared.printConfig()
-#endif
-            }
-            .onDisappear {
-                // 保存聊天记录
-                saveChatHistory()
-                // 移除键盘监听
-                removeKeyboardObservers()
-            }
-        }
-    }
-    
-    // AI规划视图 - 单一对话界面（浮动输入框）
-    private var aiPlanningView: some View {
         GeometryReader { geometry in
             ZStack(alignment: .bottom) {
                 // 主内容区域：对话界面（全屏）
@@ -286,8 +170,6 @@ struct AIPlannerView: View {
     // 浮动输入框（参考 ChatGPT 风格）
     private var floatingInputView: some View {
         VStack(spacing: 0) {
-
-            
             // 输入框容器
             VStack(spacing: 8) {
                 // 如果有追问状态，显示追问UI
@@ -435,337 +317,7 @@ struct AIPlannerView: View {
         }
     }
     
-    // 行程模板视图（保存的行程建议）
-    private var myTemplatesView: some View {
-        VStack(spacing: 0) {
-            // 搜索和筛选栏
-            if !savedTemplates.isEmpty {
-                searchAndFilterBar
-            }
-            
-            // 模板列表
-            Group {
-                let filteredTemplates = getFilteredTemplates()
-                
-                if filteredTemplates.isEmpty {
-                    // 空状态（搜索无结果）
-                    VStack(spacing: 16) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray.opacity(0.5))
-                        Text("没有找到匹配的模板")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                        if !searchText.isEmpty || selectedTag != nil || showOnlyFavorites {
-                            Button("清除筛选") {
-                                searchText = ""
-                                selectedTag = nil
-                                showOnlyFavorites = false
-                            }
-                            .foregroundColor(.orange)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List {
-                        ForEach(filteredTemplates) { template in
-                            templateRowView(template)
-                        }
-                        .onDelete { indexSet in
-                            let filteredTemplates = getFilteredTemplates()
-                            for index in indexSet {
-                                let template = filteredTemplates[index]
-                                deleteTemplate(template.id)
-                            }
-                        }
-                    }
-                    .listStyle(InsetGroupedListStyle())
-                }
-            }
-        }
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 80) // 为TabBar预留空间
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                if !savedTemplates.isEmpty {
-                    Menu {
-                        Button(role: .destructive, action: {
-                            clearAllTemplates()
-                        }) {
-                            Label("清除全部", systemImage: "trash")
-                        }
-                        
-                        Divider()
-                        
-                        Picker("排序方式", selection: $sortOption) {
-                            ForEach(TemplateSortOption.allCases, id: \.self) { option in
-                                Text(option.rawValue).tag(option)
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                }
-            }
-        }
-    }
-    
-    // 搜索和筛选栏
-    private var searchAndFilterBar: some View {
-        VStack(spacing: 8) {
-            // 搜索框
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                TextField("搜索模板...", text: $searchText)
-                    .textFieldStyle(.plain)
-                
-                if !searchText.isEmpty {
-                    Button(action: { searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(.systemGray6))
-            .cornerRadius(10)
-            .padding(.horizontal)
-            
-            // 筛选标签和收藏
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    // 收藏筛选
-                    Button(action: {
-                        showOnlyFavorites.toggle()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: showOnlyFavorites ? "heart.fill" : "heart")
-                            Text("收藏")
-                        }
-                        .font(.caption)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(showOnlyFavorites ? Color.orange.opacity(0.2) : Color(.systemGray6))
-                        .foregroundColor(showOnlyFavorites ? .orange : .secondary)
-                        .cornerRadius(16)
-                    }
-                    
-                    // 标签筛选
-                    ForEach(getAllTags(), id: \.self) { tag in
-                        Button(action: {
-                            selectedTag = selectedTag == tag ? nil : tag
-                        }) {
-                            Text("#\(tag)")
-                                .font(.caption)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(selectedTag == tag ? Color.blue.opacity(0.2) : Color(.systemGray6))
-                                .foregroundColor(selectedTag == tag ? .blue : .secondary)
-                                .cornerRadius(16)
-                        }
-                    }
-                }
-                .padding(.horizontal)
-            }
-        }
-        .padding(.vertical, 8)
-        .background(Color(.systemBackground))
-    }
-    
-    // 模板行视图
-    private func templateRowView(_ template: SavedTripTemplate) -> some View {
-        NavigationLink(destination: PlanDetailView(
-            plan: template.plan,
-            onEdit: { planToEdit in
-                updateTemplate(template.id, with: planToEdit)
-            },
-            onAddToCalendar: {
-                // 标记为已使用
-                TripTemplateManager.shared.markTemplateAsUsed(template.id, for: userManager.userOpenId)
-                savePlanToCalendar(template.plan)
-                loadSavedTemplates()
-            },
-            onSaveToTemplate: { _ in }
-        )
-        .environmentObject(userManager)) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(template.title)
-                        .font(.headline)
-                        .lineLimit(1)
-                    
-                    Spacer()
-                    
-                    if template.isFavorite {
-                        Image(systemName: "heart.fill")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                    }
-                }
-                
-                // 目的地和天数
-                HStack(spacing: 12) {
-                    if let destination = template.destination {
-                        Label(destination, systemImage: "location.fill")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Label("\(template.plan.days.count)天", systemImage: "calendar")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    if template.usageCount > 0 {
-                        Label("\(template.usageCount)次", systemImage: "arrow.clockwise")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                // 标签
-                if !template.tags.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(template.tags.prefix(5), id: \.self) { tag in
-                                Text("#\(tag)")
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.blue.opacity(0.1))
-                                    .foregroundColor(.blue)
-                                    .cornerRadius(4)
-                            }
-                        }
-                    }
-                }
-                
-                // 备注预览
-                if let notes = template.notes, !notes.isEmpty {
-                    Text(notes)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                }
-                
-                // 日期信息
-                HStack {
-                    Text("保存于 \(formatDate(template.savedDate))")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    if let lastUsed = template.lastUsedDate {
-                        Text("最后使用 \(formatDate(lastUsed))")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .padding(.vertical, 4)
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(action: {
-                TripTemplateManager.shared.toggleTemplateFavorite(template.id, for: userManager.userOpenId)
-                loadSavedTemplates()
-            }) {
-                Label(template.isFavorite ? "取消收藏" : "收藏", systemImage: template.isFavorite ? "heart.slash" : "heart")
-            }
-            .tint(.orange)
-        }
-    }
-    
-    // MARK: - 模板筛选和排序
-    
-    /// 获取筛选和排序后的模板
-    private func getFilteredTemplates() -> [SavedTripTemplate] {
-        var templates = savedTemplates
-        
-        // 搜索筛选
-        if !searchText.isEmpty {
-            let userId = userManager.userOpenId
-            templates = TripTemplateManager.shared.searchTemplates(searchText, for: userId)
-        }
-        
-        // 标签筛选
-        if let tag = selectedTag {
-            let userId = userManager.userOpenId
-            templates = templates.filter { $0.tags.contains(tag) }
-        }
-        
-        // 收藏筛选
-        if showOnlyFavorites {
-            templates = templates.filter { $0.isFavorite }
-        }
-        
-        // 排序
-        templates.sort { first, second in
-            switch sortOption {
-            case .dateDescending:
-                return first.savedDate > second.savedDate
-            case .dateAscending:
-                return first.savedDate < second.savedDate
-            case .usageCount:
-                return first.usageCount > second.usageCount
-            case .title:
-                return first.title < second.title
-            }
-        }
-        
-        return templates
-    }
-    
-    /// 获取所有标签
-    private func getAllTags() -> [String] {
-        let userId = userManager.userOpenId
-        return TripTemplateManager.shared.getAllTags(for: userId)
-    }
-    
-    /// 格式化日期
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
-    }
-    
-    // 模板市集视图（付费模板）
-    private var templateStoreView: some View {
-        List {
-            Section(header: Text("熱門推薦")) {
-                ForEach(templates) { template in
-                    NavigationLink(destination: TemplateDetailView(template: template)) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(template.title).font(.headline)
-                            Text(template.description)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            HStack {
-                                ForEach(template.tags, id: \.self) { tag in
-                                    Text("#\(tag)")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                }
-                                Spacer()
-                                Text(String(format: "NT$%.0f", template.price))
-                                    .font(.subheadline)
-                                    .foregroundColor(.green)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                }
-            }
-        }
-        .listStyle(InsetGroupedListStyle())
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 80) // 为TabBar预留空间
-        }
-    }
+    // MARK: - 消息处理
     
     /// 发送消息（持续对话）
     private func sendMessage() async {
@@ -811,9 +363,8 @@ struct AIPlannerView: View {
             }
             
         case .typeD:
-            // D类：切换到模板系统
-            selectedTab = .templateStore
-            let aiMessage = ChatMessage(role: .assistant, content: "已切换到模板市集，您可以浏览并选择模板。")
+            // D类：提示用户使用模板市集
+            let aiMessage = ChatMessage(role: .assistant, content: "建议您前往模板市集浏览并选择模板。")
             chatMessages.append(aiMessage)
             onMessageChanged()
         }
@@ -821,10 +372,7 @@ struct AIPlannerView: View {
         isLoading = false
     }
     
-    /// 处理用户输入（按需求判别流程）- 保留用于兼容
-    private func processInput() async {
-        await sendMessage()
-    }
+    // MARK: - 行程生成
     
     /// A类：直接生成行程（使用AI增强）
     private func generatePlanDirect(from result: ClassificationResult) async {
@@ -836,7 +384,6 @@ struct AIPlannerView: View {
             print("✅ [AI生成] OpenAI 成功生成行程，天数: \(plan.days.count)")
             
             self.planResult = plan
-            self.scheduleItems = PlanGenerator.shared.convertToScheduleItems(plan)
             
             // 添加到生成的行程列表
             generatedPlans.append(plan)
@@ -852,8 +399,6 @@ struct AIPlannerView: View {
             chatMessages.append(aiMessage)
             onMessageChanged()
             
-            // 不再自动弹出详情页，改为在卡片中显示
-            // self.showResult = false
         } catch {
             // 如果AI生成失败，根据错误类型处理
             print("❌ [AI生成] OpenAI 生成失败: \(error.localizedDescription)")
@@ -871,7 +416,6 @@ struct AIPlannerView: View {
                         riskFlags: result.riskFlags + ["⚠️ 注意：当前使用的是基础行程模板，非AI生成"]
                     )
                     self.planResult = plan
-                    self.scheduleItems = PlanGenerator.shared.convertToScheduleItems(plan)
                     
                     // 添加到生成的行程列表
                     generatedPlans.append(plan)
@@ -1036,6 +580,13 @@ struct AIPlannerView: View {
             Task {
                 await generatePlanFromFollowUp(state)
             }
+        } else {
+            // 继续追问
+            if let nextQuestion = state.currentQuestion {
+                let aiMessage = ChatMessage(role: .assistant, content: FollowUpManager.shared.getQuestionText(nextQuestion))
+                chatMessages.append(aiMessage)
+                onMessageChanged()
+            }
         }
     }
     
@@ -1086,7 +637,6 @@ struct AIPlannerView: View {
             plan.assumptions = ["基于追问信息生成"]
             
             self.planResult = plan
-            self.scheduleItems = PlanGenerator.shared.convertToScheduleItems(plan)
             
             // 添加到生成的行程列表
             generatedPlans.append(plan)
@@ -1100,6 +650,7 @@ struct AIPlannerView: View {
             : "✅ 已为您生成行程（使用AI生成），已自动保存到行程模板。"
             let aiMessage = ChatMessage(role: .assistant, content: responseText, planResult: plan)
             chatMessages.append(aiMessage)
+            onMessageChanged()
             
             self.followUpState = nil
         } catch {
@@ -1143,9 +694,7 @@ struct AIPlannerView: View {
         isLoading = false
     }
     
-    private func saveToCalendar() {
-        savePlanToCalendar(planResult)
-    }
+    // MARK: - 保存功能
     
     /// 保存行程到日历（从PlanResult）
     private func savePlanToCalendar(_ plan: PlanResult?) {
@@ -1194,7 +743,7 @@ struct AIPlannerView: View {
             }
             
             // 添加成功消息
-            DispatchQueue.main.async {
+            await MainActor.run {
                 let successMessage = ChatMessage(role: .system, content: "✅ 已成功将行程添加到日历中")
                 self.chatMessages.append(successMessage)
                 self.onMessageChanged()
@@ -1275,13 +824,7 @@ struct AIPlannerView: View {
         ChatMessageManager.shared.saveChatHistory(chatMessages, for: userId)
     }
     
-    // MARK: - 行程模板管理
-    
-    /// 加载保存的行程模板
-    private func loadSavedTemplates() {
-        let userId = userManager.userOpenId
-        savedTemplates = TripTemplateManager.shared.loadTemplates(for: userId)
-    }
+    // MARK: - 模板保存功能（仅保留自动保存和手动保存）
     
     /// 自动保存行程到模板（生成时自动调用）
     private func autoSavePlanToTemplate(_ plan: PlanResult) {
@@ -1311,12 +854,6 @@ struct AIPlannerView: View {
         
         // 保存模板
         TripTemplateManager.shared.saveTemplate(template, for: userId)
-        
-        // 重新加载模板列表（在主线程异步执行，确保UI更新）
-        DispatchQueue.main.async {
-            self.loadSavedTemplates()
-            print("✅ [自动保存] 模板列表已更新，当前有 \(self.savedTemplates.count) 个模板")
-        }
         
         print("✅ [自动保存] 行程已自动保存到模板: \(defaultTitle)")
     }
@@ -1350,9 +887,6 @@ struct AIPlannerView: View {
         // 保存模板
         TripTemplateManager.shared.saveTemplate(template, for: userId)
         
-        // 重新加载模板列表
-        loadSavedTemplates()
-        
         // 显示成功提示
         let successMessage = ChatMessage(role: .system, content: "✅ 已保存到行程模板：\(templateTitle)")
         chatMessages.append(successMessage)
@@ -1363,32 +897,5 @@ struct AIPlannerView: View {
     private func savePlanToTemplate(_ plan: PlanResult) {
         savePlanToTemplate(plan, withTitle: nil)
     }
-    
-    /// 更新模板
-    private func updateTemplate(_ templateId: UUID, with plan: PlanResult) {
-        let userId = userManager.userOpenId
-        var templates = TripTemplateManager.shared.loadTemplates(for: userId)
-        
-        if let index = templates.firstIndex(where: { $0.id == templateId }) {
-            templates[index].plan = plan
-            // 使用 TripTemplateManager 的更新方法
-            TripTemplateManager.shared.updateTemplate(templates[index], for: userId)
-            loadSavedTemplates()
-        }
-    }
-    
-    /// 删除模板
-    private func deleteTemplate(_ templateId: UUID) {
-        let userId = userManager.userOpenId
-        TripTemplateManager.shared.deleteTemplate(templateId, for: userId)
-        loadSavedTemplates()
-    }
-    
-    /// 清除所有模板
-    private func clearAllTemplates() {
-        let userId = userManager.userOpenId
-        TripTemplateManager.shared.clearAllTemplates(for: userId)
-        savedTemplates.removeAll()
-    }
-    
 }
+

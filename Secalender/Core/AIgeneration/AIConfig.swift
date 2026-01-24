@@ -38,8 +38,9 @@ final class AIConfig {
     
     /// 代码级别的默认开关值（修改这里后需要重新编译）
     /// 设置为 `false` 可以永久禁用 OpenAI API，避免测试时产生费用
-    private let defaultOpenAIEnabled = true  // ⚠️ 测试时改为 false
-    
+    // ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️
+    private let defaultOpenAIEnabled = true  // ⚠️ 测试时改为 `false``true`: 启用 OpenAI API
+    // ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️ ⚠️
     // MARK: - 调试信息
     
     /// 显示当前配置状态

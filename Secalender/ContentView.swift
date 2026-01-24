@@ -20,7 +20,7 @@ struct ContentView: View {
                 case 1:
                     CalendarView()
                 case 2:
-                    AIPlannerView()
+                    TravelTemplateView()
                 case 3:
                     FriendsAndGroupsView()
                 case 4:

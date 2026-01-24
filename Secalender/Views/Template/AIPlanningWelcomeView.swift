@@ -7,6 +7,9 @@
 //
 
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 // MARK: - 快速主题
 struct QuickTheme {
@@ -30,33 +33,16 @@ struct AIPlanningWelcomeView: View {
         ScrollView {
             VStack(spacing: 40) {
                 Spacer()
-                    .frame(height: 20)
+                    .frame(height: 5)
                 
                 // 中央图标区域
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     // 大圆形图标（浅蓝色背景，三个星星）
                     ZStack {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.blue.opacity(0.15),
-                                        Color.blue.opacity(0.08)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 120, height: 120)
-                        
-                        // 三个星星图标
-                        HStack(spacing: 8) {
-                            ForEach(0..<3) { _ in
-                                Image(systemName: "sparkle")
-                                    .font(.system(size: 20, weight: .medium))
-                                    .foregroundColor(.white)
-                            }
-                        }
+                        // 星星图标
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(.white)
                     }
                     
                     // 主标题
@@ -65,11 +51,11 @@ struct AIPlanningWelcomeView: View {
                         .foregroundColor(.primary)
                     
                     // 副标题
-                    Text("告訴我您的目的地與天數,讓我為您打造完美的個人化行程。")
+                    Text("讓我為您打造完美的個人化行程")
                         .font(.system(size: 15))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
+                        .padding(.horizontal, 30)
                     
                     // "開始 AI 規劃" 按钮
                     Button(action: {
@@ -89,13 +75,13 @@ struct AIPlanningWelcomeView: View {
                                         endPoint: .init(x: 1.2, y: 1.2)
                                     )
                                 )
-                                .frame(width: 140, height: 140)
+                                .frame(width: 200, height: 200)
                                 .blur(radius: 10)
                             
                             // 白色背景圆圈
                             Circle()
                                 .fill(Color.white)
-                                .frame(width: 120, height: 120)
+                                .frame(width: 180, height: 180)
                                 .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
                             
                             // 内容

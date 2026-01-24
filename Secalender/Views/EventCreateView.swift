@@ -1,13 +1,7 @@
 import SwiftUI
 import Foundation
 import MapKit
-
-// MARK: - CLLocationCoordinate2D Equatable 扩展
-extension CLLocationCoordinate2D: Equatable {
-    public static func == (lhs: CLLocationCoordinate2D, rhs: CLLocationCoordinate2D) -> Bool {
-        lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude
-    }
-}
+import CoreLocation
 
 // MARK: - 多日行程项数据模型
 struct MultiDayEventItem: Identifiable {
@@ -24,6 +18,7 @@ struct MultiDayEventItem: Identifiable {
 }
 
 // MARK: - 表单状态管理器（优化：合并多个 @State 为一个 ObservableObject，减少重绘）
+@MainActor
 class EventFormState: ObservableObject {
     @Published var title: String = ""
     @Published var destination: String = ""
@@ -134,30 +129,113 @@ struct EventCreateView: View {
         ("2 小時", "120")
     ]
     
-    // MARK: - 單日行程表單部分（优化：使用 @ViewBuilder 减少重绘）
+    // MARK: - 單日行程表單部分（优化：使用单一EventFormCard包裹所有字段）
     @ViewBuilder
     private var singleDayEventSections: some View {
-        // 活動介紹卡片
-        EventFormCard(icon: "text.alignleft", title: "活動內容", iconColor: .purple) {
-            GlassTextEditor(placeholder: "輸入活動備註或細節...", text: $formState.information, minHeight: 100)
-        }
-        
-        // 時間設置卡片 - 使用新的日期时间选择器组件
-        EventFormCard(icon: "clock.fill", title: "設定時間", iconColor: .blue) {
-            DateTimePickerView(
-                startDate: $formState.selectedStartDate,
-                startTime: $formState.selectedStartTime,
-                endDate: Binding(
-                    get: { formState.isHasEnd ? formState.selectedEndDate : nil },
-                    set: { if let date = $0 { formState.selectedEndDate = date } }
-                ),
-                endTime: Binding(
-                    get: { formState.isHasEnd ? formState.selectedEndTime : nil },
-                    set: { if let time = $0 { formState.selectedEndTime = time } }
-                ),
-                isAllDay: $formState.isAllDay,
-                isHasEnd: $formState.isHasEnd
-            )
+        // 單一卡片包含所有字段：行程標題、活動內容、地點、時間
+        EventFormCard(icon: "calendar", title: "行程 1", iconColor: .blue) {
+            VStack(spacing: 16) {
+                // 行程標題
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("行程標題")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        Text("\(formState.title.count)/20")
+                            .font(.system(size: 10))
+                            .foregroundColor(formState.title.count >= 20 ? .red : .secondary)
+                    }
+                    
+                    TextField("例如:抵達東京成田機場", text: Binding(
+                        get: { formState.title },
+                        set: { newValue in
+                            // 限制最多20个字符
+                            if newValue.count <= 20 {
+                                formState.title = newValue
+                            }
+                        }
+                    ))
+                    .lineLimit(1)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(UIColor.systemGray6))
+                    )
+                }
+                
+                // 活動內容
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("活動內容")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                    
+                    GlassTextEditor(
+                        placeholder: "輸入活動備註或細節...",
+                        text: $formState.information,
+                        minHeight: 80
+                    )
+                }
+                
+                // 選擇地點
+                VStack(alignment: .leading, spacing: 4) {
+
+                    Button(action: {
+                        activeSheet = .locationPicker // 优化：使用统一的 sheet 状态
+                        
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "mappin.circle.fill")
+                                .foregroundColor(.blue)
+                                .font(.system(size: 20))
+                            
+                            Text(formState.destination.isEmpty ? "選擇地點" : formState.destination)
+                                .foregroundColor(formState.destination.isEmpty ? .gray : .primary)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.gray)
+                                .font(.caption)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(UIColor.systemGray6))
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                
+                // 設定時間
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+
+                        Text("設定時間")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    DateTimePickerView(
+            startDate: $formState.selectedStartDate,
+            startTime: $formState.selectedStartTime,
+            endDate: Binding(
+                get: { formState.isHasEnd ? formState.selectedEndDate : nil },
+                set: { if let date = $0 { formState.selectedEndDate = date } }
+            ),
+            endTime: Binding(
+                get: { formState.isHasEnd ? formState.selectedEndTime : nil },
+                set: { if let time = $0 { formState.selectedEndTime = time } }
+            ),
+            isAllDay: $formState.isAllDay,
+            isHasEnd: $formState.isHasEnd
+        )
+                }
+            }
         }
         .onChange(of: formState.isAllDay) { oldValue, newValue in
             // 优化：添加防抖，避免频繁更新
@@ -169,28 +247,6 @@ struct EventCreateView: View {
                 formState.selectedEndDate = formState.selectedStartDate
                 formState.selectedEndTime = calendar.date(byAdding: .hour, value: 1, to: formState.selectedStartTime) ?? formState.selectedStartTime
             }
-        }
-        
-        // 地點輸入卡片
-        EventFormCard(icon: "location.fill", title: "選擇地點", iconColor: .blue) {
-            Button(action: {
-                activeSheet = .locationPicker // 优化：使用统一的 sheet 状态
-            }) {
-                HStack(spacing: 12) {
-                    Image(systemName: "mappin.circle.fill")
-                        .foregroundColor(.blue)
-                        .font(.system(size: 20))
-                    
-                    Text(formState.destination.isEmpty ? "選擇地點" : formState.destination)
-                        .foregroundColor(formState.destination.isEmpty ? .gray : .primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.gray)
-                        .font(.caption)
-                }
-            }
-            .buttonStyle(PlainButtonStyle())
         }
         
         // 添加多行程按鈕
@@ -553,36 +609,12 @@ struct EventCreateView: View {
                     .padding(.top, 8)
                     
                     VStack(spacing: 16) {
-                        // 標題輸入卡片（僅在單日行程模式下顯示，多日行程模式下行程1的卡片已包含標題）
-                        if !formState.isMultiDayEvent {
-                            EventFormCard(icon: "textformat", title: "行程標題", iconColor: .blue) {
-                                HStack {
-                                    TextField("例如:抵達東京成田機場", text: Binding(
-                                        get: { formState.title },
-                                        set: { newValue in
-                                            // 限制最多20个字符
-                                            if newValue.count <= 20 {
-                                                formState.title = newValue
-                                            }
-                                        }
-                                    ))
-                                    .lineLimit(1)
-                                    
-                                    // 显示字数统计
-                                    Text("\(formState.title.count)/20")
-                                        .font(.caption)
-                                        .foregroundColor(formState.title.count >= 20 ? .red : .secondary)
-                                        .frame(width: 50, alignment: .trailing)
-                                }
-                            }
-                        }
-                        
-                        if formState.isMultiDayEvent {
-                            // 多日行程模式
-                            multiDayEventSections
-                        } else {
-                            // 單日行程模式
-                            singleDayEventSections
+                    if formState.isMultiDayEvent {
+                        // 多日行程模式
+                        multiDayEventSections
+                    } else {
+                        // 單日行程模式
+                        singleDayEventSections
                         }
                     }
                     
@@ -1294,70 +1326,78 @@ struct MultiDayEventItemView: View {
         return idx < items.count ? items[idx] : nil
     }
     
-    // 辅助方法：获取行程编号图标
-    private func getItineraryIcon(_ index: Int) -> String {
-        let icons = ["①", "②", "③", "④", "⑤"]
-        return index < icons.count ? icons[index] : "circle.fill"
-    }
+
     
     var body: some View {
         // 所有行程都使用"行程 X"格式
         EventFormCard(
-            icon: getItineraryIcon(index),
+            icon: "calendar",
             title: "行程 \(index + 1)",
             iconColor: .blue
         ) {
             VStack(spacing: 16) {
                 // 行程標題（行程1显示主标题输入框，行程2及之后显示各自的标题输入框）
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("行程標題")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
-                    
-                    if index == 0 {
-                        // 行程1：显示主标题输入框
-                        HStack {
-                            TextField("例如:抵達東京成田機場", text: $mainTitle)
-                                .lineLimit(1)
-                                .onChange(of: mainTitle) { oldValue, newValue in
-                                    // 限制最多20个字符
-                                    if newValue.count > 20 {
-                                        mainTitle = String(newValue.prefix(20))
-                                    }
-                                }
-                            
-                            // 显示字数统计
+                    HStack {
+                        Text("行程標題")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        if index == 0 {
+                            // 行程1：显示主标题字数统计
                             Text("\(mainTitle.count)/20")
-                                .font(.caption)
+                                .font(.system(size: 10))
                                 .foregroundColor(mainTitle.count >= 20 ? .red : .secondary)
-                                .frame(width: 50, alignment: .trailing)
-                        }
-                    } else {
-                        // 行程2及之后：显示各自的标题输入框
-                        HStack {
-                            TextField("例如:抵達東京成田機場", text: Binding(
-                                get: { 
-                                    guard let idx = itemIndex, idx < items.count else { return "" }
-                                    return items[idx].title
-                                },
-                                set: { newValue in
-                                    // 限制最多20个字符
-                                    guard let idx = itemIndex, idx < items.count else { return }
-                                    if newValue.count <= 20 {
-                                        items[idx].title = newValue
-                                    }
-                                }
-                            ))
-                            .lineLimit(1)
-                            
-                            // 显示字数统计
+                        } else {
+                            // 行程2及之后：显示各自的字数统计
                             if let idx = itemIndex, idx < items.count {
                                 Text("\(items[idx].title.count)/20")
-                                    .font(.caption)
+                                    .font(.system(size: 10))
                                     .foregroundColor(items[idx].title.count >= 20 ? .red : .secondary)
-                                    .frame(width: 50, alignment: .trailing)
                             }
                         }
+                    }
+                    
+                if index == 0 {
+                    // 行程1：显示主标题输入框
+                        TextField("例如:抵達東京成田機場", text: $mainTitle)
+                            .lineLimit(1)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(UIColor.systemGray6))
+                            )
+                            .onChange(of: mainTitle) { oldValue, newValue in
+                                // 限制最多20个字符
+                                if newValue.count > 20 {
+                                    mainTitle = String(newValue.prefix(20))
+                                }
+                    }
+                } else {
+                    // 行程2及之后：显示各自的标题输入框
+                        TextField("例如:抵達東京成田機場", text: Binding(
+                            get: { 
+                                guard let idx = itemIndex, idx < items.count else { return "" }
+                                return items[idx].title
+                            },
+                            set: { newValue in
+                                // 限制最多20个字符
+                                guard let idx = itemIndex, idx < items.count else { return }
+                                if newValue.count <= 20 {
+                                    items[idx].title = newValue
+                                }
+                            }
+                        ))
+                        .lineLimit(1)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(UIColor.systemGray6))
+                        )
                     }
                 }
                 
@@ -1367,138 +1407,134 @@ struct MultiDayEventItemView: View {
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
                     
-                    GlassTextEditor(
+                GlassTextEditor(
                         placeholder: "輸入活動備註或細節...",
-                        text: Binding(
-                            get: { 
-                                guard let idx = itemIndex, idx < items.count else { return "" }
-                                return items[idx].information
-                            },
-                            set: { newValue in
-                                guard let idx = itemIndex, idx < items.count else { return }
-                                items[idx].information = newValue
-                            }
-                        ),
-                        minHeight: 80
-                    )
+                    text: Binding(
+                        get: { 
+                            guard let idx = itemIndex, idx < items.count else { return "" }
+                            return items[idx].information
+                        },
+                        set: { newValue in
+                            guard let idx = itemIndex, idx < items.count else { return }
+                            items[idx].information = newValue
+                        }
+                    ),
+                    minHeight: 80
+                )
                 }
                 
                 // 選擇地點
+
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("選擇地點")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+
                     
-                    Button(action: {
-                        guard let idx = itemIndex, idx < items.count else { return }
-                        showLocationPickerForItem = items[idx].id
-                        activeSheet = .locationPicker // 优化：使用统一的 sheet 状态
-                    }) {
+                Button(action: {
+                    guard let idx = itemIndex, idx < items.count else { return }
+                    showLocationPickerForItem = items[idx].id
+                    activeSheet = .locationPicker // 优化：使用统一的 sheet 状态
+
+                }) {
                         HStack(spacing: 12) {
                             Image(systemName: "mappin.circle.fill")
                                 .foregroundColor(.blue)
                                 .font(.system(size: 20))
                             
-                            if let idx = itemIndex, idx < items.count {
-                                Text(items[idx].destination.isEmpty ? "選擇地點" : items[idx].destination)
+                        if let idx = itemIndex, idx < items.count {
+                            Text(items[idx].destination.isEmpty ? "選擇地點" : items[idx].destination)
                                     .foregroundColor(items[idx].destination.isEmpty ? .gray : .primary)
-                                    .multilineTextAlignment(.leading)
-                                    .lineLimit(2)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            } else {
-                                Text("選擇地點")
-                                    .foregroundColor(.gray)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            
-                            Image(systemName: "chevron.right")
+                                    .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                        } else {
+                            Text("選擇地點")
                                 .foregroundColor(.gray)
-                                .font(.caption)
                         }
-                    }
-                    .buttonStyle(PlainButtonStyle())
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.gray)
+                            .font(.caption)
+
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(UIColor.systemGray6))
+                        )
                 }
-                .onChange(of: item.coordinate) { oldValue, newValue in
-                    // 當填寫地點坐標後，如果是行程2及之後，自動計算時間
-                    if index > 0 && newValue != nil {
+                .buttonStyle(PlainButtonStyle())
+                }
+                .onChange(of: item.destination) { oldValue, newValue in
+                    // 當填寫地點後，如果是行程2及之後，自動計算時間
+                    if index > 0 && !newValue.isEmpty && item.coordinate != nil {
                         onCoordinateChanged()
                     }
                 }
                 
                 // 時間 - 使用 DateTimePickerView 组件
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "clock.fill")
-                            .foregroundColor(.blue)
-                            .font(.system(size: 14))
-                        
-                        Text("設定時間")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                    }
                     
                     DateTimePickerView(
-                        startDate: Binding(
-                            get: { 
-                                guard let idx = itemIndex, idx < items.count else { return Date() }
-                                return items[idx].date
-                            },
-                            set: { newValue in
-                                guard let idx = itemIndex, idx < items.count else { return }
-                                items[idx].date = newValue
-                            }
-                        ),
-                        startTime: Binding(
-                            get: { 
-                                guard let idx = itemIndex, idx < items.count else { return Date() }
-                                return items[idx].startTime
-                            },
-                            set: { newValue in
-                                guard let idx = itemIndex, idx < items.count else { return }
-                                items[idx].startTime = newValue
-                            }
-                        ),
-                        endDate: Binding(
-                            get: { 
-                                guard let idx = itemIndex, idx < items.count else { return nil }
-                                return items[idx].isHasEnd ? items[idx].date : nil
-                            },
-                            set: { newValue in
-                                guard let idx = itemIndex, idx < items.count, let date = newValue else { return }
-                                items[idx].date = date
-                            }
-                        ),
-                        endTime: Binding(
-                            get: { 
-                                guard let idx = itemIndex, idx < items.count else { return nil }
-                                return items[idx].isHasEnd ? items[idx].endTime : nil
-                            },
-                            set: { newValue in
-                                guard let idx = itemIndex, idx < items.count, let time = newValue else { return }
-                                items[idx].endTime = time
-                            }
-                        ),
-                        isAllDay: Binding(
-                            get: { 
-                                guard let idx = itemIndex, idx < items.count else { return false }
-                                return items[idx].isAllDay
-                            },
-                            set: { newValue in
-                                guard let idx = itemIndex, idx < items.count else { return }
-                                items[idx].isAllDay = newValue
-                            }
-                        ),
-                        isHasEnd: Binding(
-                            get: { 
-                                guard let idx = itemIndex, idx < items.count else { return false }
-                                return items[idx].isHasEnd
-                            },
-                            set: { newValue in
-                                guard let idx = itemIndex, idx < items.count else { return }
-                                items[idx].isHasEnd = newValue
-                            }
-                        )
+                    startDate: Binding(
+                        get: { 
+                            guard let idx = itemIndex, idx < items.count else { return Date() }
+                            return items[idx].date
+                        },
+                        set: { newValue in
+                            guard let idx = itemIndex, idx < items.count else { return }
+                            items[idx].date = newValue
+                        }
+                    ),
+                    startTime: Binding(
+                        get: { 
+                            guard let idx = itemIndex, idx < items.count else { return Date() }
+                            return items[idx].startTime
+                        },
+                        set: { newValue in
+                            guard let idx = itemIndex, idx < items.count else { return }
+                            items[idx].startTime = newValue
+                        }
+                    ),
+                    endDate: Binding(
+                        get: { 
+                            guard let idx = itemIndex, idx < items.count else { return nil }
+                            return items[idx].isHasEnd ? items[idx].date : nil
+                        },
+                        set: { newValue in
+                            guard let idx = itemIndex, idx < items.count, let date = newValue else { return }
+                            items[idx].date = date
+                        }
+                    ),
+                    endTime: Binding(
+                        get: { 
+                            guard let idx = itemIndex, idx < items.count else { return nil }
+                            return items[idx].isHasEnd ? items[idx].endTime : nil
+                        },
+                        set: { newValue in
+                            guard let idx = itemIndex, idx < items.count, let time = newValue else { return }
+                            items[idx].endTime = time
+                        }
+                    ),
+                    isAllDay: Binding(
+                        get: { 
+                            guard let idx = itemIndex, idx < items.count else { return false }
+                            return items[idx].isAllDay
+                        },
+                        set: { newValue in
+                            guard let idx = itemIndex, idx < items.count else { return }
+                            items[idx].isAllDay = newValue
+                        }
+                    ),
+                    isHasEnd: Binding(
+                        get: { 
+                            guard let idx = itemIndex, idx < items.count else { return false }
+                            return items[idx].isHasEnd
+                        },
+                        set: { newValue in
+                            guard let idx = itemIndex, idx < items.count else { return }
+                            items[idx].isHasEnd = newValue
+                        }
                     )
+                )
                 }
                 .overlay(alignment: .topTrailing) {
                     if isCalculatingTravelTime && index > 0 {

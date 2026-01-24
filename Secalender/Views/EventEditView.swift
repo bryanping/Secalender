@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreLocation
 
 /// 编辑来源类型
 enum EditSource {
@@ -24,6 +25,7 @@ struct EventEditView: View {
     @State private var errorMessage = ""
     @State private var showDeleteConfirmation = false
     @State private var hasInitialized = false
+    @State private var showLocationPicker = false
 
     // 使用本地状态保存用户输入，避免被外部更新覆盖
     @State private var title: String = ""
@@ -41,6 +43,8 @@ struct EventEditView: View {
     @State private var selectedEndDate: Date = Date()
     
     @State private var isHasEnd: Bool = false //修改内容：作为 UI 意图层开关（唯一真相）
+    
+    @State private var selectedCoordinate: CLLocationCoordinate2D?
 
     let onComplete: (() -> Void)?
     let onDelete: (() -> Void)?  // 删除后的回调
@@ -62,14 +66,98 @@ struct EventEditView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // 标题卡片
-                EventTitleCard(title: $title)
-                
-                // 活動介紹卡片
-                EventInformationCard(information: $information)
-                
-                // 时间信息卡片
-                EventTimeCard(
+                // 單一卡片包含所有字段：行程標題、活動內容、地點、時間
+                EventFormCard(icon: "calendar", title: "行程資訊", iconColor: .blue) {
+                    VStack(spacing: 16) {
+                        // 行程標題
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("行程標題")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
+                                
+                                Spacer()
+                                
+                                Text("\(title.count)/20")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(title.count >= 20 ? .red : .secondary)
+                            }
+                            
+                            TextField("例如:抵達東京成田機場", text: Binding(
+                                get: { title },
+                                set: { newValue in
+                                    // 限制最多20个字符
+                                    if newValue.count <= 20 {
+                                        title = newValue
+                                    }
+                                }
+                            ))
+                            .lineLimit(1)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color(UIColor.systemGray6))
+                            )
+                        }
+                        
+                        // 活動內容
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("活動內容")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                            
+                            GlassTextEditor(
+                                placeholder: "輸入活動備註或細節...",
+                                text: $information,
+                                minHeight: 80
+                            )
+                        }
+                        
+                        // 選擇地點
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("選擇地點")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                            
+                            // 地点输入字段（可点击编辑）
+                            Button(action: {
+                                showLocationPicker = true
+                            }) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "mappin.circle.fill")
+                                        .foregroundColor(.blue)
+                                        .font(.system(size: 20))
+                                    
+                                    Text(destination.isEmpty ? "選擇地點" : destination)
+                                        .foregroundColor(destination.isEmpty ? .gray : .primary)
+                                        .multilineTextAlignment(.center)
+                                        .lineLimit(2)
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.gray)
+                                        .font(.caption)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 12)
+                                .frame(maxWidth: .infinity)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color(UIColor.systemGray6))
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        
+                        // 設定時間
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("設定時間")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                            
+                            DateTimePickerView(
                     startDate: $selectedDate,
                     startTime: $selectedStartTime,
                     endDate: Binding(
@@ -83,10 +171,18 @@ struct EventEditView: View {
                     isAllDay: $isAllDay,
                     isHasEnd: $isHasEnd
                 )
-                .padding(.leading, 0.0)
-                
-                // 地点信息卡片
-                EventLocationCard(destination: $destination)
+                        }
+                    }
+                }
+                .onChange(of: isAllDay) { newValue in
+                    if newValue {
+                        isHasEnd = false
+                        let calendar = Calendar.current
+                        selectedStartTime = calendar.startOfDay(for: selectedDate)
+                        selectedEndDate = selectedDate
+                        selectedEndTime = calendar.date(byAdding: .hour, value: 1, to: selectedStartTime) ?? selectedStartTime
+                    }
+                }
                 
                 // 其他设置卡片
                 EventSettingsCard(
@@ -115,7 +211,6 @@ struct EventEditView: View {
                 }
                 .padding(.horizontal)
             }
-            .padding()
             .padding(.bottom, 80) // 为底部按钮留出空间
         }
         .background(Color(.systemGroupedBackground))
@@ -211,6 +306,12 @@ struct EventEditView: View {
         }
         .navigationTitle("编辑活动")
         .navigationBarTitleDisplayMode(.large)
+        .sheet(isPresented: $showLocationPicker) {
+            LocationPickerView(
+                selectedAddress: $destination,
+                selectedCoordinate: $selectedCoordinate
+            )
+        }
     }
     
     // MARK: - 私有方法

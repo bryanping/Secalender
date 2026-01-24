@@ -25,6 +25,7 @@
 import Foundation
 import Combine
 
+// 修复：添加所有 FirebaseUserManager 的属性，确保类型兼容
 class MockFirebaseUserManager: ObservableObject {
     static let shared = MockFirebaseUserManager()
     
@@ -39,6 +40,18 @@ class MockFirebaseUserManager: ObservableObject {
         "E92WglZCKvXvxAdmOAc2LQg0Min2",
         "GvyBJV7Q7jbVB8UtKSOqhALSxQg1"
     ]
+    @Published var userCode: String? = "ABC12345"  // 8位数字+大写字母ID
+    @Published var region: String? = "台湾"  // 地区
+    @Published var phone: String? = nil  // 手机号
+    @Published var userCodeModified: Bool = false  // ID是否已修改过
+    @Published var favoriteTags: [String] = []  // 喜好标签
     
-    // 如有需要，可以加更多 mock 数据和方法
+    // Mock 方法（如果需要的话）
+    func refresh() {
+        // Mock 实现，不做任何事
+    }
+    
+    func ensureUserIsSignedIn(completion: @escaping (Bool) -> Void) {
+        completion(true)
+    }
 }
