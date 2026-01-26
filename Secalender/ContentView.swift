@@ -51,22 +51,20 @@ struct ContentView: View {
             .ignoresSafeArea(edges: .bottom)
         }
         .sheet(isPresented: $showCreateEvent) {
-            NavigationView {
-                EventCreateView(
-                    viewModel: EventDetailViewModel(
-                        event: Event(
-                            date: "",
-                            startTime: "09:00:00",
-                            endTime: "10:00:00",
-                            createTime: ""
-                        )
-                    ),
-                    onComplete: {
-                        showCreateEvent = false
-                    }
-                )
-                .environmentObject(userManager)
-            }
+            EventCreateView(
+                viewModel: EventDetailViewModel(
+                    event: Event(
+                        date: "",
+                        startTime: "09:00:00",
+                        endTime: "10:00:00",
+                        createTime: ""
+                    )
+                ),
+                onComplete: {
+                    showCreateEvent = false
+                }
+            )
+            .environmentObject(userManager)
         }
     }   
 }

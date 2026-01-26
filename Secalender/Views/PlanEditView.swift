@@ -38,6 +38,7 @@ struct PlanEditView: View {
     @State private var errorMessage = ""
     @State private var activeSheet: EventSheetType? = nil
     @State private var tripStartDate: Date = Date()  // 行程开始日期
+    @State private var originalBlocksByDay: [Date: [TimeBlock]] = [:]  // 保存原始的所有 blocks（包括 transit, buffer, flex, rest）
     
     var body: some View {
         NavigationView {
@@ -47,8 +48,8 @@ struct PlanEditView: View {
                 
                 ScrollView {
                     VStack(spacing: 20) {
-                        // 行程标题
-                        EventFormCard(icon: "textformat", title: "行程標題", iconColor: .blue) {
+                        // 模版标题
+                        EventFormCard(icon: "textformat", title: "模版標題", iconColor: .blue) {
                             TextField("例如:東京5日深度遊", text: $formState.title)
                                 .lineLimit(1)
                                 .padding(.horizontal, 12)
@@ -338,17 +339,10 @@ struct PlanEditView: View {
         var items: [MultiDayEventItem] = []
         let calendar = Calendar.current
         
+        // 保存原始的所有 blocks（包括 transit, buffer, flex, rest）
+        originalBlocksByDay = [:]
+        
         for (dayIndex, day) in plan.days.enumerated() {
-            // 获取当天的所有活动（过滤掉 transit、buffer 等），并按开始时间排序
-            let activities = day.blocks
-                .filter { $0.type == .activity }
-                .sorted(by: { 
-                    // 安全排序，避免无效日期导致崩溃
-                    let start1 = $0.startTime
-                    let start2 = $1.startTime
-                    return start1 < start2
-                })
-            
             // 计算该天的日期（基于 tripStartDate 和 dayIndex）
             let dayDate: Date
             if let calculatedDate = calendar.date(byAdding: .day, value: dayIndex, to: tripStartDate) {
@@ -358,6 +352,41 @@ struct PlanEditView: View {
                 let originalDate = day.date
                 dayDate = originalDate.isValid ? originalDate : Date()
             }
+            
+            // 保存该天的所有原始 blocks（包括 transit, buffer, flex, rest）
+            // 调整日期部分以匹配新的 tripStartDate
+            var adjustedBlocks: [TimeBlock] = []
+            for block in day.blocks {
+                let startTimeComponents = calendar.dateComponents([.hour, .minute, .second], from: block.startTime)
+                let endTimeComponents = calendar.dateComponents([.hour, .minute, .second], from: block.endTime)
+                
+                let adjustedStartTime = calendar.date(bySettingHour: startTimeComponents.hour ?? 0, minute: startTimeComponents.minute ?? 0, second: startTimeComponents.second ?? 0, of: dayDate) ?? dayDate
+                let adjustedEndTime = calendar.date(bySettingHour: endTimeComponents.hour ?? 0, minute: endTimeComponents.minute ?? 0, second: endTimeComponents.second ?? 0, of: dayDate) ?? dayDate
+                
+                // 创建新的 TimeBlock 实例（因为 id 是 let，不能直接修改）
+                var adjustedBlock = TimeBlock(
+                    type: block.type,
+                    startTime: adjustedStartTime,
+                    endTime: adjustedEndTime,
+                    title: block.title,
+                    location: block.location,
+                    isAnchor: block.isAnchor,
+                    priority: block.priority,
+                    description: block.description
+                )
+                adjustedBlocks.append(adjustedBlock)
+            }
+            originalBlocksByDay[dayDate] = adjustedBlocks
+            
+            // 获取当天的所有活动（过滤掉 transit、buffer 等），并按开始时间排序
+            let activities = day.blocks
+                .filter { $0.type == .activity }
+                .sorted(by: { 
+                    // 安全排序，避免无效日期导致崩溃
+                    let start1 = $0.startTime
+                    let start2 = $1.startTime
+                    return start1 < start2
+                })
             
             // 如果没有活动，创建一个默认项
             if activities.isEmpty {
@@ -507,6 +536,11 @@ struct PlanEditView: View {
         for (date, items) in groupedByDate.sorted(by: { $0.key < $1.key }) {
             var blocks: [TimeBlock] = []
             
+            // 获取该天的原始 blocks（包括 transit, buffer, flex, rest）
+            let originalBlocks = originalBlocksByDay[date] ?? []
+            
+            // 创建编辑后的 activity blocks
+            var editedActivityBlocks: [TimeBlock] = []
             for item in items.sorted(by: { $0.startTime < $1.startTime }) {
                 let block = TimeBlock(
                     type: .activity,
@@ -518,10 +552,27 @@ struct PlanEditView: View {
                     priority: 5,
                     description: item.information
                 )
-                blocks.append(block)
+                editedActivityBlocks.append(block)
             }
             
-            dayPlans.append(DayPlan(date: date, blocks: blocks))
+            // 合并编辑后的 activity blocks 和原始的非 activity blocks（transit, buffer, flex, rest）
+            // 按时间顺序合并所有 blocks
+            var allBlocks: [TimeBlock] = []
+            
+            // 添加所有非 activity 类型的原始 blocks
+            for originalBlock in originalBlocks {
+                if originalBlock.type != .activity {
+                    allBlocks.append(originalBlock)
+                }
+            }
+            
+            // 添加编辑后的 activity blocks
+            allBlocks.append(contentsOf: editedActivityBlocks)
+            
+            // 按开始时间排序
+            allBlocks.sort { $0.startTime < $1.startTime }
+            
+            dayPlans.append(DayPlan(date: date, blocks: allBlocks))
         }
         
         let updatedPlan = PlanResult(days: dayPlans, assumptions: plan.assumptions, riskFlags: plan.riskFlags)

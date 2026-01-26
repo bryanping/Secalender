@@ -7,7 +7,6 @@
 
 import SwiftUI
 import GoogleSignIn
-import GoogleSignInSwift
 import FirebaseAuth
 
 struct AuthenticationView: View {
@@ -15,108 +14,180 @@ struct AuthenticationView: View {
     @Binding var showSignInView: Bool
 
     var body: some View {
-        VStack(spacing: 18) {
-            Spacer()
+        ZStack {
+            // 渐变背景
+            LinearGradient(
+                gradient: Gradient(colors: [Color(red: 0.89, green: 0.95, blue: 0.99), Color.white]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
             
-            Image("LOGO") // 替换为你 app 的 logo
-                           // .resizable()
+            ScrollView {
+                VStack(spacing: 0) {
+                    Spacer()
+                        .frame(height: 80)
+                    
+                    // LOGO区域
+                    VStack(spacing: 24) {
+                        Image("LOGO")
+                            .resizable()
+                            .scaledToFit()
                             .frame(width: 120, height: 120)
-            
-            Text("Secalender")
-                            .font(.largeTitle)
-                            .bold()
-                            .padding(.top, 100)
-
-            Text("註冊後開啟你的時間管理生活")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-
-            
-            
-            GoogleSignInButton(
-                scheme: .light,
-                style: .wide,
-                state: .normal
-            ) {
-                Task {
-                    do {
-                        try await viewModel.signInGoogle()
-                        await handlePostLogin()
-                    } catch {
-                        print("登入失败：\(error)")
+                            .clipShape(Circle())
+                            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+                        
+                        // 标题区域
+                        VStack(spacing: 8) {
+                            Text("SECALENDER")
+                                .font(.system(size: 36, weight: .bold))
+                                .foregroundColor(.primary)
+                            
+                            Text("Plan your next adventure with AI")
+                                .font(.system(size: 16, weight: .regular))
+                                .foregroundColor(.secondary)
+                        }
                     }
-                }
-            }
-            .frame(height: 48)
-            .padding(.horizontal)
-            
-            Button {
-                Task {
-                    do {
-                        try await viewModel.signInApple()
-                        await handlePostLogin()
-                    } catch {
-                        print(error)
+                    .padding(.bottom, 100)
+                    
+                    // 按钮区域
+                    VStack(spacing: 12) {
+                        // Google登录按钮
+                        Button {
+                            Task {
+                                do {
+                                    try await viewModel.signInGoogle()
+                                    await handlePostLogin()
+                                } catch {
+                                    print("登入失败：\(error)")
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 3) {
+                                // Google 官方 LOGO
+                                Image("GoogleLogo")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 40, height: 40)
+                                Text("Continue with Google")
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(Color(.systemBackground))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(.separator), lineWidth: 1)
+                            )
+                        }
+                        
+                        // Apple登录按钮
+                        Button {
+                            Task {
+                                do {
+                                    try await viewModel.signInApple()
+                                    await handlePostLogin()
+                                } catch {
+                                    print(error)
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "apple.logo")
+                                    .font(.system(size: 20, weight: .medium))
+                                Text("Continue with Apple")
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(Color(.systemBackground))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color(.separator), lineWidth: 1)
+                            )
+                        }
+                        
+                        // OR分隔符
+                        HStack(spacing: 16) {
+                            Rectangle()
+                                .fill(Color(.separator))
+                                .frame(height: 1)
+                            
+                            Text("OR")
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundColor(.secondary)
+                            
+                            Rectangle()
+                                .fill(Color(.separator))
+                                .frame(height: 1)
+                        }
+                        .padding(.vertical, 8)
+                        
+                        // Email登录链接
+                        NavigationLink {
+                            SignInEmailView(showSignInView: $showSignInView)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "envelope.fill")
+                                    .font(.system(size: 18, weight: .medium))
+                                Text("Continue with Email")
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+                            .foregroundColor(.blue)
+                        }
+                        .padding(.top, 10)
+                        
+                        // 注册链接
+                        HStack(spacing: 4) {
+                            Text("Don't have an account?")
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundColor(.secondary)
+                            
+                            Button {
+                                // 可以添加注册逻辑
+                            } label: {
+                                Text("Sign Up")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        .padding(.top, 24)
+                        
+                        // 匿名登录按钮
+                        Button {
+                            Task {
+                                do {
+                                    try await viewModel.signInAnonymous()
+                                    await handlePostLogin()
+                                } catch {
+                                    print("匿名登入失败：\(error.localizedDescription)")
+                                }
+                            }
+                        } label: {
+                            Text("跳过登入，开始使用")
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 25)
+                        
+                        // 使用条款
+                        Text("登入即表示同意我们的使用条款与隐私政策")
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 10)
+                            .padding(.horizontal, 10)
                     }
-                }
-            } label: {
-                HStack {
-                    Image(systemName: "apple.logo")
-                    Text("使用 Apple 登入")
-                }
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(Color.black)
-                .foregroundColor(.white)
-                .cornerRadius(12)
-            }
-            
-            Text("或")
-                .padding(-5)
-            .foregroundColor(.gray)
-
-            NavigationLink {
-                SignInEmailView(showSignInView: $showSignInView)
-            } label: {
-                Text("以电子信箱登入或注册新帐号")
-                .font(.headline)
-                .frame(height: 48)
-                .frame(maxWidth: .infinity)
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(12)
-            }
-            Button {
-                Task {
-                    do {
-                        try await viewModel.signInAnonymous()
-                        await handlePostLogin()
-                    } catch {
-                        print("匿名登入失败：\(error.localizedDescription)")
-                    }
+                    .padding(.horizontal, 20)
+                    .frame(maxWidth: 400)
+                    
+                    Spacer()
+                        .frame(height: 40)
                 }
             }
-            label: {
-                Text("跳过登入，开始使用")
-                .font(.footnote)
-                .foregroundColor(.gray)
-            }
-            
-            
-                Text("登入即表示同意我们的使用条款与隐私政策")
-                .font(.footnote)
-                .foregroundColor(.gray)
-                .multilineTextAlignment(.center)
-                .padding(.top, 16)
-            
-            
-            
         }
-        .padding()
-        //.navigationTitle("Sign In")
-        .background(Color(.systemBackground))
-        
     }
     private func handlePostLogin() async {
             guard let authUser = try? AuthenticationManager.shared.getAuthenticatedUser() else {

@@ -33,6 +33,10 @@ struct MyTemplatesView: View {
     @State private var searchText: String = ""
     @State private var selectedFilter: TemplateFilterType = .myCreations
     @State private var activeSheet: TemplateSheetType? = nil  // 统一的 sheet 状态
+    @State private var showDeleteConfirmation = false
+    @State private var templateToDelete: SavedTripTemplate? = nil
+    @State private var showShareSheet = false
+    @State private var shareItems: [Any] = []
 
     var body: some View {
         ScrollView {
@@ -76,6 +80,7 @@ struct MyTemplatesView: View {
                     NavigationView {
                         PlanDetailView(
                             plan: template.plan,
+                            customTitle: template.title,  // 传递模板标题（来自"此行的主题"）
                             onEdit: { planToEdit in
                                 // 编辑功能：切换到 PlanEditView
                                 activeSheet = .planEdit(plan: planToEdit, template: template)
@@ -123,6 +128,64 @@ struct MyTemplatesView: View {
             guard !uid.isEmpty else { return }
             vm.load(userId: uid)
         }
+        .alert("確認刪除", isPresented: $showDeleteConfirmation) {
+            Button("取消", role: .cancel) {
+                templateToDelete = nil
+            }
+            Button("刪除", role: .destructive) {
+                if let template = templateToDelete {
+                    deleteTemplate(template)
+                }
+            }
+        } message: {
+            if let template = templateToDelete {
+                Text("確定要刪除「\(template.title)」嗎？此操作無法復原。")
+            }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            ShareSheet(activityItems: shareItems)
+        }
+    }
+    
+    // MARK: - 删除和分享功能
+    
+    private func deleteTemplate(_ template: SavedTripTemplate) {
+        TripTemplateManager.shared.deleteTemplate(template.id, for: userManager.userOpenId)
+        vm.reload(userId: userManager.userOpenId)
+        templateToDelete = nil
+    }
+    
+    private func shareTemplate(_ template: SavedTripTemplate) {
+        // 构建分享文本
+        var shareText = "\(template.title)\n\n"
+        
+        if let destination = template.destination {
+            shareText += "目的地：\(destination)\n"
+        }
+        
+        shareText += "行程天数：\(template.plan.days.count)天\n\n"
+        
+        // 添加每天的行程
+        for (dayIndex, day) in template.plan.days.enumerated() {
+            shareText += "第\(dayIndex + 1)天：\n"
+            
+            let activities = day.blocks.filter { $0.type == .activity }
+            for (index, activity) in activities.enumerated() {
+                let timeString = Self.timeFormatter.string(from: activity.startTime)
+                shareText += "\(timeString) - \(activity.title)"
+                if let location = activity.location {
+                    shareText += " (\(location))"
+                }
+                shareText += "\n"
+            }
+            
+            if dayIndex < template.plan.days.count - 1 {
+                shareText += "\n"
+            }
+        }
+        
+        shareItems = [shareText]
+        showShareSheet = true
     }
 
     // MARK: - 搜索栏（你原来的保持）
@@ -245,6 +308,28 @@ struct MyTemplatesView: View {
                     }
                     
                     Spacer()
+                    
+                    // 操作菜单按钮
+                    Menu {
+                        Button(role: .destructive, action: {
+                            templateToDelete = template
+                            showDeleteConfirmation = true
+                        }) {
+                            Label("删除", systemImage: "trash")
+                        }
+                        
+                        Button(action: {
+                            shareTemplate(template)
+                        }) {
+                            Label("分享", systemImage: "square.and.arrow.up")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 16, weight: .medium))
+                            .padding(8)
+                    }
+                    .buttonStyle(PlainButtonStyle())
                     
                     // 天数标签
                     Text("\(template.plan.days.count)天")

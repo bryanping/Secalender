@@ -47,7 +47,7 @@ struct FriendsAndGroupsView: View {
                 tabBarView
                 contentView
             }
-            .navigationTitle("朋友＆社群")
+
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     toolbarButton

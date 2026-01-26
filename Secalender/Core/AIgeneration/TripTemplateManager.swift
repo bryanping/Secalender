@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import EventKit
 
 /// 保存的行程模板
 struct SavedTripTemplate: Identifiable, Codable, Equatable {
@@ -100,7 +101,7 @@ final class TripTemplateManager {
     private let templatesKey = "saved_trip_templates"
     
     /// 保存行程模板
-    func saveTemplate(_ template: SavedTripTemplate, for userId: String) {
+    func saveTemplate(_ template: SavedTripTemplate, for userId: String, syncToAppleCalendar: Bool = true) {
         var templates = loadTemplates(for: userId)
         
         // 检查是否已存在相同ID的模板（避免重复保存）
@@ -114,6 +115,71 @@ final class TripTemplateManager {
         // 保存模板列表
         saveTemplates(templates, for: userId)
         print("✅ 行程模板已保存: \(template.title) (共 \(templates.count) 个模板)")
+        
+        // 同步到手机日历
+        if syncToAppleCalendar {
+            Task {
+                await syncPlanToAppleCalendar(template.plan, templateTitle: template.title)
+            }
+        }
+    }
+    
+    /// 将 PlanResult 同步到 Apple 日历
+    @MainActor
+    private func syncPlanToAppleCalendar(_ plan: PlanResult, templateTitle: String) async {
+        // 请求日历权限
+        let calendarManager = AppleCalendarManager.shared
+        await withCheckedContinuation { continuation in
+            calendarManager.requestAccessIfNeeded { granted in
+                if !granted {
+                    print("⚠️ 未获得日历权限，跳过同步到手机日历")
+                    continuation.resume()
+                    return
+                }
+                continuation.resume()
+            }
+        }
+        
+        // 检查权限状态
+        let status = EKEventStore.authorizationStatus(for: .event)
+        guard status == .authorized else {
+            print("⚠️ 日历权限未授权，无法同步到手机日历")
+            return
+        }
+        
+        // 遍历所有天的活动，添加到手机日历
+        var successCount = 0
+        var failCount = 0
+        
+        for day in plan.days {
+            for block in day.blocks {
+                // 只同步 ACTIVITY 类型的活动
+                guard block.type == .activity else {
+                    continue
+                }
+                
+                do {
+                    try await calendarManager.addEventToAppleCalendar(
+                        title: block.title,
+                        start: block.startTime,
+                        end: block.endTime,
+                        location: block.location,
+                        notes: block.description ?? "来自行程模板：\(templateTitle)"
+                    )
+                    successCount += 1
+                } catch {
+                    print("❌ 添加活动到手机日历失败: \(block.title) - \(error.localizedDescription)")
+                    failCount += 1
+                }
+            }
+        }
+        
+        if successCount > 0 {
+            print("✅ 已同步 \(successCount) 个活动到手机日历")
+        }
+        if failCount > 0 {
+            print("⚠️ \(failCount) 个活动同步失败")
+        }
     }
     
     /// 加载所有行程模板

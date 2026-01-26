@@ -2,6 +2,7 @@ import SwiftUI
 import Foundation
 import MapKit
 import CoreLocation
+import EventKit
 
 // MARK: - 多日行程项数据模型
 struct MultiDayEventItem: Identifiable {
@@ -753,6 +754,24 @@ struct EventCreateView: View {
             guard !hasInitialized else { return }
             hasInitialized = true
             
+            // 等待用户信息准备好（避免访问未准备好的 Firebase 用户信息）
+            // 最多等待 5 秒，避免无限等待
+            var waitCount = 0
+            while userManager.userOpenId.isEmpty && waitCount < 50 {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 等待 0.1 秒
+                waitCount += 1
+            }
+            
+            // 如果用户信息仍未准备好，使用默认值继续（避免阻塞 UI）
+            guard !userManager.userOpenId.isEmpty else {
+                print("⚠️ 用户信息未准备好，使用默认值初始化")
+                // 只初始化不依赖用户信息的部分
+                await MainActor.run {
+                    initializeDatePickers()
+                }
+                return
+            }
+            
             // 初始化本地状态（只在首次加载时）
             await MainActor.run {
                 if formState.title.isEmpty {
@@ -769,10 +788,13 @@ struct EventCreateView: View {
                 formState.repeatType = viewModel.event.repeatType ?? "never"
                 formState.calendarComponent = viewModel.event.calendarComponent ?? "default"
                 
-                // 初始化日历显示文本和颜色
-                updateCalendarDisplay()
-                
                 initializeDatePickers()
+            }
+            
+            // 初始化需要用户信息的操作（在用户信息准备好后）
+            await MainActor.run {
+                // 初始化日历显示文本和颜色（需要用户信息）
+                updateCalendarDisplay()
             }
             
             // 初始化视图（包含异步操作）
@@ -917,6 +939,12 @@ struct EventCreateView: View {
     
     /// 加载用户可管理的社群列表
     private func loadAvailableGroups() async {
+        // 检查用户信息是否准备好
+        guard !userManager.userOpenId.isEmpty else {
+            print("⚠️ 用户信息未准备好，无法加载社群列表")
+            return
+        }
+        
         // 修改内容：取消之前的加载任务，防止重复调用
         isLoadingGroupsTask?.cancel()
         
@@ -928,6 +956,14 @@ struct EventCreateView: View {
             do {
                 // 修改内容：检查任务是否被取消
                 guard !Task.isCancelled else { return }
+                
+                // 再次检查用户信息（可能在等待期间发生变化）
+                guard !userManager.userOpenId.isEmpty else {
+                    await MainActor.run {
+                        self.formState.isLoadingGroups = false
+                    }
+                    return
+                }
                 
                 // 获取用户加入的所有社群
                 let allGroups = try await GroupManager.shared.getUserGroups(userId: userManager.userOpenId)
@@ -1091,16 +1127,40 @@ struct EventCreateView: View {
             viewModel.event.groupId = nil
         }
 
-        // 先立即关闭视图，提升用户体验
+        // 检查用户信息是否准备好
+        guard !userManager.userOpenId.isEmpty else {
+            errorMessage = "用戶信息未準備好，請稍後再試"
+            showErrorAlert = true
+            return
+        }
+        
+        // 先保存到本地缓存（立即响应，不等待网络）
+        EventCacheManager.shared.addEventToCache(viewModel.event, for: userManager.userOpenId)
+        
+        // 立即关闭视图，提升用户体验
         onComplete?()
         dismiss()
         
-        // 后台异步保存到 Firebase（EventManager 已经先保存到本地缓存了）
-        Task {
+        // 优化：先捕获值，避免在 Task 中捕获非 Sendable 的 userManager
+        let userId = userManager.userOpenId
+        let shouldSync = syncToAppleCalendar
+        
+        // 后台异步保存到 Firebase（使用 Task {} 而不是 Task.detached，保持在主 Actor 上下文）
+        Task { @MainActor in
             do {
-                try await viewModel.saveEvent(currentUserOpenId: userManager.userOpenId)
-                if syncToAppleCalendar {
-                    // TODO: 實現同步到 Apple 日曆
+                try await viewModel.saveEvent(currentUserOpenId: userId)
+                
+                // 等待一小段时间确保 Firebase 写入完成
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 秒
+                
+                // 从 Firebase 重新加载，更新本地缓存（这会覆盖可能重复的临时事件）
+                try? await EventManager.shared.fetchEvents()
+                
+                // 通知 CalendarView 刷新（通过 NotificationCenter）
+                NotificationCenter.default.post(name: NSNotification.Name("EventSaved"), object: nil)
+                
+                if shouldSync {
+                    await syncEventToAppleCalendar(viewModel.event)
                 }
             } catch {
                 // 如果保存失败，在后台记录错误（不影响用户体验）
@@ -1112,6 +1172,13 @@ struct EventCreateView: View {
     }
     
     private func saveMultiDayEvents() {
+        // 检查用户信息是否准备好
+        guard !userManager.userOpenId.isEmpty else {
+            errorMessage = "用戶信息未準備好，請稍後再試"
+            showErrorAlert = true
+            return
+        }
+        
         // 1. 验证社群设置（如果是社群活动）
         if formState.isGroupEvent {
             if formState.selectedGroupId == nil {
@@ -1231,8 +1298,14 @@ struct EventCreateView: View {
                 // 从 Firebase 重新加载，更新本地缓存（这会覆盖可能重复的临时事件）
                 try? await EventManager.shared.fetchEvents()
                 
+                // 通知 CalendarView 刷新（通过 NotificationCenter）
+                NotificationCenter.default.post(name: NSNotification.Name("EventSaved"), object: nil)
+                
                 if shouldSync {
-                    // TODO: 實現同步到 Apple 日曆
+                    // 为每个事件同步到 Apple 日历
+                    for event in eventsToSave {
+                        await syncEventToAppleCalendar(event)
+                    }
                 }
             } catch {
                 // 如果保存失败，在后台记录错误（不影响用户体验）
@@ -1249,6 +1322,20 @@ struct EventCreateView: View {
     
     /// 更新日历显示文本和颜色（只在需要时调用，避免频繁计算）
     private func updateCalendarDisplay() {
+        // 检查用户信息是否准备好
+        guard !userManager.userOpenId.isEmpty else {
+            // 如果用户信息未准备好，使用默认值
+            formState.calendarDisplayText = calendarOptions.first { $0.0 == formState.calendarComponent }?.1 ?? "活動安排"
+            switch formState.calendarComponent {
+            case "work": formState.calendarColor = .blue
+            case "personal": formState.calendarColor = .green
+            case "family": formState.calendarColor = .orange
+            case "study": formState.calendarColor = .purple
+            default: formState.calendarColor = .red
+            }
+            return
+        }
+        
         // 从UserPreferencesManager加载用户日历列表
         let userCalendars = UserPreferencesManager.shared.loadUserCalendarsFromCache(for: userManager.userOpenId)
         if let calendar = userCalendars.first(where: { $0.id == formState.calendarComponent }) {
@@ -1270,6 +1357,16 @@ struct EventCreateView: View {
     
     /// 加载默认同步偏好设置
     private func loadDefaultSyncPreference() async {
+        // 检查用户信息是否准备好
+        guard !userManager.userOpenId.isEmpty else {
+            // 如果用户信息未准备好，使用默认值
+            await MainActor.run {
+                syncToAppleCalendar = false
+                hasLoadedDefaultSyncPreference = true
+            }
+            return
+        }
+        
         // 优化：先捕获值，避免在 Task 中捕获非 Sendable 的 userManager
         let userId = userManager.userOpenId
         
@@ -1300,6 +1397,94 @@ struct EventCreateView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = format
         return formatter.date(from: string)
+    }
+    
+    /// 将 Event 对象同步到 Apple 日历
+    @MainActor
+    private func syncEventToAppleCalendar(_ event: Event) async {
+        let calendarManager = AppleCalendarManager.shared
+        
+        // 请求日历权限
+        await withCheckedContinuation { continuation in
+            calendarManager.requestAccessIfNeeded { granted in
+                if !granted {
+                    print("⚠️ 未获得日历权限，跳过同步到手机日历")
+                    continuation.resume()
+                    return
+                }
+                continuation.resume()
+            }
+        }
+        
+        // 检查权限状态
+        let status = EKEventStore.authorizationStatus(for: .event)
+        guard status == .authorized else {
+            print("⚠️ 日历权限未授权，无法同步到手机日历")
+            return
+        }
+        
+        // 将 Event 的日期时间字符串转换为 Date 对象
+        guard let startDate = parseEventDate(event: event, isStart: true),
+              let endDate = parseEventDate(event: event, isStart: false) else {
+            print("⚠️ 无法解析事件日期时间，跳过同步")
+            return
+        }
+        
+        // 构建备注信息
+        var notes = ""
+        if let information = event.information, !information.isEmpty {
+            notes = information
+        }
+        if !event.destination.isEmpty {
+            if !notes.isEmpty {
+                notes += "\n\n"
+            }
+            notes += "地点：\(event.destination)"
+        }
+        
+        // 同步到 Apple 日历
+        do {
+            try await calendarManager.addEventToAppleCalendar(
+                title: event.title,
+                start: startDate,
+                end: endDate,
+                location: event.destination.isEmpty ? nil : event.destination,
+                notes: notes.isEmpty ? nil : notes
+            )
+            print("✅ 已同步事件到手机日历：\(event.title)")
+        } catch {
+            print("❌ 同步事件到手机日历失败：\(event.title) - \(error.localizedDescription)")
+        }
+    }
+    
+    /// 解析 Event 的日期时间为 Date 对象
+    private func parseEventDate(event: Event, isStart: Bool) -> Date? {
+        let dateString = isStart ? event.date : (event.endDate ?? event.date)
+        let timeString = isStart ? event.startTime : event.endTime
+        
+        // 处理整日活动
+        if event.isAllDay == true {
+            // 整日活动：开始时间为当天的 00:00:00，结束时间为当天的 23:59:59
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            guard let date = dateFormatter.date(from: dateString) else {
+                return nil
+            }
+            
+            if isStart {
+                return Calendar.current.startOfDay(for: date)
+            } else {
+                // 结束时间设为当天的 23:59:59
+                let endOfDay = Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: date)
+                return endOfDay
+            }
+        }
+        
+        // 非整日活动：组合日期和时间
+        let dateTimeString = "\(dateString) \(timeString)"
+        let dateTimeFormatter = DateFormatter()
+        dateTimeFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return dateTimeFormatter.date(from: dateTimeString)
     }
 }
 

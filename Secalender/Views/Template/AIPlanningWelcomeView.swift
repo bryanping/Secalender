@@ -21,12 +21,14 @@ struct QuickTheme {
 
 struct AIPlanningWelcomeView: View {
     @Binding var showAIPlanner: Bool
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @State private var showWeekendFlash = false
+    @State private var showDeepCulture = false
     
     // 快速主题列表
     private let quickThemes: [QuickTheme] = [
         QuickTheme(icon: "bolt.fill", iconColor: .orange, title: "週末快閃"),
-        QuickTheme(icon: "building.columns.fill", iconColor: .purple, title: "深度文化"),
-        QuickTheme(icon: "fork.knife", iconColor: .green, title: "美食探索")
+        QuickTheme(icon: "building.columns.fill", iconColor: .purple, title: "深度文化")
     ]
     
     var body: some View {
@@ -111,25 +113,31 @@ struct AIPlanningWelcomeView: View {
                         
                         Spacer()
                         
-                        Button(action: {
-                            // TODO: 显示更多主题
-                        }) {
-                            Text("查看更多")
-                                .font(.system(size: 14))
-                                .foregroundColor(.blue)
-                        }
+                        // Button(action: {
+                        //     // TODO: 显示更多主题
+                        // }) {
+                        //     Text("查看更多")
+                        //         .font(.system(size: 14))
+                        //         .foregroundColor(.blue)
+                        // }
                     }
                     .padding(.horizontal)
                     
-                    // 主题卡片
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 16) {
-                            ForEach(quickThemes, id: \.id) { theme in
-                                QuickThemeCard(theme: theme)
+                    // 主题卡片 - 并排显示，每个占1/2宽度
+                    HStack(spacing: 16) {
+                        ForEach(quickThemes, id: \.id) { theme in
+                            QuickThemeCard(theme: theme) {
+                                // 点击主题卡片时打开对应的视图
+                                if theme.title == "週末快閃" {
+                                    showWeekendFlash = true
+                                } else if theme.title == "深度文化" {
+                                    showDeepCulture = true
+                                }
                             }
+                            .frame(maxWidth: .infinity) // 每个卡片占据可用空间的一半
                         }
-                        .padding(.horizontal)
                     }
+                    .padding(.horizontal)
                 }
                 .padding(.top, 20)
                 
@@ -138,26 +146,45 @@ struct AIPlanningWelcomeView: View {
             }
         }
         .background(Color(.systemGroupedBackground))
+        .sheet(isPresented: $showWeekendFlash) {
+            WeekendFlashView()
+                .environmentObject(userManager)
+        }
+        .sheet(isPresented: $showDeepCulture) {
+            DeepCultureView()
+                .environmentObject(userManager)
+        }
     }
 }
 
 // MARK: - 快速主题卡片
 struct QuickThemeCard: View {
     let theme: QuickTheme
+    var action: (() -> Void)? = nil
     
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: theme.icon)
-                .font(.system(size: 32, weight: .medium))
-                .foregroundColor(theme.iconColor)
-            
-            Text(theme.title)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(.primary)
+        Button(action: {
+            action?()
+        }) {
+            VStack(spacing: 12) {
+                Image(systemName: theme.icon)
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundColor(theme.iconColor)
+                
+                Text(theme.title)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity) // 允许卡片填充可用宽度
+            .frame(height: 110)
+            .background(Color.white)
+            .cornerRadius(16)
+            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
         }
-        .frame(width: 110, height: 110)
-        .background(Color.white)
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .buttonStyle(PlainButtonStyle())
     }
 }

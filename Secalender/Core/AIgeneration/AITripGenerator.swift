@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreLocation
 
 // 注意：这些类型在 InputClassifier.swift 和 PlanGenerator.swift 中定义
 // 需要确保这些文件已导入
@@ -58,7 +59,10 @@ final class AITripGenerator {
         pace: Pace,
         walkingLevel: WalkingLevel?,
         transportPreference: TransportPreference?,
-        selectedAttractions: [String] = []
+        selectedAttractions: [String] = [],
+        currentGPSLocation: CLLocation? = nil,
+        accommodationAddress: String? = nil,
+        accommodationType: String? = nil
     ) async throws -> AITripPlan {
         
         // 检查 OpenAI 开关
@@ -84,7 +88,10 @@ final class AITripGenerator {
             pace: pace,
             walkingLevel: walkingLevel,
             transportPreference: transportPreference,
-            selectedAttractions: selectedAttractions
+            selectedAttractions: selectedAttractions,
+            currentGPSLocation: currentGPSLocation,
+            accommodationAddress: accommodationAddress,
+            accommodationType: accommodationType
         )
         
         print("🤖 [AITripGenerator] 提示词构建完成，长度: \(prompt.count) 字符")
@@ -109,7 +116,10 @@ final class AITripGenerator {
         pace: Pace,
         walkingLevel: WalkingLevel?,
         transportPreference: TransportPreference?,
-        selectedAttractions: [String] = []
+        selectedAttractions: [String] = [],
+        currentGPSLocation: CLLocation? = nil,
+        accommodationAddress: String? = nil,
+        accommodationType: String? = nil
     ) -> String {
         var prompt = """
         请为\(destination)规划一套**第一次来也适用、节奏合理、不走马看花**的\(durationDays)天行程规划。
@@ -154,6 +164,42 @@ final class AITripGenerator {
         
         if let transport = transportPreference {
             prompt += "\n- 交通偏好：\(transport.rawValue)为主"
+        }
+        
+        // 添加GPS位置信息
+        if let gpsLocation = currentGPSLocation {
+            prompt += "\n- 出发位置：GPS坐标 (\(gpsLocation.coordinate.latitude), \(gpsLocation.coordinate.longitude))"
+            prompt += "\n- 请计算从出发位置到目的地的交通时间和距离，并在第一天行程开始时添加交通时间块"
+        }
+        
+        // 添加住宿信息
+        if let accommodation = accommodationAddress, !accommodation.isEmpty {
+            let accType = accommodationType ?? "自定义地址"
+            prompt += "\n- 住宿位置：\(accommodation)（类型：\(accType)）"
+            prompt += """
+            
+        【住宿对旅游的影响分析】
+        住宿位置对行程规划有重要影响，请考虑以下因素：
+        1. **地理位置影响**：
+           - 住宿位置决定了每天出发和返回的交通时间
+           - 如果住宿在市中心，可以节省往返时间，增加游玩时间
+           - 如果住宿在郊区或景点附近，需要合理安排交通路线
+        
+        2. **行程优化建议**：
+           - 根据住宿位置，优先安排距离住宿较近的景点在早上或晚上
+           - 将距离较远的景点安排在中间时段，避免频繁往返
+           - 考虑住宿周边的餐饮和购物便利性
+        
+        3. **交通时间计算**：
+           - 每天开始前，计算从住宿到第一个景点的交通时间
+           - 每天结束时，计算从最后一个景点返回住宿的交通时间
+           - 将这些交通时间纳入行程规划中
+        
+        4. **住宿类型影响**：
+           - 酒店：通常位置便利，交通方便，但价格较高
+           - 民宿/公寓：可能位置较偏，但体验更本地化
+           - 请根据住宿类型给出相应的行程建议
+        """
         }
         
         prompt += """
@@ -393,6 +439,31 @@ final class AITripGenerator {
         var currentTime = calendar.date(bySettingHour: defaultStartHour, minute: defaultStartMinute, second: 0, of: date) ?? date
         
         let dayEnd = calendar.date(bySettingHour: 20, minute: 30, second: 0, of: date) ?? date
+        
+        // 如果是第一天，添加从出发位置到目的地的交通时间
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let isFirstDay = aiDay.date == dateFormatter.string(from: date)
+        if isFirstDay {
+            // 这里可以添加GPS位置到目的地的交通时间计算
+            // 暂时使用默认值，后续可以通过TravelTimeCalculator计算实际时间
+            let initialTransitDuration: TimeInterval = 60 * 60  // 默认1小时
+            let transitEnd = currentTime.addingTimeInterval(initialTransitDuration)
+            
+            if transitEnd <= dayEnd {
+                blocks.append(TimeBlock(
+                    type: .transit,
+                    startTime: currentTime,
+                    endTime: transitEnd,
+                    title: "前往目的地",
+                    location: nil,
+                    isAnchor: false,
+                    priority: 6,
+                    description: "从出发位置前往目的地"
+                ))
+                currentTime = transitEnd
+            }
+        }
         
         for (index, activity) in aiDay.activities.enumerated() {
             // 如果不是第一个活动，添加交通时间

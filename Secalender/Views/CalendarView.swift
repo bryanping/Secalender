@@ -99,6 +99,12 @@ struct CalendarView: View {
                         // 当筛选器改变时，重新过滤事件
                         events = filterEvents(allEvents)
                     }
+                    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("EventSaved"))) { _ in
+                        // 当事件保存完成后，刷新事件列表
+                        Task { @MainActor in
+                            await loadEvents()
+                        }
+                    }
                 }
             }
             .safeAreaInset(edge: .bottom) {

@@ -39,68 +39,97 @@ struct TemplateDetailView: View {
                 }
             }
                 
-            Text(String(format: "NT$%.0f", template.price))
-                .font(.title3)
-                .foregroundColor(.green)
-                .padding(.top, 8)
+            // 價格顯示：如果為0則顯示"免費"
+            if template.price == 0 {
+                Text("免費")
+                    .font(.title3)
+                    .foregroundColor(.blue)
+                    .padding(.top, 8)
+            } else {
+                Text(String(format: "NT$%.0f", template.price))
+                    .font(.title3)
+                    .foregroundColor(.green)
+                    .padding(.top, 8)
+            }
 
             Spacer()
 
             VStack(spacing: 12) {
-                Button(action: {
-                    // 真正的購買邏輯請整合您的支付方案
-                    showingPurchaseAlert = true
-                }) {
-                    Text(purchased ? "已購買" : "購買模板")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(purchased ? Color.gray : Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                }
-                .disabled(purchased)
-
-                    if purchased {
-                        Button(action: {
-                            // 檢視行程：从 API 获取 PlanResult
-                            loadTemplatePlan()
-                        }) {
-                            HStack {
-                                if isLoadingPlan {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Image(systemName: "eye.fill")
-                                }
-                                Text("檢視行程")
-                            }
+                // 開發期間：價格為0的模板可以直接添加到我的模板
+                if template.price == 0 {
+                    Button(action: {
+                        // 直接添加到我的模板（開發期間免費使用）
+                        addToMyTemplates()
+                    }) {
+                        Text("添加到我的模板")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.orange)
+                            .background(Color.blue)
                             .foregroundColor(.white)
                             .cornerRadius(8)
-                        }
-                        .disabled(isLoadingPlan)
+                    }
+                } else {
+                    Button(action: {
+                        // 真正的購買邏輯請整合您的支付方案
+                        showingPurchaseAlert = true
+                    }) {
+                        Text(purchased ? "已購買" : "購買模板")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(purchased ? Color.gray : Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                    }
+                    .disabled(purchased)
+                }
 
-                Button(action: {
-                    // 套用模板至行事曆的邏輯
-                            if let plan = templatePlan {
-                                applyPlanToCalendar(plan)
+                // 如果已購買或價格為0（開發期間免費），顯示檢視和套用按鈕
+                if purchased || template.price == 0 {
+                    Button(action: {
+                        // 檢視行程：从 API 获取 PlanResult
+                        Task {
+                            await loadTemplatePlan()
+                        }
+                    }) {
+                        HStack {
+                            if isLoadingPlan {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             } else {
-                                loadTemplatePlanAndApply()
+                                Image(systemName: "eye.fill")
                             }
-                }) {
-                    Text("套用至行事曆")
+                            Text("檢視行程")
+                        }
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.green)
+                        .background(Color.orange)
                         .foregroundColor(.white)
                         .cornerRadius(8)
-                }
                     }
+                    .disabled(isLoadingPlan)
+
+                    Button(action: {
+                        // 套用模板至行事曆的邏輯
+                        if let plan = templatePlan {
+                            applyPlanToCalendar(plan)
+                        } else {
+                            Task {
+                                await loadTemplatePlanAndApply()
+                            }
+                        }
+                    }) {
+                        Text("套用至行事曆")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.green)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                    }
+                }
                 }
             }
             .padding()
@@ -145,32 +174,123 @@ struct TemplateDetailView: View {
     
     // MARK: - 方法
     
-    /// 从 API 加载模板的 PlanResult（TODO: 需要实现实际的 API 调用）
-    private func loadTemplatePlan() {
-        isLoadingPlan = true
-        
-        // TODO: 从 API 获取 StoreTemplate 对应的 PlanResult
-        // 目前使用模拟数据
+    /// 添加到我的模板（開發期間免費模板直接添加）
+    private func addToMyTemplates() {
+        // 開發期間：價格為0的模板可以直接添加到我的模板
+        // 這裡需要從API獲取完整的PlanResult，然後保存到本地模板
         Task {
-            // 模拟 API 调用延迟
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            await loadTemplatePlan()
             
-            // TODO: 实际实现应从 API 获取
-            // let plan = await fetchPlanFromAPI(templateId: template.id)
-            
-            await MainActor.run {
-                isLoadingPlan = false
-                // 暂时不设置 templatePlan，等待实际 API 实现
-                // templatePlan = plan
-                // showPlanDetail = true
+            // 如果成功加載了PlanResult，保存到我的模板
+            if let plan = templatePlan {
+                await MainActor.run {
+                    savePlanToTemplate(plan, title: template.title)
+                    showingPurchaseAlert = true
+                    purchased = true
+                }
             }
         }
     }
     
+    /// 从 API 加载模板的 PlanResult
+    private func loadTemplatePlan() async {
+        await MainActor.run {
+            isLoadingPlan = true
+        }
+        
+        // TODO: 从 API 获取 StoreTemplate 对应的 PlanResult
+        // 目前使用模拟数据生成一个基本的PlanResult
+        // 实际实现应从 API 获取: /api/templates/{templateId}/content
+        
+        // 模拟 API 调用延迟
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        
+        // 生成一个基本的PlanResult（开发期间使用模拟数据）
+        let mockPlan = generateMockPlanResult(for: template)
+        
+        await MainActor.run {
+            isLoadingPlan = false
+            templatePlan = mockPlan
+            showPlanDetail = true
+        }
+    }
+    
+    /// 生成模拟的PlanResult（开发期间使用）
+    private func generateMockPlanResult(for template: StoreTemplate) -> PlanResult {
+        let today = Date()
+        var dayPlans: [DayPlan] = []
+        
+        // 根据模板标题推断天数（简单处理）
+        let daysCount = extractDaysFromTitle(template.title) ?? 3
+        
+        for dayIndex in 0..<daysCount {
+            let date = Calendar.current.date(byAdding: .day, value: dayIndex, to: today) ?? today
+            var blocks: [TimeBlock] = []
+            
+            // 为每一天生成2-3个活动
+            let activitiesPerDay = 2
+            for activityIndex in 0..<activitiesPerDay {
+                let startHour = 9 + activityIndex * 3
+                let startDate = Calendar.current.date(bySettingHour: startHour, minute: 0, second: 0, of: date) ?? date
+                let endDate = Calendar.current.date(byAdding: .hour, value: 2, to: startDate) ?? startDate
+                
+                var block = TimeBlock(
+                    type: .activity,
+                    startTime: startDate,
+                    endTime: endDate,
+                    title: "\(template.title) - 活動 \(activityIndex + 1)",
+                    location: template.title,
+                    isAnchor: activityIndex == 0,
+                    priority: 8,
+                    description: template.description
+                )
+                blocks.append(block)
+            }
+            
+            let dayPlan = DayPlan(date: date, blocks: blocks)
+            dayPlans.append(dayPlan)
+        }
+        
+        return PlanResult(
+            days: dayPlans,
+            assumptions: [
+                "建議提前預訂熱門景點門票",
+                "預留彈性時間應對突發情況"
+            ],
+            riskFlags: [
+                "注意景點的開放時間和節假日安排",
+                "建議攜帶地圖或使用導航應用"
+            ]
+        )
+    }
+    
+    /// 从标题中提取天数
+    private func extractDaysFromTitle(_ title: String) -> Int? {
+        // 简单匹配：寻找"X日"或"X天"的模式
+        let patterns = [
+            "([0-9]+)日",
+            "([0-9]+)天"
+        ]
+        
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: []),
+               let match = regex.firstMatch(in: title, options: [], range: NSRange(location: 0, length: title.utf16.count)),
+               let range = Range(match.range(at: 1), in: title),
+               let days = Int(title[range]) {
+                return days
+            }
+        }
+        
+        return nil
+    }
+    
     /// 加载模板并应用到日历
-    private func loadTemplatePlanAndApply() {
-        loadTemplatePlan()
+    private func loadTemplatePlanAndApply() async {
+        await loadTemplatePlan()
         // 加载完成后自动应用
+        if let plan = templatePlan {
+            applyPlanToCalendar(plan)
+        }
     }
     
     /// 应用 PlanResult 到日历

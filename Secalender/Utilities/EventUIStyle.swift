@@ -352,7 +352,7 @@ struct EventTimeDisplayView: View {
         let isAllDay = event.isAllDay ?? false
         
         // 检查是否跨日期
-        if !isAllDay, let endDateObj = event.endDateObj, let endDateTime = event.endDateTime {
+        if !isAllDay, let endDateObj = event.endDateObj, let _ = event.endDateTime {
             let startDay = calendar.startOfDay(for: startDate)
             let endDay = calendar.startOfDay(for: endDateObj)
             
@@ -387,8 +387,8 @@ struct EventTimeDisplayView: View {
             return event.startTime
         }
         
-        // 检查是否有结束时间
-        let hasEndTime = event.endTime != nil && event.endTime != event.startTime
+        // 检查是否有结束时间（endTime 是 String 类型，非可选，所以检查是否为空字符串且不等于开始时间）
+        let hasEndTime = !event.endTime.isEmpty && event.endTime != event.startTime
         let hasEndDate = event.endDate != nil && event.endDate != event.date
         
         if hasEndTime || hasEndDate {
@@ -491,7 +491,7 @@ struct DateTimeControllerSheet: View {
                         Toggle("", isOn: $tempIsAllDay)
                             .labelsHidden()
                             .tint(.blue)
-                            .onChange(of: tempIsAllDay) { newValue in
+                            .onChange(of: tempIsAllDay) { oldValue, newValue in
                                 if newValue {
                                     //修改内容：整日 -> 强制关闭结束时间逻辑（避免状态分叉）
                                     tempIsHasEnd = false

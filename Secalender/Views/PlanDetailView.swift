@@ -90,7 +90,7 @@ struct PlanDetailView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .frame(height: 280)
+            .frame(height: 150)
             .overlay(
                 // 模拟城市剪影效果
                 Image(systemName: "building.2.fill")
@@ -100,19 +100,6 @@ struct PlanDetailView: View {
             )
             
             VStack(alignment: .leading, spacing: 12) {
-                // VERIFIED TEMPLATE 徽章
-                HStack {
-                    Text("VERIFIED TEMPLATE")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.9))
-                        .cornerRadius(8)
-                }
-                .padding(.top, 60)
-                .padding(.leading, 20)
-                
                 Spacer()
                 
                 // 标题和副标题
@@ -207,10 +194,11 @@ struct PlanDetailView: View {
     // MARK: - 计算属性
     
     private var planTitle: String {
-        // 优先使用用户自定义标题
+        // 优先使用用户自定义标题（"此行的主题"）
         if let customTitle = customTitle, !customTitle.isEmpty {
             return customTitle
         }
+        // 如果没有自定义标题，尝试从模板标题中提取
         // 否则使用默认标题
         let destination = extractDestination()
         return "\(destination)\(plan.days.count)日深度遊"

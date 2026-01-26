@@ -8,6 +8,7 @@
 
 import SwiftUI
 import Foundation
+import CoreLocation
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -19,6 +20,7 @@ enum PlanningStep: Int {
     case step3 = 3  // 行程細節優化
     case step4 = 4  // AI生成
 }
+
 
 // MARK: - 交通方式枚举
 enum TransportationType: String, CaseIterable {
@@ -144,6 +146,9 @@ struct AIPlannerView: View {
     // 步骤控制
     @State private var currentStep: PlanningStep = .step1
     
+    // 键盘焦点控制
+    @FocusState private var isTextFieldFocused: Bool
+    
     // 步骤1：基本信息
     @State private var tripTheme: String = ""
     @State private var destination: String = ""
@@ -171,6 +176,26 @@ struct AIPlannerView: View {
     @State private var isLoadingSurroundingFeatures = false
     @State private var selectedRestrictions: Set<SpecialRestriction> = []
     @State private var additionalRequirements: String = ""
+    @State private var lastLoadedDestination: String = ""  // 跟踪上次加载的目的地
+    
+    // GPS定位位置
+    @StateObject private var locationManager = LocationPickerManager()
+    @State private var currentGPSLocation: CLLocation? = nil
+    @State private var gpsLocationAddress: String = ""
+    @State private var gpsLocationName: String = ""  // 定位位置的名字
+    @State private var isLocatingGPS = false
+    
+    // 自定义出发位置
+    @State private var useCustomDepartureLocation = false
+    @State private var customDepartureAddress: String = ""
+    @State private var customDepartureCoordinate: CLLocationCoordinate2D? = nil
+    @State private var showDepartureLocationPicker = false
+    @State private var hasAutoRequestedGPS = false  // 标记是否已自动请求过GPS
+    
+    // 住宿选择（简化为统一地址搜索）
+    @State private var accommodationAddress: String = ""
+    @State private var accommodationCoordinate: CLLocationCoordinate2D? = nil
+    @State private var showAccommodationPicker = false
     
     // 步骤4：AI生成
     @State private var isGenerating = false
@@ -237,6 +262,14 @@ struct AIPlannerView: View {
                         }
                         .padding()
                     }
+                    .scrollDismissesKeyboard(.interactively)  // 滑动时收起键盘
+                    .simultaneousGesture(
+                        TapGesture().onEnded {
+                            // 点击空白区域时收起键盘
+                            isTextFieldFocused = false
+                            hideKeyboard()
+                        }
+                    )
                     
                     // 底部按钮
                     bottomButtons
@@ -286,10 +319,45 @@ struct AIPlannerView: View {
                             destination = newDestination
                             saveDestinationToHistory(newDestination)
                             showLocationPicker = false
+                            // 如果目的地改变，清空周边特色
+                            if newDestination != lastLoadedDestination {
+                                clearSurroundingFeatures()
+                            }
                         }
                     )
                     .navigationTitle("選擇地點")
                     .navigationBarTitleDisplayMode(.inline)
+                }
+            }
+            .sheet(isPresented: $showAccommodationPicker) {
+                NavigationView {
+                    LocationPickerView(
+                        selectedAddress: $accommodationAddress,
+                        selectedCoordinate: $accommodationCoordinate
+                    )
+                    .navigationTitle("選擇住宿地址")
+                    .navigationBarTitleDisplayMode(.inline)
+                }
+            }
+            .sheet(isPresented: $showDepartureLocationPicker) {
+                NavigationView {
+                    LocationPickerView(
+                        selectedAddress: $customDepartureAddress,
+                        selectedCoordinate: $customDepartureCoordinate
+                    )
+                    .navigationTitle("選擇出發地址")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .onDisappear {
+                        if !customDepartureAddress.isEmpty {
+                            // 自定义地址已设置
+                        }
+                    }
+                }
+            }
+            .onChange(of: destination) { oldValue, newValue in
+                // 当目的地改变时，如果与上次加载的不同，清空周边特色
+                if !newValue.isEmpty && newValue != lastLoadedDestination && !surroundingAttractions.isEmpty {
+                    clearSurroundingFeatures()
                 }
             }
             // 修复：使用 generatedPlan 直接驱动 sheet，避免首次空白
@@ -432,6 +500,7 @@ struct AIPlannerView: View {
                     .font(.headline)
                 
                 TextField("例如:京都之夏、東京美食之旅", text: $tripTheme)
+                    .focused($isTextFieldFocused)
                     .padding()
                     .background(Color(UIColor.systemBackground))
                     .cornerRadius(20)
@@ -439,6 +508,10 @@ struct AIPlannerView: View {
                         RoundedRectangle(cornerRadius: 20)
                             .stroke(Color(UIColor.systemGray4), lineWidth: 1)
                     )
+                    .onSubmit {
+                        // 按回车时收起键盘
+                        isTextFieldFocused = false
+                    }
             }
             
             // 目的地输入（国家-城市选择器）
@@ -473,9 +546,17 @@ struct AIPlannerView: View {
                     HStack(spacing: 12) {
                         ForEach(quickDestinations, id: \.self) { cityName in
                             Button(action: {
+                                // 收起键盘
+                                isTextFieldFocused = false
+                                hideKeyboard()
                                 // 从历史记录中找到完整的目的地字符串
                                 let fullDestination = findFullDestination(for: cityName)
-                                destination = fullDestination ?? cityName
+                                let newDestination = fullDestination ?? cityName
+                                // 如果目的地改变，清空周边特色
+                                if newDestination != destination && newDestination != lastLoadedDestination {
+                                    clearSurroundingFeatures()
+                                }
+                                destination = newDestination
                                 selectedDestination = cityName
                                 selectedCountry = nil
                                 selectedCity = nil
@@ -865,7 +946,7 @@ struct AIPlannerView: View {
                 VStack(spacing: 12) {
                     PaceOption(
                         title: "輕鬆",
-                        description: "每天2-3個景點,步調悠閒",
+                        description: "步調悠閒",
                         isSelected: selectedPace == .relaxed
                     ) {
                         selectedPace = .relaxed
@@ -873,7 +954,7 @@ struct AIPlannerView: View {
                     
                     PaceOption(
                         title: "中等",
-                        description: "每天3-5個景點,充實適中",
+                        description: "充實適中",
                         isSelected: selectedPace == .moderate
                     ) {
                         selectedPace = .moderate
@@ -881,7 +962,7 @@ struct AIPlannerView: View {
                     
                     PaceOption(
                         title: "緊湊",
-                        description: "每日行程滿檔,不留遺憾",
+                        description: "不留遺憾",
                         isSelected: selectedPace == .tight
                     ) {
                         selectedPace = .tight
@@ -889,6 +970,175 @@ struct AIPlannerView: View {
                 }
             }
             
+            
+            // GPS定位位置
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 8) {
+                    Image(systemName: "location.fill")
+                        .foregroundColor(.blue)
+                    Text("出發位置")
+                        .font(.system(size: 20, weight: .semibold))
+                }
+                
+                // Switch: 切换自定义地址
+                HStack {
+                    Text(useCustomDepartureLocation ? "自定義地址" : "定位位置")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Toggle("", isOn: $useCustomDepartureLocation)
+                        .labelsHidden()
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color(UIColor.systemGray4), lineWidth: 1)
+                )
+                
+                // 根据 switch 状态显示不同的内容
+                if useCustomDepartureLocation {
+                    // 自定义地址模式
+                    Button {
+                        showDepartureLocationPicker = true
+                    } label: {
+                        HStack {
+                            Image(systemName: customDepartureAddress.isEmpty ? "mappin.circle.fill" : "checkmark.circle.fill")
+                                .foregroundColor(customDepartureAddress.isEmpty ? .blue : .green)
+                            Text(customDepartureAddress.isEmpty ? "自定義地址" : customDepartureAddress)
+                                .font(.subheadline)
+                                .foregroundColor(customDepartureAddress.isEmpty ? .secondary : .primary)
+                                .lineLimit(2)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(customDepartureAddress.isEmpty ? Color.blue : Color(UIColor.systemGray4), lineWidth: customDepartureAddress.isEmpty ? 1 : 1)
+                        )
+                    }
+                } else {
+                    // GPS定位模式
+                    if isLocatingGPS {
+                        HStack {
+                            ProgressView()
+                                .padding(.trailing, 8)
+                            Text("正在定位...")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                    } else if let location = currentGPSLocation {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                // 显示名字+地址的组合格式
+                                let displayText = buildGPSDisplayText(name: gpsLocationName, address: gpsLocationAddress)
+                                Text(displayText.isEmpty ? "定位位置" : displayText)
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                                    .lineLimit(2)
+                                Spacer()
+                                Button("重新定位") {
+                                    requestGPSLocation()
+                                }
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                            }
+                        }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(UIColor.systemGray4), lineWidth: 1)
+                        )
+                    } else {
+                        Button {
+                            requestGPSLocation()
+                        } label: {
+                            HStack {
+                                Image(systemName: "location.circle.fill")
+                                    .foregroundColor(.blue)
+                                Text("定位位置")
+                                    .font(.subheadline)
+                                    .foregroundColor(.blue)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(Color(.systemBackground))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.blue, lineWidth: 1)
+                            )
+                        }
+                    }
+                }
+            }
+            .onAppear {
+                // 进入步骤3时，如果未使用自定义地址且未自动请求过GPS，则自动获取当前位置
+                if !useCustomDepartureLocation && !hasAutoRequestedGPS && currentGPSLocation == nil {
+                    hasAutoRequestedGPS = true
+                    requestGPSLocation()
+                }
+            }
+            
+            // 住宿选择（统一地址搜索）
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 8) {
+                    Image(systemName: "bed.double.fill")
+                        .foregroundColor(.blue)
+                    Text("住宿選擇")
+                        .font(.system(size: 20, weight: .semibold))
+                }
+                
+                Button {
+                    showAccommodationPicker = true
+                } label: {
+                    HStack {
+                        Image(systemName: accommodationAddress.isEmpty ? "mappin.circle.fill" : "checkmark.circle.fill")
+                            .foregroundColor(accommodationAddress.isEmpty ? .blue : .green)
+                        if accommodationAddress.isEmpty {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("選擇住宿地址")
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                                Text("可搜尋酒店或自選地址")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        } else {
+                            Text(accommodationAddress)
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                                .lineLimit(2)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(accommodationAddress.isEmpty ? Color.blue : Color(UIColor.systemGray4), lineWidth: accommodationAddress.isEmpty ? 1 : 1)
+                    )
+                }
+            }
             
             // 其他需求
             VStack(alignment: .leading, spacing: 16) {
@@ -958,7 +1208,7 @@ struct AIPlannerView: View {
                 Text("AI正在為您打造完美行程...")
                     .font(.system(size: 20, weight: .semibold))
                 
-                Text("這通常需要約10秒鐘")
+                Text("這個過程可能需要一些時間，請稍候")
                     .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -1348,6 +1598,108 @@ struct AIPlannerView: View {
     
     // MARK: - 辅助方法
     
+    /// 收起键盘
+    private func hideKeyboard() {
+        isTextFieldFocused = false
+        #if canImport(UIKit)
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        #endif
+    }
+    
+    // MARK: - GPS定位方法
+    @MainActor
+    private func requestGPSLocation() {
+        isLocatingGPS = true
+        gpsLocationAddress = ""
+        gpsLocationName = ""
+        
+        // 先尝试从缓存加载
+        if let cachedCoordinate = LocationCacheManager.shared.loadLastLocation() {
+            let cachedLocation = CLLocation(latitude: cachedCoordinate.latitude, longitude: cachedCoordinate.longitude)
+            currentGPSLocation = cachedLocation
+            reverseGeocodeLocation(cachedLocation)
+            isLocatingGPS = false
+            return
+        }
+        
+        // 请求位置权限
+        locationManager.requestPermission()
+        
+        // 异步获取位置
+        Task {
+            // 等待位置更新（最多等待5秒）
+            let startTime = Date()
+            while locationManager.currentLocation == nil && Date().timeIntervalSince(startTime) < 5.0 {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+            }
+            
+            if let location = locationManager.currentLocation {
+                currentGPSLocation = location
+                LocationCacheManager.shared.saveLastLocation(location)
+                reverseGeocodeLocation(location)
+            } else {
+                // 尝试一次性定位
+                if let location = await locationManager.requestLocationOnce() {
+                    currentGPSLocation = location
+                    LocationCacheManager.shared.saveLastLocation(location)
+                    reverseGeocodeLocation(location)
+                } else {
+                    isLocatingGPS = false
+                    gpsLocationAddress = "定位失败，请检查位置权限设置"
+                }
+            }
+        }
+    }
+    
+    private func reverseGeocodeLocation(_ location: CLLocation) {
+        let geocoder = CLGeocoder()
+        geocoder.reverseGeocodeLocation(location) { placemarks, error in
+            DispatchQueue.main.async {
+                self.isLocatingGPS = false
+                if let placemark = placemarks?.first {
+                    // 保存位置名字
+                    self.gpsLocationName = placemark.name ?? ""
+                    
+                    // 构建地址（不包含名字和国家，因为名字单独显示）
+                    var addressComponents: [String] = []
+                    if let locality = placemark.locality { addressComponents.append(locality) }
+                    // 行政区域（省/州）- 台湾不显示
+                    let isTaiwan = placemark.country == "Taiwan" || placemark.country == "台灣" || placemark.country == "台湾"
+                    if !isTaiwan, let administrativeArea = placemark.administrativeArea { 
+                        addressComponents.append(administrativeArea) 
+                    }
+                    // 不包含国家信息
+                    self.gpsLocationAddress = addressComponents.joined(separator: ", ")
+                } else {
+                    self.gpsLocationName = ""
+                    self.gpsLocationAddress = "位置: \(location.coordinate.latitude), \(location.coordinate.longitude)"
+                }
+            }
+        }
+    }
+    
+    // MARK: - 构建GPS定位显示文本（名字+地址）
+    private func buildGPSDisplayText(name: String, address: String) -> String {
+        var components: [String] = []
+        
+        // 添加名字（如果存在且与地址不同）
+        if !name.isEmpty && name != address {
+            components.append(name)
+        }
+        
+        // 添加地址（如果存在）
+        if !address.isEmpty {
+            components.append(address)
+        }
+        
+        // 如果名字和地址相同，只显示一次
+        if components.isEmpty && !name.isEmpty {
+            return name
+        }
+        
+        return components.joined(separator: " · ")
+    }
+    
     // 从历史记录中查找完整的目的地字符串（用于城市名匹配）
     private func findFullDestination(for cityName: String) -> String? {
         guard let history = try? JSONDecoder().decode([String].self, from: destinationHistoryData) else {
@@ -1390,9 +1742,22 @@ struct AIPlannerView: View {
         }
     }
     
+    // 清空周边特色（当目的地改变时调用）
+    private func clearSurroundingFeatures() {
+        surroundingAttractions = []
+        selectedSurroundingAttractions = []
+        lastLoadedDestination = ""
+        isLoadingSurroundingFeatures = false
+    }
+    
     // 通过 OpenAI API 获取周邊特色（带超时处理）
     private func loadSurroundingFeatures() {
         guard !destination.isEmpty else { return }
+        
+        // 如果目的地没有改变，且已有数据，则不重新加载
+        if destination == lastLoadedDestination && !surroundingAttractions.isEmpty {
+            return
+        }
         
         isLoadingSurroundingFeatures = true
         
@@ -1405,6 +1770,7 @@ struct AIPlannerView: View {
                 
                 await MainActor.run {
                     self.surroundingAttractions = attractions
+                    self.lastLoadedDestination = self.destination  // 更新上次加载的目的地
                     self.isLoadingSurroundingFeatures = false
                 }
             } catch {
@@ -1414,6 +1780,7 @@ struct AIPlannerView: View {
                     // 如果失败，使用默认的特色（4-8个）
                     let defaultAttractions = self.getDefaultAttractions()
                     self.surroundingAttractions = Array(defaultAttractions.prefix(6)) // 默认返回6个
+                    self.lastLoadedDestination = self.destination  // 即使失败也更新，避免重复请求
                 }
             }
         }
@@ -1631,14 +1998,25 @@ struct AIPlannerView: View {
             switch currentStep {
             case .step1:
                 currentStep = .step2
-                // 当从步骤1进入步骤2时，开始后台获取周边特色（只基于城市）
-                if !destination.isEmpty && surroundingAttractions.isEmpty && !isLoadingSurroundingFeatures {
-                    loadSurroundingFeatures()
+                // 当从步骤1进入步骤2时，检查是否需要加载周边特色
+                // 如果目的地改变或周边特色为空，则重新加载
+                if !destination.isEmpty {
+                    if destination != lastLoadedDestination || (surroundingAttractions.isEmpty && !isLoadingSurroundingFeatures) {
+                        loadSurroundingFeatures()
+                    }
                 }
             case .step2:
                 currentStep = .step3
+                // 进入步骤3时，再次检查是否需要加载周边特色（防止在步骤2停留时目的地被修改）
+                if !destination.isEmpty && destination != lastLoadedDestination {
+                    loadSurroundingFeatures()
+                }
             case .step3:
                 currentStep = .step4
+                // 如果未使用自定义地址且还没有GPS位置，再次尝试获取
+                if !useCustomDepartureLocation && currentGPSLocation == nil && !isLocatingGPS {
+                    requestGPSLocation()
+                }
                 startGeneration()
             case .step4:
                 break
@@ -1864,6 +2242,18 @@ struct AIPlannerView: View {
             .filter { selectedSurroundingAttractions.contains($0.id) }
             .map { $0.name }
         
+        // 准备住宿信息（统一使用地址字符串）
+        let accommodationAddressString: String? = accommodationAddress.isEmpty ? nil : accommodationAddress
+        let accommodationTypeString: String? = accommodationAddress.isEmpty ? nil : "住宿地址"
+        
+        // 根据 switch 状态决定使用哪个位置
+        let departureLocation: CLLocation?
+        if useCustomDepartureLocation, let coordinate = customDepartureCoordinate {
+            departureLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        } else {
+            departureLocation = currentGPSLocation
+        }
+        
         let aiPlan = try await AITripGenerator.shared.generateAIItinerary(
             destination: destination,
             startDate: dateRange.startDate,
@@ -1873,7 +2263,10 @@ struct AIPlannerView: View {
             pace: result.slots.pace.value ?? .moderate,
             walkingLevel: result.slots.walkingLevel.value,
             transportPreference: result.slots.transportPreference.value,
-            selectedAttractions: selectedAttractionNames
+            selectedAttractions: selectedAttractionNames,
+            currentGPSLocation: departureLocation,
+            accommodationAddress: accommodationAddressString,
+            accommodationType: accommodationTypeString
         )
         
         var plan = try AITripGenerator.shared.convertToPlanResult(aiPlan, slots: result.slots)
@@ -2010,38 +2403,56 @@ struct DateRangePickerView: View {
 struct CountryCityPickerView: View {
     @Binding var selectedCountry: String?
     @Binding var selectedCity: String?
+    var restrictedCountry: String? = nil  // 限制只显示特定国家（用于周末快闪）
     var onSelect: (String, String) -> Void
     
     @State private var searchText: String = ""
     @State private var selectedCountryIndex: Int? = nil
     
-    // 示例数据：国家-城市映射
-    private let countries: [String: [String]] = [
-        "日本": ["東京", "京都", "大阪", "北海道", "沖繩", "福岡", "名古屋", "橫濱"],
-        "台灣": ["台北", "台中", "高雄", "台南", "新北", "桃園", "新竹", "基隆"],
-        "韓國": ["首爾", "釜山", "濟州島", "大邱", "仁川", "光州", "大田", "蔚山"],
-        "中國": ["北京", "上海", "廣州", "深圳", "成都", "杭州", "西安", "重慶"],
-        "泰國": ["曼谷", "清邁", "普吉島", "芭達雅", "華欣", "蘇梅島", "甲米", "清萊"],
-        "新加坡": ["新加坡"],
-        "馬來西亞": ["吉隆坡", "檳城", "蘭卡威", "沙巴", "馬六甲", "怡保", "新山", "古晉"],
-        "越南": ["胡志明市", "河內", "峴港", "會安", "芽莊", "大叻", "順化", "下龍灣"],
-        "印尼": ["雅加達", "峇里島", "日惹", "萬隆", "泗水", "棉蘭", "三寶壟", "龍目島"],
-        "菲律賓": ["馬尼拉", "宿霧", "長灘島", "巴拉望", "薄荷島", "達沃", "碧瑤", "克拉克"]
-    ]
+    // 使用共享的数据管理器
+    private let dataManager = DestinationDataManager.shared
     
     private var sortedCountries: [String] {
-        Array(countries.keys).sorted()
+        let allCountries = dataManager.getAllCountries()
+        // 如果有限制国家，只返回该国家
+        if let restricted = restrictedCountry {
+            return allCountries.contains(restricted) ? [restricted] : allCountries
+        }
+        return allCountries
     }
     
     private var filteredCountries: [String] {
+        let countries = sortedCountries
         if searchText.isEmpty {
-            return sortedCountries
+            return countries
         }
-        return sortedCountries.filter { $0.localizedCaseInsensitiveContains(searchText) }
+        // 使用 DestinationDataManager 的搜索功能（支持简繁体英文）
+        let searchResults = dataManager.searchCountries(searchText)
+        // 如果有限制国家，只返回匹配的限制国家
+        if let restricted = restrictedCountry {
+            return searchResults.filter { $0 == restricted }
+        }
+        return searchResults
     }
     
     private func cities(for country: String) -> [String] {
-        return countries[country] ?? []
+        // 如果国家是"中國"，需要特殊处理（包含旅游景点）
+        if country == "中國" {
+            let (cities, attractions) = dataManager.getCitiesGrouped(for: country)
+            return cities + attractions
+        } else {
+            return dataManager.getCities(for: country)
+        }
+    }
+    
+    /// 搜索城市（支持简繁体英文）
+    private func searchCities(in country: String, searchTerm: String) -> [String] {
+        if searchTerm.isEmpty {
+            return cities(for: country)
+        }
+        // 使用DestinationDataManager的搜索功能（已处理中国的特殊情况）
+        // searchCities方法的第一个参数是可选的，需要传递country
+        return dataManager.searchCities(in: country, searchTerm: searchTerm)
     }
     
     var body: some View {
@@ -2056,22 +2467,30 @@ struct CountryCityPickerView: View {
             .background(Color(.systemGray6))
             
             if let countryIndex = selectedCountryIndex, countryIndex < filteredCountries.count {
-                // 显示城市列表
+                // 显示城市列表（支持搜索）
                 let country = filteredCountries[countryIndex]
+                let filteredCities = searchCities(in: country, searchTerm: searchText)
+                
                 List {
-                    Section(header: Text("選擇城市 - \(country)")) {
-                        ForEach(cities(for: country), id: \.self) { city in
-                            Button(action: {
-                                selectedCountry = country
-                                selectedCity = city
-                                onSelect(country, city)
-                            }) {
-                                HStack {
-                                    Text(city)
-                                    Spacer()
-                                    if selectedCountry == country && selectedCity == city {
-                                        Image(systemName: "checkmark")
-                                            .foregroundColor(.blue)
+                    Section(header: Text("選擇城市 - \(country)\(searchText.isEmpty ? "" : " (搜尋: \(searchText))")")) {
+                        if filteredCities.isEmpty && !searchText.isEmpty {
+                            Text("未找到匹配的城市")
+                                .foregroundColor(.secondary)
+                                .padding()
+                        } else {
+                            ForEach(filteredCities, id: \.self) { city in
+                                Button(action: {
+                                    selectedCountry = country
+                                    selectedCity = city
+                                    onSelect(country, city)
+                                }) {
+                                    HStack {
+                                        Text(city)
+                                        Spacer()
+                                        if selectedCountry == country && selectedCity == city {
+                                            Image(systemName: "checkmark")
+                                                .foregroundColor(.blue)
+                                        }
                                     }
                                 }
                             }
@@ -2082,22 +2501,62 @@ struct CountryCityPickerView: View {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button("返回") {
                             selectedCountryIndex = nil
+                            searchText = ""  // 返回时清空搜索
                         }
                     }
                 }
             } else {
-                // 显示国家列表
-                List {
-                    ForEach(Array(filteredCountries.enumerated()), id: \.element) { index, country in
-                        Button(action: {
-                            selectedCountryIndex = index
-                        }) {
-                            HStack {
-                                Text(country)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.secondary)
-                                    .font(.caption)
+                // 显示国家列表（如果有限制国家，直接显示该国家的城市列表）
+                if let restricted = restrictedCountry, !restricted.isEmpty {
+                    // 直接显示限制国家的城市列表
+                    let filteredCities = searchCities(in: restricted, searchTerm: searchText)
+                    
+                    List {
+                        Section(header: Text("選擇城市 - \(restricted)\(searchText.isEmpty ? "" : " (搜尋: \(searchText))")")) {
+                            if filteredCities.isEmpty {
+                                if searchText.isEmpty {
+                                    Text("暫無城市資料")
+                                        .foregroundColor(.secondary)
+                                        .padding()
+                                } else {
+                                    Text("未找到匹配的城市")
+                                        .foregroundColor(.secondary)
+                                        .padding()
+                                }
+                            } else {
+                                ForEach(filteredCities, id: \.self) { city in
+                                    Button(action: {
+                                        selectedCountry = restricted
+                                        selectedCity = city
+                                        onSelect(restricted, city)
+                                    }) {
+                                        HStack {
+                                            Text(city)
+                                            Spacer()
+                                            if selectedCountry == restricted && selectedCity == city {
+                                                Image(systemName: "checkmark")
+                                                    .foregroundColor(.blue)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // 显示国家列表（无限制时）
+                    List {
+                        ForEach(Array(filteredCountries.enumerated()), id: \.element) { index, country in
+                            Button(action: {
+                                selectedCountryIndex = index
+                            }) {
+                                HStack {
+                                    Text(country)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.secondary)
+                                        .font(.caption)
+                                }
                             }
                         }
                     }

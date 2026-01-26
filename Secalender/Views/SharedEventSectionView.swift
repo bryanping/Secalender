@@ -6,6 +6,8 @@
 //
 import SwiftUI
 import Foundation
+import CoreLocation
+import MapKit
 // import FirebaseFirestore  // 如果需要 EventManager 的功能，可能需要这个导入
 
 /// 事件类型分类
@@ -194,12 +196,20 @@ struct SharedEventSectionView: View {
         let isBeingLongPressed = longPressEventId == eventId && isLongPressing
         // 确保当 events 数组变化时重新计算重叠状态
         let hasOverlap = hasTimeOverlap(event: event, targetDate: event.dateObj ?? date)
+        // 检测交通时间不足
+        let hasInsufficientTravelTime = hasInsufficientTravelTime(event: event, targetDate: event.dateObj ?? date)
         
         HStack(spacing: 8) {
             // 时间重叠红点
             if hasOverlap {
                 Circle()
                     .fill(Color.red)
+                    .frame(width: 8, height: 8)
+            }
+            // 交通时间不足橘点（只有在没有时间重叠时才显示，避免重复提醒）
+            else if hasInsufficientTravelTime {
+                Circle()
+                    .fill(Color.orange)
                     .frame(width: 8, height: 8)
             }
             
@@ -244,6 +254,10 @@ private func draggingOverlay(event: Event) -> some View {
             if hasOverlap {
                 Circle()
                     .fill(Color.red)
+                    .frame(width: 8, height: 8)
+            } else if hasInsufficientTravelTime(event: event, targetDate: event.dateObj ?? date) {
+                Circle()
+                    .fill(Color.orange)
                     .frame(width: 8, height: 8)
             }
             Text(event.title)
@@ -443,6 +457,92 @@ private func draggingOverlay(event: Event) -> some View {
         }
         
         return false
+    }
+    
+    /// 检测事件是否有交通时间不足的问题
+    private func hasInsufficientTravelTime(event: Event, targetDate: Date) -> Bool {
+        // 获取目标日期的所有事件（排除当前事件和已删除的事件），并按开始时间排序
+        let sameDayEvents = events.filter { otherEvent in
+            guard let otherEventId = otherEvent.id,
+                  let eventId = event.id,
+                  otherEventId != eventId,
+                  let otherDate = otherEvent.dateObj,
+                  // 排除已删除的事件
+                  otherEvent.deleted != 1 else {
+                return false
+            }
+            return Calendar.current.isDate(otherDate, inSameDayAs: targetDate)
+        }
+        .sorted { ($0.startDateTime ?? .distantPast) < ($1.startDateTime ?? .distantPast) }
+        
+        // 获取当前事件的开始时间和坐标
+        guard let eventStart = event.startDateTime,
+              let eventCoordinate = parseCoordinate(from: event.mapObj) else {
+            return false
+        }
+        
+        // 查找在当前事件之前结束的最近事件
+        for previousEvent in sameDayEvents {
+            guard let previousEnd = previousEvent.endDateTime,
+                  previousEnd < eventStart,  // 前一个事件在当前事件开始之前结束
+                  let previousCoordinate = parseCoordinate(from: previousEvent.mapObj) else {
+                continue
+            }
+            
+            // 计算两个事件之间的时间间隔（秒）
+            let timeInterval = eventStart.timeIntervalSince(previousEnd)
+            
+            // 如果时间间隔小于等于0，说明有时间重叠（这个情况已经在红点中处理了）
+            if timeInterval <= 0 {
+                continue
+            }
+            
+            // 计算交通时间（使用同步方式，但实际应该异步计算）
+            // 为了性能考虑，这里使用估算方式：基于直线距离估算
+            let fromLocation = CLLocation(latitude: previousCoordinate.latitude, longitude: previousCoordinate.longitude)
+            let toLocation = CLLocation(latitude: eventCoordinate.latitude, longitude: eventCoordinate.longitude)
+            let distance = fromLocation.distance(from: toLocation) // 米
+            let distanceKm = distance / 1000.0 // 公里
+            
+            // 估算交通时间（根据距离选择不同的交通方式）
+            // 准备时间：10分钟 = 600秒
+            let preparationTime: TimeInterval = 600
+            let estimatedTravelTime: TimeInterval
+            
+            if distanceKm < 1.0 {
+                // 短距离：步行，假设速度 5km/h = 1.39 m/s
+                estimatedTravelTime = (distance / 1.39) + preparationTime
+            } else if distanceKm < 10.0 {
+                // 中等距离：公共交通，假设速度 30km/h = 8.33 m/s
+                estimatedTravelTime = (distance / 8.33) + preparationTime
+            } else {
+                // 长距离：打车，假设速度 50km/h = 13.89 m/s
+                estimatedTravelTime = (distance / 13.89) + preparationTime
+            }
+            
+            // 如果可用时间小于估算的交通时间，则认为交通时间不足
+            if timeInterval < estimatedTravelTime {
+                return true
+            }
+            
+            // 只检查最近的前一个事件，避免重复计算
+            break
+        }
+        
+        return false
+    }
+    
+    /// 从 mapObj JSON 字符串中解析坐标
+    private func parseCoordinate(from mapObj: String) -> CLLocationCoordinate2D? {
+        guard !mapObj.isEmpty,
+              let jsonData = mapObj.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+              let latitude = json["latitude"] as? Double,
+              let longitude = json["longitude"] as? Double else {
+            return nil
+        }
+        
+        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 }
 
