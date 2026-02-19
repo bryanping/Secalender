@@ -23,6 +23,17 @@ enum EventFilterType: String, CaseIterable {
         case .nearby: return "location.fill"
         }
     }
+    
+    /// 本地化显示名称
+    @MainActor
+    var localizedDisplayName: String {
+        switch self {
+        case .all: return "calendar.filter.all".localized()
+        case .myOwn: return "calendar.filter.my_own".localized()
+        case .friendAndPublic: return "calendar.filter.friend_and_public".localized()
+        case .nearby: return "calendar.filter.nearby".localized()
+        }
+    }
 }
 
 struct CalendarView: View {
@@ -39,12 +50,14 @@ struct CalendarView: View {
     @State private var groupIds: Set<String> = []
     @State private var selectedFilter: EventFilterType = .all
     @StateObject private var locationManager = LocationManager()
+    @StateObject private var locationPickerManager = LocationPickerManager()  // 用于GPS定位
     
     // 多选模式相关状态（需要在 CalendarView 中管理，因为多个 SharedEventSectionView 需要共享状态）
     @State private var isMultiSelectMode: Bool = false
     @State private var selectedEventIds: Set<Int> = []
     @State private var showBatchShare: Bool = false
     @State private var showMultiEventView: Bool = false
+    @State private var showImportAppleCalendar: Bool = false
 
     var body: some View {
         NavigationView {
@@ -93,8 +106,14 @@ struct CalendarView: View {
                     }
                     .task {
                         // 使用task替代onAppear，只在视图首次出现时加载一次
-                            await loadEvents(proxy: proxy)
-                        }
+                        await loadEvents(proxy: proxy)
+                        // 执行GPS定位并保存国家信息
+                        await requestGPSLocationAndSaveCountry()
+                        // 检查最近行程并计算距离
+                        checkUpcomingTripDistance()
+                        // 执行自动导入（如果启用）
+                        await performAutoImportIfEnabled()
+                    }
                     .onChange(of: selectedFilter) { _ in
                         // 当筛选器改变时，重新过滤事件
                         events = filterEvents(allEvents)
@@ -177,6 +196,10 @@ struct CalendarView: View {
                     )
                     .environmentObject(userManager)
                 }
+            }
+            .sheet(isPresented: $showImportAppleCalendar) {
+                ImportAppleCalendarView()
+                    .environmentObject(userManager)
             }
         }
     }
@@ -353,7 +376,7 @@ struct CalendarView: View {
                         selectedEventIds.removeAll()
                     }
                 } label: {
-                    Text("取消")
+                    Text("calendar.cancel".localized())
                         .foregroundColor(.blue)
                 }
             } else {
@@ -371,7 +394,7 @@ struct CalendarView: View {
             }
             Spacer()
             
-            // 多选模式下显示分享和编辑按钮，否则显示+号
+            // 多选模式下显示分享和编辑按钮，否则显示+号和导入按钮
             if isMultiSelectMode {
                 // 编辑按钮
                 Button {
@@ -395,13 +418,21 @@ struct CalendarView: View {
                 }
                 .disabled(selectedEventIds.isEmpty)
             } else {
-                // 创建事件按钮
+                // 导入 Apple 日历按钮
                 Button {
-                    selectedDateForNewEvent = Date()
-                    showCreateEvent = true
+                    showImportAppleCalendar = true
                 } label: {
-                    Image(systemName: "plus.circle")
+                    Image(systemName: "square.and.arrow.down")
+                        .foregroundColor(.blue)
                 }
+                
+                // 创建事件按钮
+//                Button {
+//                    selectedDateForNewEvent = Date()
+//                    showCreateEvent = true
+//                } label: {
+//                    Image(systemName: "plus.circle")
+//                }
             }
         }
         .padding(.horizontal)
@@ -422,7 +453,7 @@ struct CalendarView: View {
                         HStack(spacing: 6) {
                             Image(systemName: filterType.icon)
                                 .font(.system(size: 12))
-                            Text(filterType.rawValue)
+                            Text(filterType.localizedDisplayName)
                                 .font(.system(size: 14, weight: .medium))
                         }
                         .foregroundColor(selectedFilter == filterType ? .white : .primary)
@@ -481,12 +512,21 @@ struct CalendarView: View {
 
         var eventDict: [Date: [Event]] = [:]
         for event in monthEvents {
-            if let dateObj = event.dateObj {
-                let targetDate = calendar.startOfDay(for: dateObj)
-                if eventDict[targetDate] == nil {
-                    eventDict[targetDate] = []
+            guard let dateObj = event.dateObj else { continue }
+            let startDay = calendar.startOfDay(for: dateObj)
+            if event.isMultiDay, let endDateObj = event.endDateObj {
+                let endDay = calendar.startOfDay(for: endDateObj)
+                var current = startDay
+                while current <= endDay {
+                    if calendar.isDate(current, equalTo: currentMonth, toGranularity: .month) {
+                        if eventDict[current] == nil { eventDict[current] = [] }
+                        eventDict[current]?.append(event)
+                    }
+                    current = calendar.date(byAdding: .day, value: 1, to: current) ?? current
                 }
-                eventDict[targetDate]?.append(event)
+            } else {
+                if eventDict[startDay] == nil { eventDict[startDay] = [] }
+                eventDict[startDay]?.append(event)
             }
         }
 
@@ -620,7 +660,7 @@ struct CalendarView: View {
             
             Spacer()
             
-            Text("已选择 \(selectedEventIds.count) 个行程")
+            Text("calendar.selected_events_count".localized(with: selectedEventIds.count))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
@@ -639,6 +679,186 @@ struct CalendarView: View {
         .padding()
         .background(Color(.systemBackground))
         .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: -2)
+    }
+    
+    // MARK: - GPS定位和国家保存
+    /// 执行GPS定位并保存国家信息
+    @MainActor
+    private func requestGPSLocationAndSaveCountry() async {
+        // 先尝试从缓存加载国家信息
+        if let cachedCountry = LocationCacheManager.shared.loadUserCountry() {
+            print("✅ 已从缓存加载用户所在国家: \(cachedCountry)")
+            return
+        }
+        
+        // 先尝试从缓存加载位置
+        if let cachedCoordinate = LocationCacheManager.shared.loadLastLocation() {
+            let cachedLocation = CLLocation(latitude: cachedCoordinate.latitude, longitude: cachedCoordinate.longitude)
+            await reverseGeocodeAndSaveCountry(location: cachedLocation)
+            return
+        }
+        
+        // 请求位置权限
+        locationPickerManager.requestPermission()
+        
+        // 异步获取位置
+        // 等待位置更新（最多等待5秒）
+        let startTime = Date()
+        while locationPickerManager.currentLocation == nil && Date().timeIntervalSince(startTime) < 5.0 {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
+        }
+        
+        if let location = locationPickerManager.currentLocation {
+            LocationCacheManager.shared.saveLastLocation(location)
+            await reverseGeocodeAndSaveCountry(location: location)
+        } else {
+            // 尝试一次性定位
+            if let location = await locationPickerManager.requestLocationOnce() {
+                LocationCacheManager.shared.saveLastLocation(location)
+                await reverseGeocodeAndSaveCountry(location: location)
+            } else {
+                print("⚠️ GPS定位失败，无法获取用户所在国家")
+            }
+        }
+    }
+    
+    /// 反向地理编码并保存国家信息
+    private func reverseGeocodeAndSaveCountry(location: CLLocation) async {
+        let geocoder = CLGeocoder()
+        
+        do {
+            let placemarks = try await geocoder.reverseGeocodeLocation(location)
+            if let placemark = placemarks.first,
+               let country = placemark.country {
+                // 转换为中文国家名
+                if let chineseCountry = convertCountryToChinese(country) {
+                    LocationCacheManager.shared.saveUserCountry(chineseCountry)
+                    print("✅ 已保存用户所在国家: \(chineseCountry) (原始: \(country))")
+                } else {
+                    print("⚠️ 无法将国家名转换为中文: \(country)")
+                }
+            }
+        } catch {
+            print("⚠️ 反向地理编码失败: \(error.localizedDescription)")
+        }
+    }
+    
+    /// 国家名称转换（英文转中文）
+    private func convertCountryToChinese(_ englishCountry: String) -> String? {
+        let dataManager = DestinationDataManager.shared
+        let allCountries = dataManager.getAllCountries()
+        
+        // 先尝试直接搜索（支持简繁体英文）
+        let matchedCountries = dataManager.searchCountries(englishCountry)
+        if let matchedCountry = matchedCountries.first {
+            return matchedCountry
+        }
+        
+        // 如果搜索不到，返回nil
+        return nil
+    }
+    
+    // MARK: - 检查最近行程距离
+    /// 检查最近行程并计算距离，提醒出发
+    private func checkUpcomingTripDistance() {
+        guard let userLocation = locationManager.currentLocation else {
+            // 如果没有用户位置，尝试从缓存加载
+            if let cachedCoordinate = LocationCacheManager.shared.loadLastLocation() {
+                let cachedLocation = CLLocation(latitude: cachedCoordinate.latitude, longitude: cachedCoordinate.longitude)
+                calculateDistanceToUpcomingTrips(from: cachedLocation)
+            } else {
+                print("⚠️ 无法获取用户位置，无法计算行程距离")
+            }
+            return
+        }
+        
+        calculateDistanceToUpcomingTrips(from: userLocation)
+    }
+    
+    /// 计算用户位置到最近行程的距离
+    private func calculateDistanceToUpcomingTrips(from userLocation: CLLocation) {
+        let now = Date()
+        let calendar = Calendar.current
+        
+        // 查找未来7天内的行程
+        let upcomingEvents = allEvents.filter { event in
+            guard let eventDate = event.dateObj,
+                  event.deleted != 1,
+                  !event.destination.isEmpty,
+                  let eventCoordinate = parseCoordinate(from: event.mapObj) else {
+                return false
+            }
+            
+            // 只检查未来7天内的行程
+            let daysUntilEvent = calendar.dateComponents([.day], from: now, to: eventDate).day ?? 0
+            return daysUntilEvent >= 0 && daysUntilEvent <= 7
+        }
+        
+        // 按日期排序，找到最近的行程
+        let sortedEvents = upcomingEvents.sorted { event1, event2 in
+            guard let date1 = event1.dateObj,
+                  let date2 = event2.dateObj else {
+                return false
+            }
+            return date1 < date2
+        }
+        
+        guard let nearestEvent = sortedEvents.first,
+              let eventCoordinate = parseCoordinate(from: nearestEvent.mapObj) else {
+            return
+        }
+        
+        let eventLocation = CLLocation(latitude: eventCoordinate.latitude, longitude: eventCoordinate.longitude)
+        let distance = userLocation.distance(from: eventLocation) // 米
+        let distanceKm = distance / 1000.0 // 公里
+        
+        // 计算距离事件还有多少天
+        guard let eventDate = nearestEvent.dateObj else { return }
+        let daysUntilEvent = calendar.dateComponents([.day], from: now, to: eventDate).day ?? 0
+        
+        // 如果距离超过100公里，且还有时间，提醒用户
+        if distanceKm > 100 && daysUntilEvent > 0 {
+            print("📍 提醒：最近的行程「\(nearestEvent.title)」距离您 \(String(format: "%.1f", distanceKm)) 公里，还有 \(daysUntilEvent) 天")
+            // 这里可以添加通知或UI提示
+        } else if distanceKm > 100 && daysUntilEvent == 0 {
+            print("📍 提醒：今天的行程「\(nearestEvent.title)」距离您 \(String(format: "%.1f", distanceKm)) 公里，请提前出发")
+        }
+    }
+    
+    /// 从 mapObj JSON 字符串中解析坐标
+    private func parseCoordinate(from mapObj: String) -> CLLocationCoordinate2D? {
+        guard !mapObj.isEmpty,
+              let jsonData = mapObj.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+              let latitude = json["latitude"] as? Double,
+              let longitude = json["longitude"] as? Double else {
+            return nil
+        }
+        
+        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+    
+    /// 如果启用自动导入，则执行自动导入
+    @MainActor
+    private func performAutoImportIfEnabled() async {
+        guard !userManager.userOpenId.isEmpty else { return }
+        
+        // 检查是否启用自动导入
+        guard UserPreferencesManager.shared.getAutoImportAppleCalendar(for: userManager.userOpenId) else {
+            return
+        }
+        
+        // 执行自动导入（在后台进行，不阻塞UI）
+        Task {
+            let count = await AppleCalendarImportManager.shared.performAutoImport(
+                for: userManager.userOpenId,
+                lookAheadDays: 30
+            )
+            if count > 0 {
+                // 如果有新事件导入，刷新事件列表
+                await loadEvents()
+            }
+        }
     }
 }
 

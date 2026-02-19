@@ -32,13 +32,13 @@ struct TripPlanCard: View {
                             .font(.headline)
                             .foregroundColor(.primary)
                     } else {
-                        Text("行程规划")
+                        Text("trip_plan.planning".localized())
                             .font(.headline)
                             .foregroundColor(.primary)
                     }
                     
                     HStack(spacing: 8) {
-                        Label("\(numberOfDays)天", systemImage: "calendar")
+                        Label("trip_plan.days".localized(with: numberOfDays), systemImage: "calendar")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
@@ -53,7 +53,7 @@ struct TripPlanCard: View {
                 Spacer()
                 
                 // 天数标签
-                Text("\(numberOfDays)天")
+                Text("trip_plan.days".localized(with: numberOfDays))
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
@@ -101,7 +101,7 @@ struct TripPlanCard: View {
                 }
                 
                 if isMultiDay && plan.days.count > 2 {
-                    Text("...还有 \(plan.days.count - 2) 天的行程")
+                    Text("trip_plan.more_days".localized(with: plan.days.count - 2))
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .italic()
@@ -114,7 +114,7 @@ struct TripPlanCard: View {
                     Image(systemName: "lightbulb.fill")
                         .font(.caption)
                         .foregroundColor(.orange)
-                    Text("包含 \(plan.assumptions.count) 个默认假设")
+                    Text("trip_plan.assumptions".localized(with: plan.assumptions.count))
                         .font(.caption)
                         .foregroundColor(.orange)
                 }
@@ -131,7 +131,7 @@ struct TripPlanCard: View {
                 }) {
                     HStack {
                         Image(systemName: "bookmark")
-                        Text("保存")
+                        Text("trip_plan.save".localized())
                     }
                     .font(.subheadline)
                     .frame(maxWidth: .infinity)
@@ -147,7 +147,7 @@ struct TripPlanCard: View {
                 }) {
                     HStack {
                         Image(systemName: "eye.fill")
-                        Text("详情")
+                        Text("trip_plan.details".localized())
                     }
                     .font(.subheadline)
                     .frame(maxWidth: .infinity)

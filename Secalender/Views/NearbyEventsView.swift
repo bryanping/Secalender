@@ -32,7 +32,7 @@ struct NearbyEventsView: View {
         ZStack {
             if isLocating {
                 // 定位中显示加载指示器
-                ProgressView("正在定位...")
+                ProgressView("nearby_events.locating".localized())
                     .padding()
                     .background(Color.white.opacity(0.8))
                     .cornerRadius(10)
@@ -45,7 +45,7 @@ struct NearbyEventsView: View {
                     Text(error)
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Button("重试") {
+                    Button("nearby_events.retry".localized()) {
                         Task {
                             await requestLocationAndUpdate()
                         }
@@ -126,7 +126,7 @@ struct NearbyEventsView: View {
                     isLocating = false
                 } else {
                     // 定位失败且无缓存，显示错误提示
-                    locationError = "无法获取当前位置，请检查定位权限设置"
+                    locationError = "nearby_events.location_error".localized()
                     isLocating = false
                     print("⚠️ GPS定位失败，无法获取当前位置")
                 }

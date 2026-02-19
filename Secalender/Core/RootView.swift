@@ -8,36 +8,98 @@
 import SwiftUI
 import FirebaseAuth
 
+/// 用於 sheet(item:) 的包裝，使 PendingDeepLink 可 Identifiable
+private struct PendingDeepLinkItem: Identifiable {
+    var id: String {
+        switch link {
+        case .addFriend(let code): return "friend-\(code)"
+        case .eventShare(let event): return "event-\(event.id ?? 0)"
+        case .eventShareError(let message): return "error-\(message.hashValue)"
+        }
+    }
+    let link: PendingDeepLink
+    init?(_ link: PendingDeepLink?) {
+        guard let link = link else { return nil }
+        self.link = link
+    }
+}
+
 struct RootView: View {
     @Binding var showSignInView: Bool
     @EnvironmentObject var userManager: FirebaseUserManager
-    @State private var hasCheckedAuth = false // 修改内容：避免重复检查
+    @StateObject private var deepLinkCoordinator = DeepLinkCoordinator.shared
 
     var body: some View {
         Group {
             if showSignInView {
-                AuthenticationView(showSignInView: $showSignInView)
+                NavigationStack {
+                    AuthenticationView(showSignInView: $showSignInView)
+                }
             } else {
                 ContentView()
             }
         }
-        .task {
-            // 修改内容：使用 task 代替 onAppear，确保只执行一次
-            guard !hasCheckedAuth else { return }
-            hasCheckedAuth = true
-            await checkAuthStatus()
+        .onAppear {
+            Task {
+                await checkAuthStatus()
+            }
+        }
+        .sheet(item: Binding(
+            get: { deepLinkCoordinator.pendingLink.flatMap { PendingDeepLinkItem($0) } },
+            set: { if $0 == nil { deepLinkCoordinator.clearPendingLink() } }
+        )) { item in
+            Group {
+                switch item.link {
+                case .addFriend(let code):
+                    AddFriendView(prefilledInviteCode: code)
+                        .environmentObject(userManager)
+                        .onDisappear { deepLinkCoordinator.clearPendingLink() }
+                case .eventShare(let event):
+                    NavigationStack {
+                        EventShareView(event: event, onEventUpdated: nil)
+                            .environmentObject(userManager)
+                            .toolbar {
+                                ToolbarItem(placement: .navigationBarLeading) {
+                                    Button("settings.ok".localized()) {
+                                        deepLinkCoordinator.clearPendingLink()
+                                    }
+                                }
+                            }
+                    }
+                case .eventShareError(let message):
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 48))
+                            .foregroundColor(.orange)
+                        Text(message)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        Button("settings.ok".localized()) {
+                            deepLinkCoordinator.clearPendingLink()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
         }
     }
 
     private func checkAuthStatus() async {
-        let authUser = try? AuthenticationManager.shared.getAuthenticatedUser()
-        await MainActor.run {
-            self.showSignInView = authUser == nil
+        guard let user = try? AuthenticationManager.shared.getAuthenticatedUser() else {
+            await MainActor.run {
+                showSignInView = true
+            }
+            return
         }
-        // 修改内容：只在用户已登录且 userOpenId 不同时才刷新，避免重复加载
-        if let user = authUser, userManager.userOpenId != user.uid {
-            userManager.userOpenId = user.uid
-            userManager.refresh()
+        
+        await MainActor.run {
+            showSignInView = false
+            if userManager.userOpenId != user.uid {
+                userManager.userOpenId = user.uid
+                userManager.refresh()
+            }
         }
     }
 }

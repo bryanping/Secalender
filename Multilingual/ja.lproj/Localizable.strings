@@ -1,0 +1,694 @@
+/* 
+  Localizable.strings
+  Secalender
+
+  Created by 林平 on 2026/1/27.
+  
+*/
+
+// MARK: - Language Names
+"language.english" = "英語";
+"language.simplified_chinese" = "簡体字中国語";
+"language.traditional_chinese" = "繁体字中国語";
+"language.german" = "ドイツ語";
+"language.french" = "フランス語";
+"language.spanish" = "スペイン語";
+"language.japanese" = "日本語";
+
+// MARK: - Tab Bar
+"tab.calendar" = "カレンダー";
+"tab.ai_planning" = "AI計画";
+"tab.my_templates" = "旅行テンプレート";
+"tab.template_store" = "テンプレートストア";
+"tab.friends_community" = "友達・コミュニティ";
+"tab.settings" = "設定";
+
+// MARK: - AI Planner
+"ai_planner.tell_us_your_plan" = "旅行プランについて教えてください";
+"ai_planner.start_with_basics" = "基本情報から始めて、完璧な旅程を作成しましょう。";
+"ai_planner.trip_theme" = "この旅行のテーマは何ですか？";
+"ai_planner.trip_theme_placeholder" = "例：東京スカイツリー観光、京都の古都散策";
+"ai_planner.where_are_you_going" = "どこへ行きますか？";
+"ai_planner.search_destination" = "目的地を検索...";
+"ai_planner.travel_days" = "旅行日数";
+"ai_planner.total_days" = "合計日数";
+"ai_planner.days" = "%d日";
+"ai_planner.travelers" = "旅行者";
+"ai_planner.adults" = "大人";
+"ai_planner.adults_description" = "13歳以上";
+"ai_planner.children" = "子供";
+"ai_planner.children_description" = "12歳以下";
+"ai_planner.transportation" = "交通手段";
+"ai_planner.interests" = "興味";
+"ai_planner.special_requirements" = "特別な要件";
+"ai_planner.budget_level" = "予算レベル";
+"ai_planner.optimize_details" = "旅程の詳細を最適化";
+"ai_planner.optimize_subtitle" = "詳細を調整して、最も適切な場所を推薦できるようにします。";
+"ai_planner.surrounding_features" = "周辺の特徴";
+"ai_planner.searching_features" = "周辺の特徴を検索中...";
+"ai_planner.no_features" = "周辺の特徴がありません";
+"ai_planner.selected_attractions" = "%d/%d件の観光地を選択";
+"ai_planner.pace" = "旅行のペース";
+"ai_planner.departure_location" = "出発地";
+"ai_planner.locating" = "位置情報を取得中...";
+"ai_planner.location_position" = "位置";
+"ai_planner.reposition" = "位置を再設定";
+"ai_planner.accommodation" = "宿泊施設";
+"ai_planner.select_accommodation" = "宿泊施設の住所を選択";
+"ai_planner.accommodation_hint" = "ホテルを検索するか、カスタム住所を入力できます";
+"ai_planner.additional_requirements" = "追加要件";
+"ai_planner.additional_requirements_placeholder" = "AIに他に伝えたいことはありますか？例：生もの禁止、花粉症...";
+"ai_planner.ai_generating" = "AIが完璧な旅程を作成中...";
+"ai_planner.generation_hint" = "この処理には時間がかかる場合があります。お待ちください";
+"ai_planner.completing_itinerary" = "旅程を完成中";
+"ai_planner.next_preferences" = "次：設定";
+"ai_planner.previous" = "前へ";
+"ai_planner.next" = "次へ";
+"ai_planner.complete_setup" = "設定を完了";
+"ai_planner.start_date" = "開始日";
+"ai_planner.end_date" = "終了日";
+"ai_planner.select_city" = "都市を選択 - %@";
+"ai_planner.no_city_data" = "都市データがありません";
+"ai_planner.no_matching_city" = "一致する都市が見つかりません";
+
+// MARK: - Transportation Types
+"transport.public_transport" = "公共交通機関";
+"transport.public_transport_desc" = "地下鉄、バス、電車";
+"transport.self_drive" = "レンタカー";
+"transport.self_drive_desc" = "自由に旅程をコントロール";
+"transport.chartered_car" = "チャーター車";
+"transport.chartered_car_desc" = "プロドライバー、プレミアムサービス";
+
+// MARK: - Interest Tags
+"interest.food" = "グルメ";
+"interest.history" = "歴史";
+"interest.nature" = "自然";
+"interest.shopping" = "ショッピング";
+"interest.nightlife" = "ナイトライフ";
+"interest.art" = "アート";
+
+// MARK: - Special Restrictions
+"restriction.child_friendly" = "子供向け";
+"restriction.wheelchair_access" = "車椅子対応";
+"restriction.indoor_priority" = "屋内優先";
+"restriction.early_rest" = "早めの休息";
+
+// MARK: - Budget Levels
+"budget.economy" = "エコノミー";
+"budget.standard" = "スタンダード";
+"budget.luxury" = "ラグジュアリー";
+
+// MARK: - Pace Options
+"pace.relaxed" = "ゆったり";
+"pace.moderate" = "普通";
+"pace.intensive" = "充実";
+
+// MARK: - Settings
+"settings.title" = "設定";
+"settings.account" = "アカウント設定";
+"settings.login_method" = "ログイン方法：%@";
+"settings.login_account" = "ログインアカウント：%@";
+"settings.member_login" = "メンバーログイン";
+"settings.logout" = "ログアウト";
+"settings.preferences" = "設定";
+"settings.dark_mode" = "ダークモード";
+"settings.cache_management" = "キャッシュ管理";
+"settings.cache_size" = "キャッシュサイズ";
+"settings.last_updated" = "最終更新";
+"settings.clear_cache" = "キャッシュをクリア";
+"settings.no_cache" = "キャッシュデータなし";
+"settings.about" = "このアプリについて";
+"settings.app_version" = "Secalender v1.0";
+"settings.developed_by" = "LIFECONNECT開発";
+"settings.error" = "エラー";
+"settings.ok" = "OK";
+"settings.confirm_logout" = "ログアウトしてもよろしいですか？";
+"settings.yes" = "はい";
+"settings.no" = "いいえ";
+"settings.confirm_clear_cache" = "キャッシュをクリアしてもよろしいですか？";
+"settings.logout_failed" = "ログアウトに失敗しました：%@";
+"settings.language" = "言語";
+"settings.language_system" = "システム言語";
+"settings.language_footer" = "希望する言語を選択してください。アプリはシステム言語ではなく、この言語を使用します。";
+
+// MARK: - Login Providers
+"login.google" = "Googleログイン";
+"login.apple" = "Appleログイン";
+"login.email" = "メールログイン";
+"login.facebook" = "Facebookログイン";
+"login.phone" = "電話番号ログイン";
+"login.anonymous" = "匿名";
+
+// MARK: - Common Actions
+"common.cancel" = "キャンセル";
+"common.confirm" = "確認";
+"common.ok" = "OK";
+"common.retry" = "再試行";
+"common.back" = "戻る";
+"common.add" = "追加";
+"common.delete" = "削除";
+"common.edit" = "編集";
+"common.save" = "保存";
+"common.search" = "検索";
+"common.done" = "完了";
+"common.error" = "エラー";
+
+// MARK: - AI Planning Welcome
+"welcome.where_to_travel" = "旅行したいです";
+"welcome.create_perfect_itinerary" = "完璧なパーソナライズされた旅程を作成する";
+"welcome.start_ai_planning" = "AI計画を開始";
+"welcome.quick_themes" = "クイックテーマ";
+"welcome.view_more" = "もっと見る";
+
+// MARK: - Invite Friends
+"invite.invite_link" = "招待リンク";
+"invite.generate_link" = "招待リンクを生成";
+"invite.share_method" = "共有方法";
+"invite.success" = "招待を送信しました！";
+"invite.title" = "友達を招待";
+"invite.copy_link" = "リンクをコピー";
+"invite.share" = "共有";
+"invite.share_link" = "リンクを共有";
+"invite.contacts" = "連絡先";
+"invite.app_friends" = "アプリの友達";
+"invite.send_invite" = "招待を送信";
+"invite.send_invite_count" = "招待を送信（%d）";
+"invite.no_contacts" = "連絡先がありません";
+"invite.allow_contacts_access" = "連絡先へのアクセスを許可して、連絡先を招待してください";
+"invite.load_contacts_failed" = "連絡先の読み込みに失敗しました：%@";
+
+// MARK: - Template Store
+"template_store.popular" = "人気のおすすめ";
+"template_store.tags" = "タグ";
+
+// MARK: - Multi Event
+"multi_event.title" = "複数旅行表示";
+"multi_event.total_count" = "合計%d件の旅行";
+"multi_event.all_deleted" = "すべての旅行を削除しました";
+"multi_event.deleted_not_shown" = "削除された旅行はこのリストに表示されません";
+"multi_event.delete_confirmation" = "選択した%d件の旅行を削除します。この操作は取り消せません。";
+
+// MARK: - Search Group
+"search_group.search" = "検索";
+"search_group.no_results" = "一致するグループが見つかりません";
+"search_group.try_different" = "別のキーワードまたはグループIDをお試しください";
+"search_group.title" = "グループを検索";
+"search_group.placeholder" = "グループ名またはIDを入力して検索\n名前の類似度は50%%以上である必要があります";
+"search_group.join_success" = "グループに参加しました";
+"search_group.search_placeholder" = "グループ名またはIDを入力";
+"search_group.searching" = "検索中...";
+"search_group.cancel" = "キャンセル";
+"search_group.error" = "エラー";
+"search_group.unknown_error" = "不明なエラー";
+"search_group.join_success_title" = "参加成功";
+"search_group.load_friends_failed" = "友達リストの読み込みに失敗しました：%@";
+"search_group.invite_failed" = "招待に失敗しました：%@";
+"search_group.generate_link_failed" = "招待リンクの生成に失敗しました：%@";
+"invite.invite_method" = "招待方法";
+"invite.search_contacts" = "連絡先を検索";
+"invite.loading" = "読み込み中...";
+"invite.title_nav" = "友達を招待";
+"invite.add_friends_first_message" = "イベントに招待する前に友達を追加してください";
+"invite.cancel" = "キャンセル";
+"event_create.repeat_options.never" = "なし";
+"event_create.repeat_options.daily" = "毎日";
+"event_create.repeat_options.weekly" = "毎週";
+"event_create.repeat_options.monthly" = "毎月";
+"event_create.repeat_options.yearly" = "毎年";
+"event_create.calendar_options.default" = "イベントスケジュール";
+"event_create.calendar_options.work" = "仕事";
+"event_create.calendar_options.personal" = "個人";
+"event_create.calendar_options.family" = "家族";
+"event_create.calendar_options.study" = "学習";
+"event_create.travel_time.none" = "なし";
+"event_create.travel_time.minutes" = "%d分";
+"event_create.travel_time.hours" = "%.1f時間";
+"travel_time.title" = "移動時間";
+"travel_time.done" = "完了";
+"repeat_options.title" = "繰り返し";
+"repeat_options.done" = "完了";
+"event_create.public_to_friends" = "友達に公開";
+"event_create.other_settings" = "その他の設定";
+"event_create.sync_to_calendar" = "Appleカレンダーに同期";
+"event_create.trip_1" = "旅行1";
+"event_create.publish_settings" = "公開設定";
+"event_create.group_publish" = "グループで公開";
+"event_create.personal_publish" = "個人で公開";
+"event_create.loading_groups" = "グループを読み込み中...";
+"event_create.multi_day_trip" = "複数日旅行";
+"event_create.no_manageable_groups_multi" = "管理可能なグループがまだありません";
+
+// MARK: - Map App Selector
+"map_app_selector.title" = "地図アプリを選択";
+"map_app_selector.not_installed" = "インストールされていません";
+"map_app_selector.system_builtin" = "システム標準";
+
+// MARK: - Nearby Events
+"nearby_events.locating" = "位置情報を取得中...";
+"nearby_events.location_error" = "現在地を取得できません。位置情報の権限設定を確認してください";
+"nearby_events.retry" = "再試行";
+
+// MARK: - Authentication
+"auth.subtitle" = "AIで次の冒険を計画";
+"auth.continue_with_google" = "Googleで続ける";
+"auth.continue_with_apple" = "Appleで続ける";
+"auth.continue_with_email" = "メールで続ける";
+"auth.or" = "または";
+"auth.no_account" = "アカウントをお持ちでないですか？";
+"auth.sign_up" = "サインアップ";
+"auth.skip_login" = "ログインをスキップして開始";
+"auth.terms_agreement" = "ログインすることで、利用規約とプライバシーポリシーに同意したことになります";
+
+// MARK: - Profile
+"profile.basic_info" = "基本情報";
+"profile.user_id" = "ユーザーID";
+"profile.display_name" = "表示名";
+"profile.alias" = "エイリアス";
+"profile.gender" = "性別";
+"profile.phone" = "電話番号";
+"profile.region" = "地域";
+"profile.signature" = "個性サイン";
+"profile.modified" = "（変更済み）";
+"profile.modified_hint" = "ユーザーIDは一度だけ変更可能で、既に変更済みです";
+"profile.not_set" = "未設定";
+"profile.user_code_placeholder" = "8桁の数字+大文字";
+"profile.user_code_hint" = "8桁の数字または大文字、一度だけ変更可能";
+"profile.alias_hint" = "別名は友達検索に使用され、一意である必要があります";
+"profile.display_name_placeholder" = "表示名を入力";
+"profile.phone_placeholder" = "電話番号を入力";
+"profile.region_placeholder" = "地域を入力";
+"profile.signature_placeholder" = "個性サインを入力";
+"profile.signature_hint" = "個性を表現、最大6行";
+"profile.max_tags_exceeded" = "最大6つのタグまで選択可能";
+"profile.id_invalid" = "ユーザーIDが無効または形式が正しくありません";
+"profile.favorite_tags" = "お気に入りタグ";
+"profile.edit_profile" = "プロフィールを編集";
+"profile.title" = "プロフィール";
+"profile.male" = "男性";
+"profile.female" = "女性";
+"profile.unknown" = "不明";
+
+// MARK: - Batch Share
+"batch_share.events_to_share" = "共有する旅行（%d）";
+"batch_share.no_friends" = "友達がまだいません";
+"batch_share.add_friends_first" = "旅行を共有する前に友達を追加してください";
+"batch_share.success" = "共有に成功しました！";
+"batch_share.share_to_friends" = "%d人の友達に共有";
+
+// MARK: - Friend Events
+"friend_events.invite_more" = "もっと友達を招待";
+
+// MARK: - Share History
+"share_history.no_history" = "共有履歴がまだありません";
+"share_history.description" = "共有したアクティビティがここに表示されます";
+"share_history.public_to_friends" = "友達に公開";
+"share_history.shared_at" = "%@に共有";
+
+// MARK: - Share Notifications
+"share_notifications.no_notifications" = "共有通知がまだありません";
+"share_notifications.description" = "受け取ったアクティビティの共有がここに表示されます";
+"share_notifications.received" = "アクティビティの共有を受け取りました";
+"share_notifications.loading" = "アクティビティ情報を読み込み中...";
+
+// MARK: - Event Invitations
+"event_invitations.no_invitations" = "イベント招待がまだありません";
+"event_invitations.description" = "友達が招待したイベントがここに表示されます";
+"event_invitations.invited" = "イベントに招待されました";
+"event_invitations.loading" = "イベント情報を読み込み中...";
+
+// MARK: - Friend Selection
+"friend_selection.no_friends" = "友達がまだいません";
+"friend_selection.add_friends_first" = "イベントを共有する前に友達を追加してください";
+
+// MARK: - Group Selector
+"group_selector.members" = "メンバー：%d";
+
+// MARK: - Calendar Options
+"calendar_options.error" = "エラー";
+"calendar_options.no_calendars" = "利用可能なカレンダーがありません";
+"calendar_options.enable_permission" = "設定でカレンダーの権限を有効にしてください";
+"calendar_options.retry" = "再試行";
+
+// MARK: - Template Detail
+"template_detail.free" = "無料";
+"template_detail.add_to_my_templates" = "マイテンプレートに追加";
+"template_detail.view_trip" = "旅行を表示";
+"template_detail.apply_to_calendar" = "カレンダーに適用";
+"template_detail.tip" = "ヒント";
+"template_detail.applied" = "テンプレートをカレンダーに適用しました。";
+"template_detail.confirm" = "確認";
+"template_detail.purchase_success" = "購入成功";
+"template_detail.thanks_purchase" = "ご購入ありがとうございます！このテンプレートを適用できるようになりました。";
+"template_detail.ok" = "OK";
+
+// MARK: - Plan Day Section
+"plan_day.day" = "%d日目";
+
+// MARK: - AI Plan Result
+"ai_plan_result.no_suggestions" = "推奨旅行がありません";
+"ai_plan_result.add_to_schedule" = "スケジュールに追加";
+
+// MARK: - Event Share Action
+"event_share_action.select_friends" = "友達を選択";
+"event_share_action.share_event" = "イベントを共有";
+"event_share_action.select_friends_to_share" = "共有する友達を選択";
+"event_share_action.generate_share_link" = "共有リンクを生成";
+"event_share_action.system_share" = "システム共有";
+"event_share_action.share_success" = "共有に成功しました！";
+
+// MARK: - Weekend Flash Template
+"weekend_flash.title" = "週末フラッシュ";
+"weekend_flash.smart_planning" = "スマート計画";
+"weekend_flash.trip_title" = "週末フラッシュ旅行";
+"weekend_flash.select_location" = "場所を選択";
+"weekend_flash.select_location_title" = "場所を選択";
+"weekend_flash.location_description" = "お住まいの国に基づいて場所を選択すると、周辺の6つのおすすめ観光地をご紹介します。";
+"weekend_flash.locating" = "位置情報を取得中...";
+"weekend_flash.click_to_select" = "クリックして旅行先を選択";
+"weekend_flash.nearby_features" = "周辺の特徴";
+"weekend_flash.searching_features" = "周辺の特徴を検索中...";
+"weekend_flash.no_features" = "周辺のおすすめがありません";
+"weekend_flash.selected_attractions" = "%d件の観光地を選択";
+"weekend_flash.takes_time" = "この処理には時間がかかる場合があります。お待ちください";
+"weekend_flash.completing" = "旅行を完成中";
+"weekend_flash.start_planning" = "日帰り旅行の計画を開始";
+"weekend_flash.ai_creating" = "AIが完璧な旅行を作成中...";
+"weekend_flash.step_1_2" = "ステップ 1/2";
+"weekend_flash.step_2_2" = "ステップ 2/2";
+"weekend_flash.location_failed" = "位置情報の取得に失敗しました。位置情報の権限設定を確認してください";
+"weekend_flash.missing_required_info" = "必要な情報が不足しています";
+"weekend_flash.missing_location_info" = "場所情報が不足しています";
+"weekend_flash.generation_failed" = "旅行の生成に失敗しました：%@";
+"weekend_flash.invalid_plan_data" = "生成された旅行データが無効です";
+"weekend_flash.task_analyzing" = "目的地情報を分析中";
+"weekend_flash.task_planning" = "活動スケジュールを計画中";
+"weekend_flash.task_optimizing" = "ルートを最適化中";
+"weekend_flash.task_generating" = "完全な旅程を生成中";
+"weekend_flash.default_attraction_landmark" = "有名なランドマーク";
+"weekend_flash.default_attraction_culture" = "文化観光地";
+"weekend_flash.default_attraction_nature" = "自然景観";
+"weekend_flash.default_attraction_food" = "美食エリア";
+"weekend_flash.default_attraction_shopping" = "ショッピングセンター";
+"weekend_flash.default_attraction_art" = "アートスペース";
+
+// MARK: - Deep Culture Template
+"deep_culture.select_features" = "歴史・芸術の特徴を選択";
+"deep_culture.features_description" = "お住まいの場所に基づいて、周辺の歴史・芸術関連の観光地をご紹介します。";
+"deep_culture.locating" = "位置情報を取得中...";
+"deep_culture.historical_features" = "歴史・芸術の特徴";
+"deep_culture.searching_features" = "歴史・芸術の特徴を検索中...";
+"deep_culture.no_features" = "歴史・芸術のおすすめがありません";
+"deep_culture.selected_attractions" = "%d/%d件の観光地を選択";
+"deep_culture.max_selection" = "最大%d件の観光地を選択してください";
+"deep_culture.selection_range" = "%d-%d件の観光地を選択してください";
+"deep_culture.other_option" = "その他";
+"deep_culture.other_category" = "その他";
+"deep_culture.takes_time" = "この処理には時間がかかる場合があります。お待ちください";
+"deep_culture.completing" = "旅行を完成中";
+"deep_culture.start_planning" = "計画を開始";
+"deep_culture.ai_creating" = "AIが完璧な旅行を作成中...";
+
+// MARK: - Events
+"event.create" = "イベントを作成";
+"event.edit" = "イベントを編集";
+"event.delete" = "イベントを削除";
+"event.share" = "イベントを共有";
+"event.add_friend" = "作成者を友達に追加";
+
+// MARK: - Friends & Groups
+"friends.title" = "友達・コミュニティ";
+"friends.add_friend" = "友達を追加";
+"friends.requests" = "友達リクエスト";
+"friends.my_friends" = "マイフレンド";
+
+// MARK: - Location
+"location.search" = "場所を検索...";
+"location.select" = "場所を選択";
+"location.current" = "現在地";
+
+// MARK: - Calendar
+"calendar.title" = "カレンダー";
+"calendar.today" = "今日";
+"calendar.month" = "月";
+"calendar.week" = "週";
+"calendar.day" = "日";
+"calendar.filter.all" = "すべて";
+"calendar.filter.my_own" = "自分の旅行";
+"calendar.filter.friend_and_public" = "友達・グループ";
+"calendar.filter.nearby" = "近くの旅行";
+
+// MARK: - Plans
+"plan.edit" = "計画を編集";
+"plan.details" = "計画の詳細";
+"plan.day" = "%d日目";
+
+// MARK: - Templates
+"template.my_templates" = "マイテンプレート";
+"template.store" = "テンプレートストア";
+"template.details" = "テンプレートの詳細";
+
+// MARK: - Friends & Groups
+"friends.management" = "友達";
+"groups.management" = "グループ";
+"friends.loading" = "読み込み中...";
+"friends.no_friends" = "友達がまだいません";
+"friends.add_friend_hint" = "右上の+ボタンをタップして友達を追加";
+"groups.no_groups" = "グループがまだありません";
+"groups.create_group_hint" = "右上の+ボタンをタップしてグループを作成";
+"friends.unknown" = "不明な友達";
+"friends.delete" = "友達を削除";
+"friends.delete_confirmation" = "この友達を削除してもよろしいですか？";
+"groups.members_count" = "%d人のメンバー";
+"groups.owner" = "オーナー";
+"groups.admin" = "管理者";
+"groups.unknown_member" = "不明なメンバー";
+"groups.set_admin" = "管理者に設定";
+"groups.remove_admin" = "管理者を解除";
+"groups.remove_member" = "メンバーを削除";
+"groups.admin_list" = "管理者リスト";
+"groups.regular_members" = "一般メンバー";
+"groups.admin_settings" = "管理者設定";
+"groups.load_members_failed" = "メンバーの読み込みに失敗しました：%@";
+"groups.set_admin_failed" = "管理者の設定に失敗しました：%@";
+"groups.invite_members" = "メンバーを招待";
+"groups.loading_friends" = "友達を読み込み中...";
+"groups.no_friends_to_invite" = "招待できる友達がいません";
+"groups.invite" = "招待";
+"groups.load_friends_failed" = "友達の読み込みに失敗しました：%@";
+
+// MARK: - Add Friend
+"add_friend.title" = "友達を追加";
+"add_friend.search_placeholder" = "エイリアス、メールアドレス、またはユーザーIDを入力";
+"add_friend.send_request" = "友達リクエストを送信";
+"add_friend.request_sent" = "友達リクエストを送信しました ✅";
+"add_friend.user_not_logged_in" = "ユーザーがログインしていません。後でもう一度お試しください";
+"add_friend.user_not_found" = "ユーザーが見つかりません";
+"add_friend.already_friends" = "すでに友達です";
+"add_friend.request_already_sent" = "友達リクエストはすでに送信されています";
+"add_friend.failed" = "友達リクエストの送信に失敗しました：%@";
+"add_friend.cannot_add_self" = "自分自身を友達に追加することはできません";
+
+// MARK: - Add Group
+"add_group.title" = "グループを作成";
+"add_group.name" = "グループ名";
+"add_group.name_placeholder" = "グループ名を入力";
+"add_group.description" = "グループの説明（任意）";
+"add_group.description_placeholder" = "グループの説明を入力";
+"add_group.category" = "グループカテゴリー";
+"add_group.select_category" = "カテゴリーを選択";
+"add_group.location" = "場所（都市）";
+"add_group.location_placeholder" = "例：東京、大阪、京都";
+"add_group.privacy" = "プライバシー";
+"add_group.create_success" = "グループを作成しました！";
+"add_group.create_failed" = "グループの作成に失敗しました：%@";
+"add_group.create" = "グループを作成";
+"add_group.name_required" = "グループ名を入力してください";
+"add_group.category_required" = "グループカテゴリーを選択してください";
+"add_group.create_failed_prefix" = "作成に失敗しました：%@";
+
+// MARK: - Event Create
+"event_create.title" = "旅行タイトル";
+"event_create.content" = "イベント内容";
+"event_create.set_time" = "時間を設定";
+"event_create.add_multi_day" = "複数日旅行を追加";
+"event_create.no_manageable_groups" = "管理可能なグループがありません";
+"event_create.select_group" = "グループを選択";
+"event_create.please_select_group" = "グループを選択してください";
+"event_create.repeat" = "繰り返し";
+"event_create.calendar" = "カレンダー";
+"event_create.cancel_multi_day" = "複数日旅行をキャンセル";
+"event_create.create_trip" = "旅行を作成";
+"event_create.save" = "保存";
+"event_create.cancel" = "キャンセル";
+"event_create.selected_events" = "%d件の旅行を選択";
+"event_create.title_placeholder" = "例：東京羽田空港到着";
+"event_create.content_placeholder" = "イベントのメモや詳細を入力...";
+"event_create.select_location" = "場所を選択";
+"event_create.new_trip" = "新しい旅行";
+"event_create.no_groups_yet" = "管理可能なグループがまだありません";
+
+// MARK: - Calendar
+"calendar.cancel" = "キャンセル";
+"calendar.selected_events_count" = "%d件の旅行を選択";
+
+// MARK: - Location Picker
+"location_picker.searching" = "検索中...";
+"location_picker.no_results" = "関連する場所が見つかりません";
+
+// MARK: - Trip Plan Card
+"trip_plan.planning" = "旅行計画";
+"trip_plan.days" = "%d日";
+"trip_plan.more_days" = "...さらに%d日間の旅程";
+"trip_plan.assumptions" = "%d件のデフォルト仮定を含む";
+"trip_plan.save" = "保存";
+"trip_plan.details" = "詳細";
+
+// MARK: - Event Share
+"event_share.title" = "旅行タイトル";
+"event_share.content" = "イベント内容";
+"event_share.select_location" = "場所を選択";
+"event_share.estimated_time" = "約%d分";
+"event_share.calculating" = "移動時間を計算中...";
+"event_share.calculate" = "移動時間を計算";
+"event_share.set_time" = "時間を設定";
+"event_share.share" = "共有";
+"event_share.share_event" = "イベントを共有";
+"event_share.permission_settings" = "権限設定";
+"event_share.no_permission" = "アクセス権限がありません";
+"event_share.public_to_friends" = "友達に公開";
+"event_share.private_only" = "プライベートのみ";
+"event_share.cannot_add_to_calendar" = "カレンダーに追加できません";
+"event_share.unknown_error" = "不明なエラー";
+"event_share.view_event" = "イベントを表示";
+"event_share.trip_info" = "旅行情報";
+"event_share.shared_with" = "共有先";
+"event_share.participants_count" = "%d人の参加者";
+"event_share.participate" = "参加";
+"event_share.not_participate" = "不参加";
+"event_share.load_groups_failed" = "ユーザーグループの読み込みに失敗しました";
+"event_share.get_group_details_failed" = "グループ詳細の取得に失敗しました";
+"event_share.load_participation_status_failed" = "参加状態の読み込みに失敗しました";
+"event_share.load_participants_failed" = "参加者リストの読み込みに失敗しました";
+"event_share.update_participation_status_failed" = "参加状態の更新に失敗しました";
+"event_share.event_id_missing" = "イベントIDが存在しません。削除できません";
+"event_share.delete_event_failed" = "イベントの削除に失敗しました";
+"event_share.geocoding_failed" = "ジオコーディングに失敗しました";
+"event_share.location_fetch_failed" = "位置情報の取得に失敗しました";
+"event_share.unknown_user" = "不明";
+
+// MARK: - Common Loading
+"common.loading" = "読み込み中...";
+"common.load_failed" = "読み込みに失敗しました";
+
+// MARK: - Friend Requests Actions
+"friend_requests.accept" = "承認";
+"friend_requests.reject" = "拒否";
+"friend_requests.accept_failed" = "承認に失敗しました";
+"friend_requests.reject_failed" = "拒否に失敗しました";
+"friend_requests.unknown_user" = "不明なユーザー";
+
+// MARK: - Friend Selection
+"friend_selection.select_friends" = "友達を選択";
+
+// MARK: - Plan Edit
+"plan_edit.start_date" = "開始日";
+"plan_edit.add_trip" = "旅行を追加";
+"plan_edit.save_template" = "テンプレートを保存";
+"plan_edit.publish_trip" = "旅行を公開";
+
+// MARK: - Plan Detail
+"plan_detail.invalid_data" = "無効な旅行データ";
+"plan_detail.back" = "戻る";
+"plan_detail.edit_trip" = "旅行を編集";
+
+// MARK: - Group Events
+"group_events.no_groups" = "まだグループに参加していません";
+"group_events.no_activities" = "グループアクティビティがまだありません";
+
+// MARK: - Event Edit
+"event_edit.delete_confirmation" = "このイベントを削除してもよろしいですか？この操作は取り消せません。";
+
+// MARK: - AI Conversation
+"ai_conversation.greeting" = "こんにちは！旅行計画をお手伝いします。要件を教えてください";
+"ai_conversation.generating" = "旅程を生成中...";
+"ai_conversation.or_manual_input" = "または手動で入力：";
+"ai_conversation.confirm" = "確認";
+"ai_conversation.back" = "戻る";
+
+// MARK: - My Templates
+"my_templates.delete_confirmation" = "\"%@\"を削除してもよろしいですか？この操作は取り消せません。";
+"my_templates.no_templates" = "保存された旅行テンプレートがまだありません";
+"my_templates.filter.my_creations" = "私の生成";
+"my_templates.filter.purchased" = "購入済み";
+"my_templates.filter.friend_shares" = "友達シェア";
+"my_templates.days" = "%d日";
+"my_templates.delete" = "削除";
+"my_templates.share" = "共有";
+
+// MARK: - Group Detail
+"group_detail.info" = "グループ情報";
+"group_detail.name" = "名前";
+"group_detail.description" = "説明";
+"group_detail.owner" = "オーナー";
+"group_detail.members" = "メンバー";
+"group_detail.members_count" = "メンバー（%d）";
+"group_detail.no_member_info" = "メンバー情報がありません";
+"group_detail.management" = "管理";
+"group_detail.delete_group" = "グループを削除";
+"group_detail.leave_group" = "グループを退出";
+"group_detail.delete_confirmation" = "このグループを削除してもよろしいですか？この操作は取り消せません。";
+"group_detail.set_admin" = "管理者を設定";
+"group_detail.group_activities" = "グループアクティビティ";
+"group_detail.you" = "あなた";
+"group_detail.error" = "エラー";
+"group_detail.confirm_delete" = "削除を確認";
+
+// MARK: - Friend Requests
+"friend_requests.no_requests" = "友達リクエストがまだありません";
+"friend_requests.alias" = "エイリアス：%@";
+
+// MARK: - Edit Profile
+"profile.basic_info" = "基本情報";
+"profile.user_id" = "ユーザーID";
+"profile.checking" = "確認中...";
+"profile.male" = "男性";
+"profile.female" = "女性";
+"profile.unknown" = "不明";
+"profile.preferences" = "設定";
+"profile.selected_tags" = "%d/6を選択";
+
+// MARK: - Member View
+"member.friends" = "友達";
+"member.share" = "共有";
+"member.achievements" = "実績";
+"member.settings" = "設定";
+"member.add_friend" = "友達を追加";
+"member.friend_list" = "友達リスト";
+"member.received_requests" = "受け取ったリクエスト";
+"member.share_history" = "共有履歴";
+"member.share_notifications" = "共有通知";
+"member.event_invitations" = "イベント招待";
+"member.achievements_tasks" = "実績とタスク";
+"member.title" = "機能";
+"member.default_user" = "ユーザー";
+"member.user_id" = "ユーザーID";
+
+// MARK: - Community
+"community.title" = "コミュニティインタラクション";
+"community.friends_share" = "友達シェア";
+"community.groups_share" = "グループシェア";
+"community.nearby_events" = "近くのイベント";
+"community.create_group" = "新しいグループを作成";
+"community.search_group" = "グループを検索";
+
+// MARK: - Achievements
+"achievements.early_bird.title" = "7日間早起き";
+"achievements.early_bird.description" = "早寝早起きの良い習慣を身につける";
+"achievements.family_trips.title" = "5つの家族旅行を完了";
+"achievements.family_trips.description" = "子供と楽しい時間を共有";
+"achievements.low_carbon.title" = "低炭素旅行10回";
+"achievements.low_carbon.description" = "公共交通機関を利用するか、自転車に乗る";
+
+// MARK: - Template Names
+"weekend_flash.template_name" = "週末フラッシュ";
+"deep_culture.template_name" = "ディープカルチャー";

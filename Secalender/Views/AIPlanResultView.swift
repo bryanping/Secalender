@@ -11,7 +11,7 @@ struct AIPlanResultView: View {
         NavigationView {
             VStack(alignment: .leading) {
                 if scheduleItems.isEmpty {
-                    Text("沒有建議行程").padding()
+                    Text("ai_plan_result.no_suggestions".localized()).padding()
                 } else {
                     List {
                         ForEach(scheduleItems) { item in
@@ -35,7 +35,7 @@ struct AIPlanResultView: View {
                     onAdd()
                     dismiss()
                 }) {
-                    Text("添加到行程表")
+                    Text("ai_plan_result.add_to_schedule".localized())
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                 }

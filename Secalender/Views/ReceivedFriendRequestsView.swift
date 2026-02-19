@@ -31,14 +31,14 @@ struct ReceivedFriendRequestsView: View {
         NavigationView {
             VStack {
                 if isLoading {
-                    ProgressView("加载中...")
+                    ProgressView("common.loading".localized())
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if requests.isEmpty {
                     VStack(spacing: 16) {
                         Image(systemName: "person.badge.plus")
                             .font(.system(size: 60))
                             .foregroundColor(.gray)
-                        Text("暂无好友请求")
+                        Text("friend_requests.no_requests".localized())
                             .foregroundColor(.gray)
                             .font(.headline)
                     }
@@ -70,7 +70,7 @@ struct ReceivedFriendRequestsView: View {
                         .padding()
                 }
             }
-            .navigationTitle("好友请求")
+            .navigationTitle("friends.requests".localized())
             .refreshable {
                 await loadRequests()
             }
@@ -108,7 +108,7 @@ struct ReceivedFriendRequestsView: View {
                 if let error = error {
                     print("❌ 好友请求监听器错误: \(error.localizedDescription)")
                     await MainActor.run {
-                        self.errorMessage = "加载失败：\(error.localizedDescription)"
+                        self.errorMessage = "common.load_failed".localized() + ": \(error.localizedDescription)"
                         self.isLoading = false
                     }
                     return
@@ -236,7 +236,7 @@ struct ReceivedFriendRequestsView: View {
             userManager.refresh()
         } catch {
             await MainActor.run {
-                self.errorMessage = "接受失败：\(error.localizedDescription)"
+                self.errorMessage = "friend_requests.accept_failed".localized() + ": \(error.localizedDescription)"
                 self.processingRequestId = nil
             }
         }
@@ -255,7 +255,7 @@ struct ReceivedFriendRequestsView: View {
             }
         } catch {
             await MainActor.run {
-                self.errorMessage = "拒绝失败：\(error.localizedDescription)"
+                self.errorMessage = "friend_requests.reject_failed".localized() + ": \(error.localizedDescription)"
                 self.processingRequestId = nil
             }
         }
@@ -295,11 +295,11 @@ struct FriendRequestRow: View {
             
             // 用户信息
             VStack(alignment: .leading, spacing: 4) {
-                Text(request.senderInfo?.name ?? request.senderInfo?.alias ?? request.senderInfo?.userCode ?? "未知用户")
+                Text(request.senderInfo?.name ?? request.senderInfo?.alias ?? request.senderInfo?.userCode ?? "friend_requests.unknown_user".localized())
                     .font(.headline)
                 
                 if let alias = request.senderInfo?.alias, !alias.isEmpty, alias != request.senderInfo?.name {
-                    Text("别名: \(alias)")
+                    Text("friend_requests.alias".localized(with: alias))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -323,13 +323,13 @@ struct FriendRequestRow: View {
             
             // 操作按钮
             HStack(spacing: 8) {
-                Button("拒绝") {
+                Button("friend_requests.reject".localized()) {
                     onReject()
                 }
                 .buttonStyle(.bordered)
                 .disabled(isProcessing)
                 
-                Button("接受") {
+                Button("friend_requests.accept".localized()) {
                     onAccept()
                 }
                 .buttonStyle(.borderedProminent)

@@ -1,0 +1,743 @@
+/* 
+  Localizable.strings
+  Secalender
+
+  Created by 林平 on 2026/1/27.
+  
+*/
+
+// MARK: - Language Names
+"language.english" = "English";
+"language.simplified_chinese" = "Simplified Chinese";
+"language.traditional_chinese" = "Traditional Chinese";
+"language.german" = "German";
+"language.french" = "French";
+"language.spanish" = "Spanish";
+"language.japanese" = "Japanese";
+
+// MARK: - Tab Bar
+"tab.calendar" = "Calendar";
+"tab.ai_planning" = "AI Planning";
+"tab.my_templates" = "My Templates";
+"tab.template_store" = "Template Store";
+"tab.friends_community" = "Friends & Community";
+"tab.settings" = "Settings";
+
+// MARK: - AI Planner
+"ai_planner.tell_us_your_plan" = "Tell us about your travel plan";
+"ai_planner.start_with_basics" = "Let's start with the basics to create your perfect itinerary.";
+"ai_planner.trip_theme" = "What's the theme of this trip?";
+"ai_planner.trip_theme_placeholder" = "e.g., Summer in Paris, New York Food Tour";
+"ai_planner.where_are_you_going" = "Where are you going?";
+"ai_planner.search_destination" = "Search destination...";
+"ai_planner.travel_days" = "Travel Days";
+"ai_planner.total_days" = "Total Days";
+"ai_planner.days" = "%d days";
+"ai_planner.travelers" = "Travelers";
+"ai_planner.adults" = "Adults";
+"ai_planner.adults_description" = "13 years and above";
+"ai_planner.children" = "Children";
+"ai_planner.children_description" = "12 years and below";
+"ai_planner.transportation" = "Transportation";
+"ai_planner.interests" = "Interests";
+"ai_planner.special_requirements" = "Special Requirements";
+"ai_planner.budget_level" = "Budget Level";
+"ai_planner.optimize_details" = "Optimize Itinerary Details";
+"ai_planner.optimize_subtitle" = "Fine-tune the details so we can recommend the most precise locations for you.";
+"ai_planner.surrounding_features" = "Nearby Features";
+"ai_planner.searching_features" = "Searching nearby features...";
+"ai_planner.no_features" = "No nearby features available";
+"ai_planner.selected_attractions" = "Selected %d/%d attractions";
+"ai_planner.pace" = "Travel Pace";
+"ai_planner.departure_location" = "Departure Location";
+"ai_planner.locating" = "Locating...";
+"ai_planner.location_position" = "Location Position";
+"ai_planner.reposition" = "Reposition";
+"ai_planner.accommodation" = "Accommodation";
+"ai_planner.select_accommodation" = "Select accommodation address";
+"ai_planner.accommodation_hint" = "You can search for hotels or enter a custom address";
+"ai_planner.additional_requirements" = "Additional Requirements";
+"ai_planner.additional_requirements_placeholder" = "Anything else you'd like to tell the AI? e.g., no raw food, pollen allergy...";
+"ai_planner.ai_generating" = "AI is creating your perfect itinerary...";
+"ai_planner.generation_hint" = "This process may take some time, please wait";
+"ai_planner.completing_itinerary" = "Completing your itinerary";
+"ai_planner.next_preferences" = "Next: Preferences";
+"ai_planner.previous" = "Previous";
+"ai_planner.next" = "Next";
+"ai_planner.complete_setup" = "Complete Setup";
+"ai_planner.start_date" = "Start Date";
+"ai_planner.end_date" = "End Date";
+"ai_planner.select_city" = "Select City - %@";
+"ai_planner.no_city_data" = "No city data available";
+"ai_planner.no_matching_city" = "No matching cities found";
+
+// MARK: - Transportation Types
+"transport.public_transport" = "Public Transport";
+"transport.public_transport_desc" = "Subway, Bus, Train";
+"transport.self_drive" = "Self-Drive";
+"transport.self_drive_desc" = "Enjoy the freedom to control your journey";
+"transport.chartered_car" = "Chartered Car";
+"transport.chartered_car_desc" = "Professional driver, premium service";
+
+// MARK: - Interest Tags
+"interest.food" = "Food";
+"interest.history" = "History";
+"interest.nature" = "Nature";
+"interest.shopping" = "Shopping";
+"interest.nightlife" = "Nightlife";
+"interest.art" = "Art";
+
+// MARK: - Special Restrictions
+"restriction.child_friendly" = "Child Friendly";
+"restriction.wheelchair_access" = "Wheelchair Access";
+"restriction.indoor_priority" = "Indoor Priority";
+"restriction.early_rest" = "Early Rest";
+
+// MARK: - Budget Levels
+"budget.economy" = "Economy";
+"budget.standard" = "Standard";
+"budget.luxury" = "Luxury";
+
+// MARK: - Pace Options
+"pace.relaxed" = "Relaxed";
+"pace.moderate" = "Moderate";
+"pace.intensive" = "Intensive";
+
+// MARK: - Settings
+"settings.title" = "Settings";
+"settings.account" = "Account Settings";
+"settings.login_method" = "Login Method: %@";
+"settings.login_account" = "Login Account: %@";
+"settings.member_login" = "Member Login";
+"settings.logout" = "Logout";
+"settings.preferences" = "Preferences";
+"settings.dark_mode" = "Dark Mode";
+"settings.cache_management" = "Cache Management";
+"settings.cache_size" = "Cache Size";
+"settings.last_updated" = "Last Updated";
+"settings.clear_cache" = "Clear Cache";
+"settings.no_cache" = "No cache data";
+"settings.about" = "About";
+"settings.app_version" = "Secalender v1.0";
+"settings.developed_by" = "Developed by LIFECONNECT";
+"settings.error" = "Error";
+"settings.ok" = "OK";
+"settings.confirm_logout" = "Are you sure you want to logout?";
+"settings.yes" = "Yes";
+"settings.no" = "No";
+"settings.confirm_clear_cache" = "Are you sure you want to clear the cache?";
+"settings.logout_failed" = "Logout failed: %@";
+"settings.language" = "Language";
+"settings.language_system" = "System Language";
+"settings.language_footer" = "Select your preferred language. The app will use this language instead of your system language.";
+
+// MARK: - Login Providers
+"login.google" = "Google Login";
+"login.apple" = "Apple Login";
+"login.email" = "Email Login";
+"login.facebook" = "Facebook Login";
+"login.phone" = "Phone Login";
+"login.anonymous" = "Anonymous";
+
+// MARK: - Common Actions
+"common.cancel" = "Cancel";
+"common.confirm" = "Confirm";
+"common.ok" = "OK";
+"common.retry" = "Retry";
+"common.back" = "Back";
+"common.add" = "Add";
+"common.delete" = "Delete";
+"common.edit" = "Edit";
+"common.save" = "Save";
+"common.search" = "Search";
+"common.done" = "Done";
+"common.error" = "Error";
+
+// MARK: - AI Planning Welcome
+"welcome.where_to_travel" = "GO Travel";
+"welcome.create_perfect_itinerary" = "Let me create the perfect personalized itinerary for you";
+"welcome.start_ai_planning" = "Start AI Planning";
+"welcome.quick_themes" = "Quick Themes";
+"welcome.view_more" = "View More";
+
+// MARK: - Invite Friends
+"invite.invite_link" = "Invite Link";
+"invite.generate_link" = "Generate Invite Link";
+"invite.share_method" = "Share Method";
+"invite.success" = "Invite sent successfully!";
+"invite.title" = "Invite Friends to Join";
+"invite.copy_link" = "Copy Link";
+"invite.share" = "Share";
+"invite.share_link" = "Share Link";
+"invite.contacts" = "Contacts";
+"invite.app_friends" = "App Friends";
+"invite.send_invite" = "Send Invite";
+"invite.send_invite_count" = "Send Invite (%d)";
+"invite.no_contacts" = "No contacts";
+"invite.allow_contacts_access" = "Please allow access to contacts to invite contacts";
+"invite.load_contacts_failed" = "Failed to load contacts: %@";
+
+// MARK: - Template Store
+"template_store.popular" = "Popular Recommendations";
+"template_store.tags" = "Tags";
+
+// MARK: - Multi Event
+"multi_event.title" = "Multi-Trip View";
+"multi_event.total_count" = "Total %d trips";
+"multi_event.all_deleted" = "All trips deleted";
+"multi_event.deleted_not_shown" = "Deleted trips will not be shown in this list";
+"multi_event.delete_confirmation" = "Selected %d trips will be deleted, this action cannot be undone.";
+
+// MARK: - Search Group
+"search_group.search" = "Search";
+"search_group.no_results" = "No matching groups found";
+"search_group.try_different" = "Please try different keywords or group ID";
+"search_group.title" = "Search Groups";
+"search_group.placeholder" = "Enter group name or ID to search\nName similarity must be at least 50%%";
+"search_group.join_success" = "Successfully joined group";
+"search_group.search_placeholder" = "Enter group name or ID";
+"search_group.searching" = "Searching...";
+"search_group.cancel" = "Cancel";
+"search_group.error" = "Error";
+"search_group.unknown_error" = "Unknown error";
+"search_group.join_success_title" = "Join Successful";
+"search_group.load_friends_failed" = "Failed to load friends list: %@";
+"search_group.invite_failed" = "Invite failed: %@";
+"search_group.generate_link_failed" = "Failed to generate invite link: %@";
+"invite.invite_method" = "Invite Method";
+"invite.search_contacts" = "Search Contacts";
+"invite.loading" = "Loading...";
+"invite.title_nav" = "Invite Friends";
+"invite.add_friends_first_message" = "Add friends before inviting to events";
+"invite.cancel" = "Cancel";
+"event_create.repeat_options.never" = "Never";
+"event_create.repeat_options.daily" = "Daily";
+"event_create.repeat_options.weekly" = "Weekly";
+"event_create.repeat_options.monthly" = "Monthly";
+"event_create.repeat_options.yearly" = "Yearly";
+"event_create.calendar_options.default" = "Event Schedule";
+"event_create.calendar_options.work" = "Work";
+"event_create.calendar_options.personal" = "Personal";
+"event_create.calendar_options.family" = "Family";
+"event_create.calendar_options.study" = "Study";
+"event_create.travel_time.none" = "None";
+"event_create.travel_time.minutes" = "%d minutes";
+"event_create.travel_time.hours" = "%.1f hours";
+"travel_time.title" = "Travel Time";
+"travel_time.done" = "Done";
+"repeat_options.title" = "Repeat";
+"repeat_options.done" = "Done";
+"event_create.public_to_friends" = "Public to Friends";
+"event_create.other_settings" = "Other Settings";
+"event_create.sync_to_calendar" = "Sync to Apple Calendar";
+"event_create.invite_friends" = "Invite Friends";
+"event_create.select_friends" = "Select Friends";
+"event_create.friends_selected" = "%d friend(s) selected";
+"event_create.trip_1" = "Trip 1";
+"event_create.publish_settings" = "Publish Settings";
+"event_create.group_publish" = "Publish by Group";
+"event_create.personal_publish" = "Personal Publish";
+"event_create.loading_groups" = "Loading groups...";
+"event_create.multi_day_trip" = "Multi-Day Trip";
+"event_create.no_manageable_groups_multi" = "You don't have any manageable groups yet";
+
+// MARK: - Map App Selector
+"map_app_selector.title" = "Select Map App";
+"map_app_selector.not_installed" = "Not Installed";
+"map_app_selector.system_builtin" = "System Built-in";
+
+// MARK: - Nearby Events
+"nearby_events.locating" = "Locating...";
+"nearby_events.location_error" = "Unable to get current location, please check location permission settings";
+"nearby_events.retry" = "Retry";
+
+// MARK: - Authentication
+"auth.subtitle" = "Plan your next adventure with AI";
+"auth.continue_with_google" = "Continue with Google";
+"auth.continue_with_apple" = "Continue with Apple";
+"auth.continue_with_email" = "Continue with Email";
+"auth.or" = "OR";
+"auth.no_account" = "Don't have an account?";
+"auth.sign_up" = "Sign Up";
+"auth.skip_login" = "Skip login and start using";
+"auth.terms_agreement" = "By logging in, you agree to our Terms of Service and Privacy Policy";
+
+// MARK: - Sign In Email
+"signin.welcome_back" = "Welcome Back";
+"signin.welcome_subtitle" = "Your AI itinerary secretary is ready";
+"signin.create_account" = "Create New Account";
+"signin.create_subtitle" = "Start your smart itinerary planning journey";
+"signin.username" = "Username";
+"signin.username_placeholder" = "Your name";
+"signin.email" = "Email";
+"signin.email_placeholder" = "hello@example.com";
+"signin.password" = "Password";
+"signin.password_placeholder" = "Enter your password";
+"signin.password_set_placeholder" = "Set password";
+"signin.confirm_password" = "Confirm Password";
+"signin.confirm_password_placeholder" = "Re-enter password";
+"signin.forgot_password" = "Forgot Password?";
+"signin.login" = "Login";
+"signin.register" = "Register and Start Planning";
+"signin.no_account" = "Don't have an account yet? ";
+"signin.has_account" = "Already have an account? ";
+"signin.register_now" = "Register Now";
+"signin.login_now" = "Log In Now";
+"signin.forgot_password_title" = "Forgot Password";
+"signin.forgot_password_message" = "We will send a password reset link to your email";
+"signin.enter_email" = "Please enter your email";
+"signin.send" = "Send";
+"signin.email_not_verified" = "Please verify your email address first";
+"signin.password_reset_sent" = "Password reset email has been sent, please check your email";
+"signin.error.invalid_email" = "Invalid email format";
+"signin.error.wrong_password" = "Wrong password";
+"signin.error.user_not_found" = "User not found, please register first";
+"signin.error.weak_password" = "Password is too weak, please use at least 6 characters";
+"signin.error.network_error" = "Network error, please check your connection";
+"signin.error.too_many_requests" = "Too many requests, please try again later";
+"signin.error.email_in_use" = "This email is already in use";
+"signin.error.password_mismatch" = "Password and confirm password do not match";
+"signin.error.login_failed" = "Login failed: %@";
+
+// MARK: - Profile
+"profile.basic_info" = "Basic Information";
+"profile.user_id" = "User ID";
+"profile.display_name" = "Display Name";
+"profile.alias" = "Alias";
+"profile.gender" = "Gender";
+"profile.phone" = "Phone";
+"profile.region" = "Region";
+"profile.signature" = "Signature";
+"profile.modified" = "(Modified)";
+"profile.modified_hint" = "User ID can only be modified once, already modified";
+"profile.not_set" = "Not set";
+"profile.user_code_placeholder" = "8 digits + uppercase letters";
+"profile.user_code_hint" = "8 digits or uppercase letters, can only be modified once";
+"profile.alias_hint" = "Alias is used for friend search, must be unique";
+"profile.display_name_placeholder" = "Enter display name";
+"profile.phone_placeholder" = "Enter phone number";
+"profile.region_placeholder" = "Enter region";
+"profile.signature_placeholder" = "Enter signature";
+"profile.signature_hint" = "Show your personality, up to 6 lines";
+"profile.max_tags_exceeded" = "Maximum 6 tags allowed";
+"profile.id_invalid" = "User ID is invalid or format is incorrect";
+"profile.favorite_tags" = "Favorite Tags";
+"profile.edit_profile" = "Edit Profile";
+"profile.title" = "Profile";
+"profile.male" = "Male";
+"profile.female" = "Female";
+"profile.unknown" = "Unknown";
+
+// MARK: - Batch Share
+"batch_share.events_to_share" = "Trips to Share (%d)";
+"batch_share.no_friends" = "No friends yet";
+"batch_share.add_friends_first" = "Add friends before sharing trips";
+"batch_share.success" = "Share successful!";
+"batch_share.share_to_friends" = "Share to %d friends";
+
+// MARK: - Friend Events
+"friend_events.invite_more" = "Invite more friends to join";
+
+// MARK: - Share History
+"share_history.no_history" = "No share history yet";
+"share_history.description" = "Activities you shared will be shown here";
+"share_history.public_to_friends" = "Public to friends";
+"share_history.shared_at" = "Shared at %@";
+
+// MARK: - Share Notifications
+"share_notifications.no_notifications" = "No share notifications yet";
+"share_notifications.description" = "Activity shares you received will be shown here";
+"share_notifications.received" = "You received an activity share";
+"share_notifications.loading" = "Loading activity info...";
+
+// MARK: - Event Invitations
+"event_invitations.no_invitations" = "No event invitations yet";
+"event_invitations.description" = "Events your friends invited you to will be shown here";
+"event_invitations.invited" = "Invited you to join event";
+"event_invitations.loading" = "Loading event info...";
+
+// MARK: - Friend Selection
+"friend_selection.no_friends" = "No friends yet";
+"friend_selection.add_friends_first" = "Add friends before sharing events";
+
+// MARK: - Group Selector
+"group_selector.members" = "Members: %d";
+
+// MARK: - Calendar Options
+"calendar_options.error" = "Error";
+"calendar_options.no_calendars" = "No calendars available";
+"calendar_options.enable_permission" = "Please go to Settings to enable calendar permission";
+"calendar_options.retry" = "Retry";
+
+// MARK: - Template Detail
+"template_detail.free" = "Free";
+"template_detail.add_to_my_templates" = "Add to My Templates";
+"template_detail.view_trip" = "View Trip";
+"template_detail.apply_to_calendar" = "Apply to Calendar";
+"template_detail.tip" = "Tip";
+"template_detail.applied" = "Template has been applied to your calendar.";
+"template_detail.confirm" = "Confirm";
+"template_detail.purchase_success" = "Purchase Successful";
+"template_detail.thanks_purchase" = "Thank you for your purchase! You can now apply this template.";
+"template_detail.ok" = "OK";
+
+// MARK: - Plan Day Section
+"plan_day.day" = "Day %d";
+
+// MARK: - AI Plan Result
+"ai_plan_result.no_suggestions" = "No suggested trips";
+"ai_plan_result.add_to_schedule" = "Add to Schedule";
+
+// MARK: - Event Share Action
+"event_share_action.select_friends" = "Select Friends";
+"event_share_action.share_event" = "Share Event";
+"event_share_action.select_friends_to_share" = "Select Friends to Share";
+"event_share_action.generate_share_link" = "Generate Share Link";
+"event_share_action.system_share" = "System Share";
+"event_share_action.share_success" = "Share successful!";
+
+// MARK: - Weekend Flash Template
+"weekend_flash.title" = "Weekend Flash";
+"weekend_flash.smart_planning" = "Smart Planning";
+"weekend_flash.trip_title" = "Weekend Flash Trip";
+"weekend_flash.select_location" = "Select Location";
+"weekend_flash.select_location_title" = "Select Location";
+"weekend_flash.location_description" = "Based on your country, select a location, and we will recommend 6 nearby featured attractions for you.";
+"weekend_flash.locating" = "Locating...";
+"weekend_flash.click_to_select" = "Click to select travel location";
+"weekend_flash.nearby_features" = "Nearby Features";
+"weekend_flash.searching_features" = "Searching for nearby features...";
+"weekend_flash.no_features" = "No nearby features recommended";
+"weekend_flash.selected_attractions" = "Selected %d attractions";
+"weekend_flash.takes_time" = "This process may take some time, please wait";
+"weekend_flash.completing" = "Completing your trip";
+"weekend_flash.start_planning" = "Start Planning One-Day Trip";
+"weekend_flash.ai_creating" = "AI is creating your perfect trip...";
+"weekend_flash.step_1_2" = "Step 1/2";
+"weekend_flash.step_2_2" = "Step 2/2";
+"weekend_flash.location_failed" = "Location failed, please check location permission settings";
+"weekend_flash.missing_required_info" = "Missing required information";
+"weekend_flash.missing_location_info" = "Missing location information";
+"weekend_flash.generation_failed" = "Failed to generate trip: %@";
+"weekend_flash.invalid_plan_data" = "Generated trip data is invalid";
+"weekend_flash.task_analyzing" = "Analyzing destination information";
+"weekend_flash.task_planning" = "Planning activity schedule";
+"weekend_flash.task_optimizing" = "Optimizing route";
+"weekend_flash.task_generating" = "Generating complete itinerary";
+"weekend_flash.default_attraction_landmark" = "Famous Landmark";
+"weekend_flash.default_attraction_culture" = "Cultural Attraction";
+"weekend_flash.default_attraction_nature" = "Natural Scenery";
+"weekend_flash.default_attraction_food" = "Food District";
+"weekend_flash.default_attraction_shopping" = "Shopping Center";
+"weekend_flash.default_attraction_art" = "Art Space";
+
+// MARK: - Deep Culture Template
+"deep_culture.select_features" = "Select Historical & Artistic Features";
+"deep_culture.features_description" = "Based on your location, we recommend nearby historical and artistic attractions for you.";
+"deep_culture.locating" = "Locating...";
+"deep_culture.historical_features" = "Historical & Artistic Features";
+"deep_culture.searching_features" = "Searching for historical & artistic features...";
+"deep_culture.no_features" = "No historical & artistic features recommended";
+"deep_culture.selected_attractions" = "Selected %d/%d attractions";
+"deep_culture.max_selection" = "Please select up to %d attractions";
+"deep_culture.selection_range" = "Please select %d-%d attractions";
+"deep_culture.other_option" = "Other";
+"deep_culture.other_category" = "Other";
+"deep_culture.takes_time" = "This process may take some time, please wait";
+"deep_culture.completing" = "Completing your trip";
+"deep_culture.start_planning" = "Start Planning";
+"deep_culture.ai_creating" = "AI is creating your perfect trip...";
+
+// MARK: - Events
+"event.create" = "Create Event";
+"event.edit" = "Edit Event";
+"event.delete" = "Delete Event";
+"event.share" = "Share Event";
+"event.add_friend" = "Add Creator as Friend";
+
+// MARK: - Friends & Groups
+"friends.title" = "Friends & Community";
+"friends.add_friend" = "Add Friend";
+"friends.requests" = "Friend Requests";
+"friends.my_friends" = "My Friends";
+
+// MARK: - Location
+"location.search" = "Search Location...";
+"location.select" = "Select Location";
+"location.current" = "Current Location";
+
+// MARK: - Calendar
+"calendar.title" = "Calendar";
+"calendar.today" = "Today";
+"calendar.month" = "Month";
+"calendar.week" = "Week";
+"calendar.day" = "Day";
+"calendar.filter.all" = "All";
+"calendar.filter.my_own" = "My Trips";
+"calendar.filter.friend_and_public" = "Friends & Community";
+"calendar.filter.nearby" = "Nearby Trips";
+
+// MARK: - Plans
+"plan.edit" = "Edit Plan";
+"plan.details" = "Plan Details";
+"plan.day" = "Day %d";
+
+// MARK: - Templates
+"template.my_templates" = "My Templates";
+"template.store" = "Template Store";
+"template.details" = "Template Details";
+
+// MARK: - Friends & Groups
+"friends.management" = "Friends";
+"groups.management" = "Groups";
+"friends.loading" = "Loading...";
+"friends.no_friends" = "No friends yet";
+"friends.add_friend_hint" = "Tap the + button in the top right to add friends";
+"groups.no_groups" = "No groups yet";
+"groups.create_group_hint" = "Tap the + button in the top right to create a group";
+"friends.unknown" = "Unknown friend";
+"friends.delete" = "Delete Friend";
+"friends.delete_confirmation" = "Are you sure you want to delete this friend?";
+"groups.members_count" = "%d members";
+"groups.owner" = "Owner";
+"groups.admin" = "Admin";
+"groups.unknown_member" = "Unknown member";
+"groups.set_admin" = "Set as Admin";
+"groups.remove_admin" = "Remove Admin";
+"groups.remove_member" = "Remove Member";
+"groups.admin_list" = "Admin List";
+"groups.regular_members" = "Regular Members";
+"groups.admin_settings" = "Admin Settings";
+"groups.load_members_failed" = "Failed to load members: %@";
+"groups.set_admin_failed" = "Failed to set admin: %@";
+"groups.invite_members" = "Invite Members";
+"groups.loading_friends" = "Loading friends...";
+"groups.no_friends_to_invite" = "No friends available to invite";
+"groups.invite" = "Invite";
+"groups.load_friends_failed" = "Failed to load friends: %@";
+
+// MARK: - Add Friend
+"add_friend.title" = "Add Friend";
+"add_friend.search_placeholder" = "Enter alias, email or user ID";
+"add_friend.send_request" = "Send Friend Request";
+"add_friend.request_sent" = "Friend request sent ✅";
+"add_friend.user_not_logged_in" = "User not logged in, please try again later";
+"add_friend.user_not_found" = "User not found";
+"add_friend.already_friends" = "You are already friends";
+"add_friend.request_already_sent" = "Friend request already sent";
+"add_friend.failed" = "Failed to send friend request: %@";
+
+// MARK: - Add Group
+"add_group.title" = "Create Group";
+"add_group.name" = "Group Name";
+"add_group.name_placeholder" = "Enter group name";
+"add_group.description" = "Group Description (Optional)";
+"add_group.description_placeholder" = "Enter group description";
+"add_group.category" = "Group Category";
+"add_group.select_category" = "Select Category";
+"add_group.location" = "Location (City)";
+"add_group.location_placeholder" = "e.g., New York, Los Angeles, Chicago";
+"add_group.privacy" = "Privacy";
+"add_group.create_success" = "Group created successfully!";
+"add_group.create_failed" = "Failed to create group: %@";
+
+// MARK: - Event Create
+"event_create.title" = "Trip Title";
+"event_create.content" = "Event Content";
+"event_create.set_time" = "Set Time";
+"event_create.add_multi_day" = "Add Multi-Day Trip";
+"event_create.no_manageable_groups" = "You have no manageable groups";
+"event_create.select_group" = "Select Group";
+"event_create.please_select_group" = "Please select a group";
+"event_create.repeat" = "Repeat";
+"event_create.calendar" = "Calendar";
+"event_create.cancel_multi_day" = "Cancel Multi-Day Trip";
+"event_create.create_trip" = "Create Trip";
+"event_create.save" = "Save";
+"event_create.cancel" = "Cancel";
+"event_create.selected_events" = "Selected %d trips";
+"event_create.title_placeholder" = "e.g., Arrive at New York JFK Airport";
+"event_create.content_placeholder" = "Enter event notes or details...";
+"event_create.select_location" = "Select Location";
+"event_create.new_trip" = "New Trip";
+"event_create.no_groups_yet" = "You don't have any manageable groups yet";
+
+// MARK: - Calendar
+"calendar.cancel" = "Cancel";
+"calendar.selected_events_count" = "Selected %d trips";
+
+// MARK: - Location Picker
+"location_picker.searching" = "Searching...";
+"location_picker.no_results" = "No related locations found";
+
+// MARK: - Trip Plan Card
+"trip_plan.planning" = "Trip Planning";
+"trip_plan.days" = "%d days";
+"trip_plan.more_days" = "...and %d more days of itinerary";
+"trip_plan.assumptions" = "Contains %d default assumptions";
+"trip_plan.save" = "Save";
+"trip_plan.details" = "Details";
+
+// MARK: - Event Share
+"event_share.title" = "Trip Title";
+"event_share.content" = "Event Content";
+"event_share.select_location" = "Select Location";
+"event_share.estimated_time" = "About %d minutes";
+"event_share.book_flight" = "Book Flight";
+"event_share.book_train" = "Book High-Speed Rail";
+"event_share.calculating" = "Calculating travel time...";
+"event_share.calculate" = "Calculate Travel Time";
+"event_share.set_time" = "Set Time";
+"event_share.share" = "Share";
+"event_share.share_event" = "Share Event";
+"event_share.permission_settings" = "Permission Settings";
+"event_share.no_permission" = "No permission to access";
+
+// MARK: - Plan Edit
+"plan_edit.start_date" = "Start Date";
+"plan_edit.add_trip" = "Add Trip";
+"plan_edit.save_template" = "Save Template";
+"plan_edit.publish_trip" = "Publish Trip";
+
+// MARK: - Plan Detail
+"plan_detail.invalid_data" = "Invalid trip data";
+"plan_detail.back" = "Back";
+"plan_detail.edit_trip" = "Edit Trip";
+
+// MARK: - Group Events
+"group_events.no_groups" = "Not joined any groups yet";
+"group_events.no_activities" = "No group activities yet";
+
+// MARK: - Event Edit
+"event_edit.delete_confirmation" = "Are you sure you want to delete this event? This action cannot be undone.";
+
+// MARK: - AI Conversation
+"ai_conversation.greeting" = "Hello! I can help you plan your trip, please tell me your requirements";
+"ai_conversation.generating" = "Generating itinerary...";
+"ai_conversation.or_manual_input" = "Or enter manually:";
+"ai_conversation.confirm" = "Confirm";
+"ai_conversation.back" = "Back";
+
+// MARK: - My Templates
+"my_templates.delete_confirmation" = "Are you sure you want to delete \"%@\"? This action cannot be undone.";
+"my_templates.no_templates" = "No saved trip templates yet";
+"my_templates.filter.my_creations" = "My Creations";
+"my_templates.filter.purchased" = "Purchased";
+"my_templates.filter.friend_shares" = "Friend Shares";
+"my_templates.days" = "%d days";
+"my_templates.delete" = "Delete";
+"my_templates.share" = "Share";
+
+// MARK: - Group Detail
+"group_detail.info" = "Group Information";
+"group_detail.name" = "Name";
+"group_detail.description" = "Description";
+"group_detail.owner" = "Owner";
+"group_detail.members" = "Members";
+"group_detail.members_count" = "Members (%d)";
+"group_detail.no_member_info" = "No member information available";
+"group_detail.management" = "Management";
+"group_detail.delete_group" = "Delete Group";
+"group_detail.leave_group" = "Leave Group";
+"group_detail.delete_confirmation" = "Are you sure you want to delete this group? This action cannot be undone.";
+"group_detail.set_admin" = "Set Admin";
+"group_detail.group_activities" = "Group Activities";
+"group_detail.you" = "You";
+"group_detail.error" = "Error";
+"group_detail.confirm_delete" = "Confirm Delete";
+
+// MARK: - Friend Requests
+"friend_requests.no_requests" = "No friend requests yet";
+"friend_requests.alias" = "Alias: %@";
+
+// MARK: - Edit Profile
+"profile.basic_info" = "Basic Information";
+"profile.user_id" = "User ID";
+"profile.checking" = "Checking...";
+"profile.male" = "Male";
+"profile.female" = "Female";
+"profile.unknown" = "Unknown";
+"profile.preferences" = "Preferences";
+"profile.selected_tags" = "Selected %d/6";
+
+// MARK: - Member View
+"member.friends" = "Friends";
+"member.share" = "Share";
+"member.achievements" = "Achievements";
+"member.settings" = "Settings";
+"member.add_friend" = "Add Friend";
+"member.friend_list" = "Friend List";
+"member.received_requests" = "Received Requests";
+"member.share_history" = "Share History";
+"member.share_notifications" = "Share Notifications";
+"member.event_invitations" = "Event Invitations";
+"member.achievements_tasks" = "Achievements & Tasks";
+"member.title" = "Features";
+"member.default_user" = "User";
+"member.user_id" = "User ID";
+
+// MARK: - Community
+"community.title" = "Community Interaction";
+"community.friends_share" = "Friends Share";
+"community.groups_share" = "Groups Share";
+"community.nearby_events" = "Nearby Events";
+"community.create_group" = "Create New Group";
+"community.search_group" = "Search Groups";
+
+// MARK: - Achievements
+"achievements.early_bird.title" = "Early Bird for 7 Days";
+"achievements.early_bird.description" = "Cultivate good habits of early sleep and early rise";
+"achievements.family_trips.title" = "Complete 5 Family Trips";
+"achievements.family_trips.description" = "Share happy times with children";
+"achievements.low_carbon.title" = "Low Carbon Travel 10 Times";
+"achievements.low_carbon.description" = "Take public transport or ride a bicycle";
+
+// MARK: - Template Names
+"weekend_flash.template_name" = "Weekend Flash";
+"deep_culture.template_name" = "Deep Culture";
+
+// MARK: - Event Share Additional
+"event_share.public_to_friends" = "Public to friends";
+"event_share.private_only" = "Private only";
+"event_share.cannot_add_to_calendar" = "Cannot add to calendar";
+"event_share.unknown_error" = "Unknown error";
+"event_share.view_event" = "View Event";
+"event_share.trip_info" = "Trip Information";
+"event_share.shared_with" = "SHARED WITH";
+"event_share.participants_count" = "%d Participants";
+"event_share.participate" = "Participate";
+"event_share.not_participate" = "Not Participate";
+"event_share.load_groups_failed" = "Failed to load user groups";
+"event_share.get_group_details_failed" = "Failed to get group details";
+"event_share.load_participation_status_failed" = "Failed to load participation status";
+"event_share.load_participants_failed" = "Failed to load participants list";
+"event_share.update_participation_status_failed" = "Failed to update participation status";
+"event_share.event_id_missing" = "Event ID does not exist, cannot delete";
+"event_share.delete_event_failed" = "Failed to delete event";
+"event_share.geocoding_failed" = "Geocoding failed";
+"event_share.location_fetch_failed" = "Failed to get location";
+"event_share.unknown_user" = "Unknown";
+
+// MARK: - Deep Link
+"deeplink.invite_expired" = "Invite link has expired or is invalid";
+"deeplink.event_not_found" = "Event not found";
+"deeplink.creator_required" = "Invalid link format, missing creator information";
+
+// MARK: - Common Loading
+"common.loading" = "Loading...";
+"common.load_failed" = "Load failed";
+
+// MARK: - Friend Requests Actions
+"friend_requests.accept" = "Accept";
+"friend_requests.reject" = "Reject";
+"friend_requests.accept_failed" = "Accept failed";
+"friend_requests.reject_failed" = "Reject failed";
+"friend_requests.unknown_user" = "Unknown user";
+
+// MARK: - Friend Selection
+"friend_selection.select_friends" = "Select Friends";
+"add_friend.cannot_add_self" = "Cannot add yourself as a friend";
+"add_group.create" = "Create Group";
+"add_group.name_required" = "Please enter group name";
+"add_group.category_required" = "Please select group category";
+"add_group.create_failed_prefix" = "Failed to create: %@";

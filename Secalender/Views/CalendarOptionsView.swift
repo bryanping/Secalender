@@ -25,11 +25,11 @@ struct CalendarOptionsView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let error = errorMessage {
                     VStack(spacing: 16) {
-                        Text("错误")
+                        Text("calendar_options.error".localized())
                             .font(.headline)
                         Text(error)
                             .foregroundColor(.secondary)
-                        Button("重试") {
+                        Button("calendar_options.retry".localized()) {
                             Task {
                                 await loadCalendars()
                             }
@@ -38,9 +38,9 @@ struct CalendarOptionsView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if userCalendars.isEmpty {
                     VStack(spacing: 16) {
-                        Text("暂无可用日历")
+                        Text("calendar_options.no_calendars".localized())
                             .foregroundColor(.secondary)
-                        Text("请前往设置开启日历权限")
+                        Text("calendar_options.enable_permission".localized())
                             .font(.caption)
                             .foregroundColor(.gray)
                     }

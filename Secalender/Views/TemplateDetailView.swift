@@ -41,7 +41,7 @@ struct TemplateDetailView: View {
                 
             // 價格顯示：如果為0則顯示"免費"
             if template.price == 0 {
-                Text("免費")
+                Text("template_detail.free".localized())
                     .font(.title3)
                     .foregroundColor(.blue)
                     .padding(.top, 8)
@@ -61,7 +61,7 @@ struct TemplateDetailView: View {
                         // 直接添加到我的模板（開發期間免費使用）
                         addToMyTemplates()
                     }) {
-                        Text("添加到我的模板")
+                        Text("template_detail.add_to_my_templates".localized())
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -74,7 +74,7 @@ struct TemplateDetailView: View {
                         // 真正的購買邏輯請整合您的支付方案
                         showingPurchaseAlert = true
                     }) {
-                        Text(purchased ? "已購買" : "購買模板")
+                        Text(purchased ? "template_detail.purchased".localized() : "template_detail.buy_template".localized())
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -100,7 +100,7 @@ struct TemplateDetailView: View {
                             } else {
                                 Image(systemName: "eye.fill")
                             }
-                            Text("檢視行程")
+                            Text("template_detail.view_trip".localized())
                         }
                         .font(.headline)
                         .frame(maxWidth: .infinity)
@@ -121,7 +121,7 @@ struct TemplateDetailView: View {
                             }
                         }
                     }) {
-                        Text("套用至行事曆")
+                        Text("template_detail.apply_to_calendar".localized())
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -134,8 +134,8 @@ struct TemplateDetailView: View {
             }
             .padding()
         }
-        .navigationBarTitle("模板詳情", displayMode: .inline)
-        .sheet(isPresented: $showPlanDetail) {
+        .navigationBarTitle("template_detail.title".localized(), displayMode: .inline)
+        .fullScreenCover(isPresented: $showPlanDetail) {
             if let plan = templatePlan {
                 NavigationView {
                     PlanDetailView(
@@ -160,14 +160,14 @@ struct TemplateDetailView: View {
         }
         .alert(isPresented: $showingPurchaseAlert) {
             if purchased {
-                return Alert(title: Text("提示"),
-                             message: Text("已將模板套用至您的行事曆。"),
-                             dismissButton: .default(Text("確認")))
+                return Alert(title: Text("template_detail.tip".localized()),
+                             message: Text("template_detail.applied".localized()),
+                             dismissButton: .default(Text("template_detail.confirm".localized())))
             } else {
                 purchased = true
-                return Alert(title: Text("購買成功"),
-                             message: Text("感謝購買！您現在可以套用此模板。"),
-                             dismissButton: .default(Text("好的")))
+                return Alert(title: Text("template_detail.purchase_success".localized()),
+                             message: Text("template_detail.thanks_purchase".localized()),
+                             dismissButton: .default(Text("template_detail.ok".localized())))
             }
         }
     }
@@ -359,7 +359,8 @@ struct TemplateDetailView: View {
             destination: destination
         )
         
-        TripTemplateManager.shared.saveTemplate(savedTemplate, for: userId)
+        // 保存模板（不自动同步到行事历，用户需要在 PlanDetailView 中选择"加入行程"）
+        TripTemplateManager.shared.saveTemplate(savedTemplate, for: userId, syncToAppleCalendar: false)
     }
     
     /// 组合日期和时间

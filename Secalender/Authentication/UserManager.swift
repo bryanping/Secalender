@@ -24,6 +24,13 @@ struct DBUser {
     let region: String?    // 地区
     let userCodeModified: Bool?  // ID是否已修改过（只能修改一次）
     let favoriteTags: [String]?  // 喜好标签（0-6个）
+    let signature: String?  // 个性签名
+    // 新增字段：符合頂尖 1% 的資料策略
+    let displayName: String?  // App 要顯示的名字（可編輯）
+    let providerDisplayName: String?  // 登入供應商回來的名字（Apple/Google）
+    let hasCustomDisplayName: Bool?  // 使用者是否手動改過名字
+    let phoneVerified: Bool?  // 手機號是否已驗證
+    let basicInfoCompleted: Bool?  // 基本資料是否已完成
 }
 
 final class UserManager {
@@ -59,6 +66,7 @@ final class UserManager {
         throw NSError(domain: "UserCodeGenerationFailed", code: 500, userInfo: [NSLocalizedDescriptionKey: "无法生成唯一的用户ID，请稍后重试"])
     }
 
+    /// 創建新用戶（內部使用，不處理 provider 姓名）
     func createNewUser(auth: AuthDataResultModel) async throws {
         let docRef = Firestore.firestore().collection("users").document(auth.uid)
         let snapshot = try await docRef.getDocument()
@@ -79,13 +87,83 @@ final class UserManager {
             "role": "member",
             "user_code": userCode,
             "user_code_modified": false,  // 初始状态：未修改过
-            "favorite_tags": []  // 初始状态：无喜好标签
+            "favorite_tags": [],  // 初始状态：无喜好标签
+            "display_name": "",  // 初始为空
+            "provider_display_name": "",  // 初始为空
+            "has_custom_display_name": false,  // 初始：未自訂
+            "phone_verified": false,  // 初始：未驗證
+            "basic_info_completed": false  // 初始：未完成
         ]
 
         if let email = auth.email { userData["email"] = email }
         if let photoUrl = auth.photoUrl { userData["photo_url"] = photoUrl }
 
         try await docRef.setData(userData, merge: false)
+    }
+    
+    /// 創建新用戶並處理 provider 姓名（用於登入時）
+    func createNewUser(auth: AuthDataResultModel, providerName: String?, providerType: String) async throws {
+        let docRef = Firestore.firestore().collection("users").document(auth.uid)
+        let snapshot = try await docRef.getDocument()
+        
+        if !snapshot.exists {
+            // 新用戶：創建基本資料
+            let userCode = try await generateUniqueUserCode()
+            
+            var userData: [String: Any] = [
+                "user_id": auth.uid,
+                "is_anonymous": auth.isAnonymous,
+                "date_created": Timestamp(),
+                "alias": "",
+                "name": "",
+                "gender": "",
+                "phone": "",
+                "region": "",
+                "role": "member",
+                "user_code": userCode,
+                "user_code_modified": false,
+                "favorite_tags": [],
+                "has_custom_display_name": false,
+                "phone_verified": false,
+                "basic_info_completed": false
+            ]
+            
+            if let email = auth.email { userData["email"] = email }
+            if let photoUrl = auth.photoUrl { userData["photo_url"] = photoUrl }
+            
+            // 處理 provider 姓名（只在第一次授權時可能拿到）
+            if let providerName = providerName, !providerName.isEmpty {
+                userData["provider_display_name"] = providerName
+                userData["display_name"] = providerName  // 第一次用 provider 姓名作為顯示名稱
+            } else {
+                userData["provider_display_name"] = ""
+                userData["display_name"] = ""
+            }
+            
+            try await docRef.setData(userData, merge: false)
+        } else {
+            // 已存在用戶：更新 provider 姓名（但遵守 hasCustomDisplayName 規則）
+            if let providerName = providerName, !providerName.isEmpty {
+                let user = try await getUser(userId: auth.uid)
+                
+                // 如果用戶沒有自訂過名字，可以更新
+                if user.hasCustomDisplayName != true {
+                    var updateData: [String: Any] = [
+                        "provider_display_name": providerName
+                    ]
+                    
+                    // 如果 displayName 為空，用 provider 姓名補上
+                    if user.displayName == nil || (user.displayName?.isEmpty ?? true) {
+                        updateData["display_name"] = providerName
+                    }
+                    
+                    try await docRef.updateData(updateData)
+                } else {
+                    // 用戶已自訂名字，只更新 provider_display_name（不覆蓋 display_name）
+                    try await docRef.updateData(["provider_display_name": providerName])
+                }
+            }
+        }
     }
 
     func getUser(userId: String) async throws -> DBUser {
@@ -108,7 +186,13 @@ final class UserManager {
             userCode: data["user_code"] as? String,
             region: data["region"] as? String,
             userCodeModified: data["user_code_modified"] as? Bool,
-            favoriteTags: data["favorite_tags"] as? [String]
+            favoriteTags: data["favorite_tags"] as? [String],
+            signature: data["signature"] as? String,
+            displayName: data["display_name"] as? String,
+            providerDisplayName: data["provider_display_name"] as? String,
+            hasCustomDisplayName: data["has_custom_display_name"] as? Bool,
+            phoneVerified: data["phone_verified"] as? Bool,
+            basicInfoCompleted: data["basic_info_completed"] as? Bool
         )
     }
 
@@ -167,6 +251,30 @@ final class UserManager {
         try await Firestore.firestore().collection("users").document(userId).updateData(["phone": phone])
     }
     
+    /// 更新用户显示名称（标记为自定义）
+    func updateDisplayName(for userId: String, to displayName: String) async throws {
+        try await Firestore.firestore().collection("users").document(userId).updateData([
+            "display_name": displayName,
+            "has_custom_display_name": true  // 标记为用户自定义
+        ])
+    }
+    
+    /// 更新手机号验证状态
+    func updatePhoneVerified(for userId: String, verified: Bool) async throws {
+        try await Firestore.firestore().collection("users").document(userId).updateData(["phone_verified": verified])
+    }
+    
+    /// 标记基本资料已完成
+    func markBasicInfoCompleted(for userId: String) async throws {
+        try await Firestore.firestore().collection("users").document(userId).updateData(["basic_info_completed": true])
+    }
+    
+    /// 检查用户是否需要填写基本资料
+    func needsBasicInfo(userId: String) async throws -> Bool {
+        let user = try await getUser(userId: userId)
+        return user.basicInfoCompleted != true
+    }
+    
     /// 更新用户性别
     func updateGender(for userId: String, to gender: String) async throws {
         try await Firestore.firestore().collection("users").document(userId).updateData(["gender": gender])
@@ -210,5 +318,11 @@ final class UserManager {
             "游泳", "登山", "露营", "钓鱼", "烹饪",
             "烘焙", "收藏", "科技", "时尚", "艺术"
         ]
+    }
+    
+    /// 检查用户手机号是否已验证（用于创建/加入社群）
+    func isPhoneVerified(userId: String) async throws -> Bool {
+        let user = try await getUser(userId: userId)
+        return user.phoneVerified == true
     }
 }

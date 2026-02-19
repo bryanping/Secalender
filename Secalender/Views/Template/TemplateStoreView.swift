@@ -35,7 +35,7 @@ struct TemplateStoreView: View {
     
     var body: some View {
         List {
-            Section(header: Text("熱門推薦")) {
+            Section(header: Text("template_store.popular".localized())) {
                 ForEach(templates) { template in
                     NavigationLink(destination: TemplateDetailView(template: template)) {
                         VStack(alignment: .leading, spacing: 4) {

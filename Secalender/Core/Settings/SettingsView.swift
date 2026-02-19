@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage("isDarkMode") private var isDarkMode = false
     @Binding var showSignInView: Bool
     @StateObject private var userManager = FirebaseUserManager.shared
+    @EnvironmentObject var localizationManager: LocalizationManager
     @State private var showLogoutConfirmation = false
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
@@ -18,41 +19,54 @@ struct SettingsView: View {
     var body: some View {
         Form {
             // 账户设定
-            Section(header: Text("账户设定")) {
+            Section(header: Text("settings.account".localized())) {
                 if let user = Auth.auth().currentUser {
-                    Label("登入方式：\(signInProviderName(user))", systemImage: "person.crop.circle")
+                    Label("settings.login_method".localized(with: signInProviderName(user)), systemImage: "person.crop.circle")
                     if let email = user.email {
-                        Label("登入帐号：\(email)", systemImage: "envelope")
+                        Label("settings.login_account".localized(with: email), systemImage: "envelope")
                     }
 
                     if user.isAnonymous {
-                        Button("会员登入") {
+                        Button("settings.member_login".localized()) {
                             showSignInView = true
                         }
                     } else {
-                        Button("登出") {
+                        Button("settings.logout".localized()) {
                             showLogoutConfirmation = true
                         }
                     }
                 } else {
-                    Button("会员登入") {
+                    Button("settings.member_login".localized()) {
                         showSignInView = true
                     }
                 }
             }
 
             // 偏好设定
-            Section(header: Text("偏好设定")) {
+            Section(header: Text("settings.preferences".localized())) {
                 Toggle(isOn: $isDarkMode) {
-                    Label("深色模式", systemImage: colorScheme == .dark ? "moon.fill" : "sun.max.fill")
+                    Label("settings.dark_mode".localized(), systemImage: colorScheme == .dark ? "moon.fill" : "sun.max.fill")
+                }
+                
+                // 语言设置
+                NavigationLink {
+                    LanguageSelectionView()
+                        .environmentObject(localizationManager)
+                } label: {
+                    HStack {
+                        Label("settings.language".localized(), systemImage: "globe")
+                        Spacer()
+                        Text(localizationManager.localized(localizationManager.currentLanguage.localizedDisplayNameKey))
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             
             // 缓存管理
-            Section(header: Text("缓存管理")) {
+            Section(header: Text("settings.cache_management".localized())) {
                 if cacheInfo.exists {
                     HStack {
-                        Label("缓存大小", systemImage: "externaldrive")
+                        Label("settings.cache_size".localized(), systemImage: "externaldrive")
                         Spacer()
                         Text(formatFileSize(cacheInfo.size))
                             .foregroundColor(.gray)
@@ -60,56 +74,60 @@ struct SettingsView: View {
                     
                     if let lastModified = cacheInfo.lastModified {
                         HStack {
-                            Label("最后更新", systemImage: "clock")
+                            Label("settings.last_updated".localized(), systemImage: "clock")
                             Spacer()
-                            Text(formatDate(lastModified))
+                            Text(localizationManager.formatDate(lastModified))
                                 .foregroundColor(.gray)
                         }
                     }
                     
-                    Button("清除行程缓存") {
+                    Button("settings.clear_cache".localized()) {
                         showClearCacheConfirmation = true
                     }
                     .foregroundColor(.red)
                 } else {
-                    Label("暂无缓存数据", systemImage: "externaldrive")
+                    Label("settings.no_cache".localized(), systemImage: "externaldrive")
                         .foregroundColor(.gray)
                 }
             }
 
             // 应用信息
-            Section(header: Text("关于应用")) {
-                Label("Secalender v1.0", systemImage: "info.circle")
-                Text("由 ChatGPT & 林平开发")
+            Section(header: Text("settings.about".localized())) {
+                Label("settings.app_version".localized(), systemImage: "info.circle")
+                Text("settings.developed_by".localized())
                     .font(.footnote)
                     .foregroundColor(.gray)
             }
         }
-        .navigationTitle("设定")
+        .navigationTitle("settings.title".localized())
         .onAppear {
             updateCacheInfo()
         }
-        .alert("错误", isPresented: $showErrorAlert) {
-            Button("好") {}
+        .alert("settings.error".localized(), isPresented: $showErrorAlert) {
+            Button("settings.ok".localized()) {}
         } message: {
             Text(errorMessage)
         }
-        .confirmationDialog("确定要登出吗？", isPresented: $showLogoutConfirmation, titleVisibility: .visible) {
-            Button("是", role: .destructive) {
+        .confirmationDialog("settings.confirm_logout".localized(), isPresented: $showLogoutConfirmation, titleVisibility: .visible) {
+            Button("settings.yes".localized(), role: .destructive) {
                 Task {
                     do {
+                        // 清除朋友名单缓存
+                        if let userId = Auth.auth().currentUser?.uid {
+                            FriendManager.shared.clearCache(for: userId)
+                        }
                         try Auth.auth().signOut()
                         showSignInView = true
                     } catch {
-                        errorMessage = "登出失败：\(error.localizedDescription)"
+                        errorMessage = "settings.logout_failed".localized(with: error.localizedDescription)
                         showErrorAlert = true
                     }
                 }
             }
-            Button("取消", role: .cancel) {}
+            Button("common.cancel".localized(), role: .cancel) {}
         }
-        .confirmationDialog("确定要清除缓存吗？", isPresented: $showClearCacheConfirmation, titleVisibility: .visible) {
-            Button("是", role: .destructive) {
+        .confirmationDialog("settings.confirm_clear_cache".localized(), isPresented: $showClearCacheConfirmation, titleVisibility: .visible) {
+            Button("settings.yes".localized(), role: .destructive) {
                 Task {
                     // 清除缓存
                     // 暂时注释掉缓存清理功能
@@ -117,7 +135,7 @@ struct SettingsView: View {
                     updateCacheInfo()
                 }
             }
-            Button("取消", role: .cancel) {}
+            Button("common.cancel".localized(), role: .cancel) {}
         }
         .sheet(isPresented: $showSignInView) {
             AuthenticationView(showSignInView: $showSignInView)
@@ -139,25 +157,53 @@ struct SettingsView: View {
         return formatter.string(fromByteCount: size)
     }
     
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
-
     /// 🔹 解析登入渠道
     private func signInProviderName(_ user: User) -> String {
         let providerId = user.providerData.first?.providerID ?? ""
         switch providerId {
-        case "google.com": return "Google登入"
-        case "apple.com": return "Apple登入"
-        case "password": return "邮箱登入"
-        case "facebook.com": return "Facebook登入"
-        case "phone": return "手机登入"
-        case "anonymous": return "匿名"
+        case "google.com": return "login.google".localized()
+        case "apple.com": return "login.apple".localized()
+        case "password": return "login.email".localized()
+        case "facebook.com": return "login.facebook".localized()
+        case "phone": return "login.phone".localized()
+        case "anonymous": return "login.anonymous".localized()
         default: return providerId
         }
+    }
+    
+}
+
+// MARK: - 语言选择视图
+struct LanguageSelectionView: View {
+    @EnvironmentObject var localizationManager: LocalizationManager
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        Form {
+            Section {
+                // 所有支持的语言（包括系统语言）
+                ForEach(AppLanguage.allCases) { language in
+                    Button(action: {
+                        localizationManager.setLanguage(language)
+                        dismiss()
+                    }) {
+                        HStack {
+                            Text(localizationManager.localized(language.localizedDisplayNameKey))
+                            Spacer()
+                            if localizationManager.currentLanguage == language {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                }
+            } footer: {
+                Text(localizationManager.localized("settings.language_footer"))
+                    .font(.caption)
+            }
+        }
+        .navigationTitle(localizationManager.localized("settings.language"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

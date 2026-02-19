@@ -72,7 +72,7 @@ struct EventEditView: View {
                         // 行程標題
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
-                                Text("行程標題")
+                                Text("event_create.title".localized())
                                     .font(.system(size: 13))
                                     .foregroundColor(.secondary)
                                 
@@ -83,7 +83,7 @@ struct EventEditView: View {
                                     .foregroundColor(title.count >= 20 ? .red : .secondary)
                             }
                             
-                            TextField("例如:抵達東京成田機場", text: Binding(
+                            TextField("event_create.title_placeholder".localized(), text: Binding(
                                 get: { title },
                                 set: { newValue in
                                     // 限制最多20个字符
@@ -103,12 +103,12 @@ struct EventEditView: View {
                         
                         // 活動內容
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("活動內容")
+                            Text("event_create.content".localized())
                                 .font(.system(size: 13))
                                 .foregroundColor(.secondary)
                             
                             GlassTextEditor(
-                                placeholder: "輸入活動備註或細節...",
+                                placeholder: "event_create.content_placeholder".localized(),
                                 text: $information,
                                 minHeight: 80
                             )
@@ -116,7 +116,7 @@ struct EventEditView: View {
                         
                         // 選擇地點
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("選擇地點")
+                            Text("event_create.select_location".localized())
                                 .font(.system(size: 13))
                                 .foregroundColor(.secondary)
                             
@@ -129,7 +129,7 @@ struct EventEditView: View {
                                         .foregroundColor(.blue)
                                         .font(.system(size: 20))
                                     
-                                    Text(destination.isEmpty ? "選擇地點" : destination)
+                                    Text(destination.isEmpty ? "event_create.select_location".localized() : destination)
                                         .foregroundColor(destination.isEmpty ? .gray : .primary)
                                         .multilineTextAlignment(.center)
                                         .lineLimit(2)
@@ -153,7 +153,7 @@ struct EventEditView: View {
                         
                         // 設定時間
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("設定時間")
+                            Text("event_create.set_time".localized())
                                 .font(.system(size: 13))
                                 .foregroundColor(.secondary)
                             
@@ -199,6 +199,24 @@ struct EventEditView: View {
                         style: .primary
                     ) {
                         updateEvent()
+                    }
+                    
+                    // 如果不是智能行程，显示转换为智能行程的按钮
+                    if !viewModel.event.isAiEvent {
+                        Button(action: {
+                            convertToAiEvent()
+                        }) {
+                            HStack {
+                                Image(systemName: "sparkles")
+                                Text("轉換為智能行程")
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.purple)
+                            .cornerRadius(12)
+                        }
                     }
                     
                     EventActionButton(
@@ -260,18 +278,18 @@ struct EventEditView: View {
             if !isAllDay {
                 isHasEnd = (viewModel.event.endTime != nil) || (viewModel.event.endDate != nil)
             } else {
-                isHasEnd = false
+                isHasEnd = viewModel.event.endDate != nil && viewModel.event.endDate != viewModel.event.date
             }
         }
         .onChange(of: isAllDay) { newValue in
             if newValue {
-                //修改内容：整日时与控制器逻辑保持一致 -> 强制关闭结束时间
-                isHasEnd = false
-                
                 let calendar = Calendar.current
                 selectedStartTime = calendar.startOfDay(for: selectedDate)
-                selectedEndDate = selectedDate
                 selectedEndTime = calendar.date(byAdding: .hour, value: 1, to: selectedStartTime) ?? selectedStartTime
+                if viewModel.event.endDate == nil || viewModel.event.endDate == viewModel.event.date {
+                    isHasEnd = false
+                    selectedEndDate = selectedDate
+                }
             }
         }
         .alert("错误", isPresented: $showErrorAlert) {
@@ -282,29 +300,26 @@ struct EventEditView: View {
         .alert("确认删除", isPresented: $showDeleteConfirmation) {
             Button("取消", role: .cancel) {}
             Button("删除", role: .destructive) {
-                Task {
-                    do {
-                        if let eventId = viewModel.event.id {
-                            // 使用软删除
-                            try await EventManager.shared.softDeleteEvent(eventId: eventId)
-                            // 调用删除回调（如果存在）
-                            onDelete?()
-                            // 如果没有删除回调，调用完成回调
-                            if onDelete == nil {
-                                onComplete?()
-                            }
-                            dismiss()
-                        }
-                    } catch {
-                        errorMessage = error.localizedDescription
-                        showErrorAlert = true
+                if let eventId = viewModel.event.id {
+                    // 立即更新本地缓存（不等待网络）
+                    EventManager.shared.softDeleteEvent(eventId: eventId)
+                    
+                    // 立即调用删除回调（如果存在）
+                    onDelete?()
+                    
+                    // 如果没有删除回调，调用完成回调
+                    if onDelete == nil {
+                        onComplete?()
                     }
+                    
+                    // 立即关闭页面（不等待网络请求）
+                    dismiss()
                 }
             }
         } message: {
-            Text("确定要删除这个活动吗？此操作无法撤销。")
+            Text("event_edit.delete_confirmation".localized())
         }
-        .navigationTitle("编辑活动")
+        .navigationTitle("event_edit.title".localized())
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showLocationPicker) {
             LocationPickerView(
@@ -315,6 +330,22 @@ struct EventEditView: View {
     }
     
     // MARK: - 私有方法
+    
+    /// 转换为智能行程
+    private func convertToAiEvent() {
+        // 更新事件为智能行程
+        viewModel.event.aiEvent = 1
+        
+        // 先更新其他字段
+        updateEvent()
+        
+        // 显示成功提示
+        errorMessage = "已轉換為智能行程"
+        showErrorAlert = true
+        
+        // 调用完成回调，让调用方知道已转换为智能行程
+        onComplete?()
+    }
     
     private func updateEvent() {
         viewModel.event.title = title
@@ -352,7 +383,11 @@ struct EventEditView: View {
             viewModel.event.endTime = "23:59:59"
             
             //修改内容：整日强制不写 endDate（避免被当成“结束区间”）
-            viewModel.event.endDate = nil
+            if isHasEnd && selectedEndDate != selectedDate {
+                viewModel.event.endDate = dateToString(selectedEndDate, format: "yyyy-MM-dd")
+            } else {
+                viewModel.event.endDate = nil
+            }
         }
         
         // 先更新本地缓存（立即响应，不等待网络）

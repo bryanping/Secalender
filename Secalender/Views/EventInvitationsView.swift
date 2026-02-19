@@ -22,10 +22,10 @@ struct EventInvitationsView: View {
                         Image(systemName: "calendar.badge.plus")
                             .font(.system(size: 48))
                             .foregroundColor(.gray)
-                        Text("暂无活动邀请")
+                        Text("event_invitations.no_invitations".localized())
                             .font(.headline)
                             .foregroundColor(.gray)
-                        Text("好友邀请你参加的活动将显示在这里")
+                        Text("event_invitations.description".localized())
                             .font(.subheadline)
                             .foregroundColor(.gray)
                     }
@@ -115,7 +115,7 @@ struct InvitationRow: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("邀请你参加活动")
+            Text("event_invitations.invited".localized())
                 .font(.headline)
                 .foregroundColor(.primary)
             
@@ -163,7 +163,7 @@ struct InvitationRow: View {
                 HStack {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("加载活动信息...")
+                    Text("event_invitations.loading".localized())
                         .font(.caption)
                         .foregroundColor(.gray)
                 }

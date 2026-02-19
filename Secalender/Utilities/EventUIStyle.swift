@@ -9,6 +9,7 @@ import SwiftUI
 #if canImport(UIKit)
 import UIKit
 #endif
+import EventKit
 
 // MARK: - 事件表单UI组件
 
@@ -164,7 +165,7 @@ struct EventFormCard<Content: View>: View {
                 .padding(16)
                 .background( //修改内容：卡片内部白底
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white)
+                        .fill(Color(.systemBackground))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
@@ -218,7 +219,7 @@ struct DateTimePickerView: View {
         }
         .sheet(isPresented: $showControllerSheet) {
             DateTimeControllerSheet(
-                title: "日期與時間",
+                title: "event_ui.date_time".localized(),
                 startDate: $startDate,
                 startTime: $startTime,
                 endDate: $endDate,
@@ -260,7 +261,13 @@ struct DateTimePickerView: View {
     
     // 时间文本（第二行）
     private var timeText: String {
-        guard !isAllDay else {
+        if isAllDay {
+            if isHasEnd, let ed = endDate, Calendar.current.startOfDay(for: ed) != Calendar.current.startOfDay(for: startDate) {
+                let df = DateFormatter()
+                df.locale = Locale(identifier: "zh_TW")
+                df.dateFormat = "M月d日"
+                return "\(df.string(from: startDate)) - \(df.string(from: ed))"
+            }
             return "整日"
         }
         
@@ -485,7 +492,7 @@ struct DateTimeControllerSheet: View {
                 // 整日开关
                 VStack(spacing: 0) {
                     HStack {
-                        Text("整日")
+                        Text("event_ui.all_day".localized())
                             .font(.system(size: 16, weight: .semibold))
                         Spacer()
                         Toggle("", isOn: $tempIsAllDay)
@@ -493,10 +500,8 @@ struct DateTimeControllerSheet: View {
                             .tint(.blue)
                             .onChange(of: tempIsAllDay) { oldValue, newValue in
                                 if newValue {
-                                    //修改内容：整日 -> 强制关闭结束时间逻辑（避免状态分叉）
-                                    tempIsHasEnd = false
                                     tempEndTime = nil
-                                    tempEndDate = nil
+                                    if tempEndDate == nil { tempEndDate = tempStartDate }
                                 }
                             }
                     }
@@ -512,7 +517,7 @@ struct DateTimeControllerSheet: View {
                 VStack(spacing: 0) {
                     // 开始
                     HStack {
-                        Text("開始")
+                        Text("event_ui.start".localized())
                             .font(.system(size: 16, weight: .semibold))
                         Spacer()
                         
@@ -534,12 +539,55 @@ struct DateTimeControllerSheet: View {
                     Divider().opacity(0.18)
                         .padding(.horizontal, 16)
                     
-                    // 结束（只在非整日才显示结束时间逻辑）
-                    if !tempIsAllDay {
+                    // 结束：非整日显示结束时间；整日显示结束日期（多日活動）
+                    if tempIsAllDay {
+                        if tempIsHasEnd {
+                            HStack {
+                                Text("event_ui.end".localized())
+                                    .font(.system(size: 16, weight: .semibold))
+                                Spacer()
+                                CompactPillButton(text: formatDate(tempEndDate ?? tempStartDate, components: .date)) {
+                                    if tempEndDate == nil { tempEndDate = tempStartDate }
+                                    showEndDateSheet = true
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 6)
+                            Button {
+                                tempIsHasEnd = false
+                                tempEndDate = nil
+                            } label: {
+                                HStack {
+                                    Text("event_ui.remove_end_time".localized())
+                                        .foregroundColor(.blue)
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            Button {
+                                tempIsHasEnd = true
+                                tempEndDate = tempStartDate
+                            } label: {
+                                HStack {
+                                    Text("event_ui.add_end_time".localized())
+                                        .foregroundColor(.blue)
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    } else {
                         if tempIsHasEnd {
                             // 结束行
                             HStack {
-                                Text("結束")
+                                Text("event_ui.end".localized())
                                     .font(.system(size: 16, weight: .semibold))
                                 Spacer()
                                 
@@ -573,7 +621,7 @@ struct DateTimeControllerSheet: View {
                                 tempEndDate = nil
                             } label: {
                                 HStack {
-                                    Text("移除結束時間")
+                                    Text("event_ui.remove_end_time".localized())
                                         .foregroundColor(.blue)
                                         .font(.system(size: 16, weight: .semibold))
                                     Spacer()
@@ -590,7 +638,7 @@ struct DateTimeControllerSheet: View {
                                 showEndTimeSheet = true
                             } label: {
                                 HStack {
-                                    Text("加入結束時間")
+                                    Text("event_ui.add_end_time".localized())
                                         .foregroundColor(.blue)
                                         .font(.system(size: 16, weight: .semibold))
                                     Spacer()
@@ -627,10 +675,14 @@ struct DateTimeControllerSheet: View {
                         isHasEnd = tempIsHasEnd
                         
                         if tempIsAllDay {
-                            // 整日：不允许结束时间
                             endTime = nil
-                            endDate = nil
-                            isHasEnd = false
+                            if tempIsHasEnd, let ed = tempEndDate, Calendar.current.startOfDay(for: ed) != Calendar.current.startOfDay(for: tempStartDate) {
+                                endDate = ed
+                                isHasEnd = true
+                            } else {
+                                endDate = nil
+                                isHasEnd = false
+                            }
                         } else {
                             if tempIsHasEnd {
                                 ensureEndDefaultsIfNeeded()
@@ -667,7 +719,7 @@ struct DateTimeControllerSheet: View {
         // 开始日期
         .sheet(isPresented: $showStartDateSheet) {
             GraphicalDateSheet(
-                title: "日期",
+                title: "event_ui.date".localized(),
                 selection: $tempStartDate,
                 onDone: {
                     // 校正：若结束日期早于开始日期，拉回
@@ -705,7 +757,7 @@ struct DateTimeControllerSheet: View {
         // 结束日期（只在 hasEnd 时可弹）
         .sheet(isPresented: $showEndDateSheet) {
             GraphicalDateSheet(
-                title: "日期",
+                title: "event_ui.date".localized(),
                 selection: Binding(
                     get: { tempEndDate ?? tempStartDate },
                     set: { newValue in
@@ -946,39 +998,50 @@ struct EventSettingsCard: View {
     @Binding var repeatType: String
     @Binding var calendarComponent: String
     
+    // 缓存系统第一个日历名称，避免每次刷新都调用
+    @State private var defaultCalendarName: String = "event_create.calendar".localized()
+    
     var body: some View {
-        EventFormCard(icon: "gearshape.fill", title: "其他设置", iconColor: .gray) {
+        EventFormCard(icon: "gearshape.fill", title: "event_ui.other_settings".localized(), iconColor: .gray) {
             VStack(spacing: 16) {
-                Toggle("公开给好友", isOn: $isOpenChecked)
+                Toggle("event_ui.public_to_friends".localized(), isOn: $isOpenChecked)
                     .tint(.blue)
                 
                 HStack {
-                    Text("重複")
+                    Text("event_ui.repeat".localized())
                         .foregroundColor(.primary)
                     Spacer()
                     Picker("", selection: $repeatType) {
-                        Text("永不").tag("never")
-                        Text("每天").tag("daily")
-                        Text("每週").tag("weekly")
-                        Text("每月").tag("monthly")
-                        Text("每年").tag("yearly")
+                        Text("event_create.repeat_options.never".localized()).tag("never")
+                        Text("event_create.repeat_options.daily".localized()).tag("daily")
+                        Text("event_create.repeat_options.weekly".localized()).tag("weekly")
+                        Text("event_create.repeat_options.monthly".localized()).tag("monthly")
+                        Text("event_create.repeat_options.yearly".localized()).tag("yearly")
                     }
                     .pickerStyle(.menu)
                 }
                 
                 HStack {
-                    Text("行事曆")
+                    Text("event_ui.calendar".localized())
                         .foregroundColor(.primary)
                     Spacer()
                     Picker("", selection: $calendarComponent) {
-                        Text("活動安排").tag("default")
-                        Text("工作").tag("work")
-                        Text("個人").tag("personal")
-                        Text("家庭").tag("family")
-                        Text("學習").tag("study")
+                        // 对于"default"，显示系统第一个日历的名称（不使用本地化）
+                        Text(defaultCalendarName).tag("default")
+                        Text("event_create.calendar_options.work".localized()).tag("work")
+                        Text("event_create.calendar_options.personal".localized()).tag("personal")
+                        Text("event_create.calendar_options.family".localized()).tag("family")
+                        Text("event_create.calendar_options.study".localized()).tag("study")
                     }
                     .pickerStyle(.menu)
                 }
+            }
+        }
+        .task {
+            // 在后台加载系统第一个日历名称
+            let ekCalendars = AppleCalendarManager.shared.getUserCalendars()
+            if let firstCalendar = ekCalendars.first {
+                defaultCalendarName = firstCalendar.title
             }
         }
     }
@@ -1107,7 +1170,7 @@ struct EventInformationDisplayCard: View {
             HStack {
                 Image(systemName: "text.alignleft")
                     .foregroundColor(.purple)
-                Text("活動介紹")
+                Text("event_ui.event_introduction".localized())
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
@@ -1143,7 +1206,7 @@ struct EventTimeDisplayCard: View {
             HStack {
                 Image(systemName: "clock.fill")
                     .foregroundColor(.blue)
-                Text("时间信息")
+                Text("event_ui.time_info".localized())
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
@@ -1152,32 +1215,32 @@ struct EventTimeDisplayCard: View {
             Divider()
             
             if isAllDay {
-                InfoRow(icon: "calendar", iconColor: .blue, title: "日期", value: date)
+                InfoRow(icon: "calendar", iconColor: .blue, title: "event_ui.date".localized(), value: date)
                 if let endDate = endDate, endDate != date {
-                    InfoRow(icon: "calendar.badge.clock", iconColor: .blue, title: "結束日期", value: endDate)
+                    InfoRow(icon: "calendar.badge.clock", iconColor: .blue, title: "event_ui.end_date".localized(), value: endDate)
                 }
-                Label("全天事件", systemImage: "sun.max.fill")
+                Label("event_ui.all_day_event".localized(), systemImage: "sun.max.fill")
                     .foregroundColor(.blue)
                     .font(.subheadline)
             } else {
-                InfoRow(icon: "play.circle.fill", iconColor: .green, title: "開始", value: "\(date) \(startTime)")
+                InfoRow(icon: "play.circle.fill", iconColor: .green, title: "event_ui.start_time".localized(), value: "\(date) \(startTime)")
                 if let endDate = endDate, endDate != date {
-                    InfoRow(icon: "stop.circle.fill", iconColor: .red, title: "結束", value: "\(endDate) \(endTime)")
+                    InfoRow(icon: "stop.circle.fill", iconColor: .red, title: "event_ui.end".localized(), value: "\(endDate) \(endTime)")
                 } else {
-                    InfoRow(icon: "stop.circle.fill", iconColor: .red, title: "結束時間", value: endTime)
+                    InfoRow(icon: "stop.circle.fill", iconColor: .red, title: "event_ui.end_time".localized(), value: endTime)
                 }
             }
             
             // 重複設置
             if let repeatType = repeatType, repeatType != "never" {
                 Divider()
-                InfoRow(icon: "repeat", iconColor: .orange, title: "重複", value: getRepeatDisplayText(repeatType))
+                InfoRow(icon: "repeat", iconColor: .orange, title: "event_ui.repeat".localized(), value: getRepeatDisplayText(repeatType))
             }
             
             // 日曆組件
             if let calendarComponent = calendarComponent, !calendarComponent.isEmpty {
                 Divider()
-                InfoRow(icon: "calendar.badge.plus", iconColor: .green, title: "日曆", value: getCalendarDisplayText(calendarComponent))
+                InfoRow(icon: "calendar.badge.plus", iconColor: .green, title: "event_ui.calendar".localized(), value: getCalendarDisplayText(calendarComponent))
             }
         }
         .padding()
@@ -1188,23 +1251,43 @@ struct EventTimeDisplayCard: View {
     
     private func getRepeatDisplayText(_ repeatType: String) -> String {
         switch repeatType {
-        case "daily": return "每天"
-        case "weekly": return "每週"
-        case "monthly": return "每月"
-        case "yearly": return "每年"
-        default: return "永不"
+        case "daily": return "event_create.repeat_options.daily".localized()
+        case "weekly": return "event_create.repeat_options.weekly".localized()
+        case "monthly": return "event_create.repeat_options.monthly".localized()
+        case "yearly": return "event_create.repeat_options.yearly".localized()
+        default: return "event_create.repeat_options.never".localized()
         }
     }
     
     private func getCalendarDisplayText(_ calendarComponent: String) -> String {
+        // 优先从系统日历获取真实名称（不使用本地化）
+        let ekCalendars = AppleCalendarManager.shared.getUserCalendars()
+        
+        // 尝试通过ID匹配系统日历
+        if let matchingCalendar = ekCalendars.first(where: { $0.calendarIdentifier == calendarComponent }) {
+            return matchingCalendar.title
+        }
+        
+        // 对于"default"或"event"，使用系统第一个日历的名称
+        if calendarComponent == "default" || calendarComponent == "event" {
+            if let firstCalendar = ekCalendars.first {
+                return firstCalendar.title
+            }
+        }
+        
+        // 回退到本地化选项（仅限已知的类别）
         switch calendarComponent {
-        case "event": return "活動安排"
-        case "work": return "工作"
-        case "personal": return "個人"
-        case "family": return "家庭"
-        case "health": return "健康"
-        case "study": return "學習"
-        default: return "活動安排"
+        case "work": return "event_create.calendar_options.work".localized()
+        case "personal": return "event_create.calendar_options.personal".localized()
+        case "family": return "event_create.calendar_options.family".localized()
+        case "health": return "event_create.calendar_options.health".localized()
+        case "study": return "event_create.calendar_options.study".localized()
+        default: 
+            // 对于default或其他未知值，尝试使用系统第一个日历，否则显示通用标签
+            if let firstCalendar = ekCalendars.first {
+                return firstCalendar.title
+            }
+            return "event_create.calendar".localized()
         }
     }
 }
@@ -1239,11 +1322,11 @@ struct EventLocationDisplayCard: View {
                             .foregroundColor(.red)
                             .font(.title3)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(destination)
+                            Text(destination.formattedForDisplay)
                                 .font(.body)
                                 .foregroundColor(.primary)
                                 .multilineTextAlignment(.leading)
-                            Text("点击查看地图")
+                            Text("event_ui.click_to_view_map".localized())
                                 .font(.caption)
                                 .foregroundColor(.blue)
                         }
@@ -1259,7 +1342,7 @@ struct EventLocationDisplayCard: View {
                     Image(systemName: "mappin.circle.fill")
                         .foregroundColor(.red)
                         .font(.title3)
-                    Text(destination)
+                    Text(destination.formattedForDisplay)
                         .font(.body)
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.leading)
@@ -1284,7 +1367,7 @@ struct EventInviteesDisplayCard: View {
             HStack {
                 Image(systemName: "person.2.fill")
                     .foregroundColor(.blue)
-                Text("邀請人員")
+                Text("event_ui.invitees".localized())
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
@@ -1312,7 +1395,7 @@ struct EventShareActionCard: View {
             HStack {
                 Image(systemName: "square.and.arrow.up")
                     .foregroundColor(.blue)
-                Text("分享")
+                Text("event_ui.share".localized())
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
@@ -1322,7 +1405,7 @@ struct EventShareActionCard: View {
             
             Button(action: onShareTap) {
                 HStack {
-                    Text("分享活动")
+                    Text("event_ui.share_event".localized())
                         .foregroundColor(.blue)
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -1346,7 +1429,7 @@ struct EventPermissionDisplayCard: View {
             HStack {
                 Image(systemName: "lock.fill")
                     .foregroundColor(.gray)
-                Text("权限设置")
+                Text("event_ui.permission_settings".localized())
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()

@@ -23,7 +23,7 @@ struct FriendMultiSelectView: View {
                 }
             }
         }
-        .navigationTitle("选择好友")
+        .navigationTitle("friend_selection.select_friends".localized())
     }
 }
 

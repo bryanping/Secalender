@@ -78,6 +78,17 @@ final class AppleCalendarManager: ObservableObject {
         }
     }
     
+    /// 异步读取某个时间段内的 Apple 行事历事件（用于导入）
+    func fetchEventsAsync(startDate: Date, endDate: Date) async -> [EKEvent] {
+        let status = EKEventStore.authorizationStatus(for: .event)
+        guard status == .authorized else {
+            return []
+        }
+        
+        let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+        return eventStore.events(matching: predicate)
+    }
+    
     /// 获取用户的所有日历列表
     func getUserCalendars() -> [EKCalendar] {
         let status = EKEventStore.authorizationStatus(for: .event)

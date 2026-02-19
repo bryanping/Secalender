@@ -27,10 +27,10 @@ struct ProfileView: View {
     var body: some View {
         List {
             if let user = viewModel.user {
-                Section(header: Text("基本信息")) {
+                Section(header: Text("profile.basic_info".localized())) {
                     if let userCode = user.userCode {
                         HStack {
-                            Text("用户ID")
+                            Text("profile.user_id".localized())
                             Spacer()
                             Text(userCode)
                                 .foregroundColor(.secondary)
@@ -38,36 +38,35 @@ struct ProfileView: View {
                         }
                     }
                     
-                    if let name = user.name, !name.isEmpty {
+                    // 優先顯示 displayName，如果沒有則顯示 name
+                    if let displayName = user.displayName, !displayName.isEmpty {
                         HStack {
-                            Text("显示名称")
+                            Text("profile.display_name".localized())
+                            Spacer()
+                            Text(displayName)
+                                .foregroundColor(.secondary)
+                        }
+                    } else if let name = user.name, !name.isEmpty {
+                        HStack {
+                            Text("profile.display_name".localized())
                             Spacer()
                             Text(name)
                                 .foregroundColor(.secondary)
                         }
                     }
                     
-                    if let alias = user.alias, !alias.isEmpty {
-                        HStack {
-                            Text("别名")
-                            Spacer()
-                            Text(alias)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
                     if let gender = user.gender, !gender.isEmpty {
                         HStack {
-                            Text("性别")
+                            Text("profile.gender".localized())
                             Spacer()
-                            Text(gender == "Male" ? "男" : (gender == "Female" ? "女" : "未知"))
+                            Text(gender == "Male" ? "profile.male".localized() : (gender == "Female" ? "profile.female".localized() : "profile.unknown".localized()))
                                 .foregroundColor(.secondary)
                         }
                     }
                     
                     if let phone = user.phone, !phone.isEmpty {
                         HStack {
-                            Text("手机号")
+                            Text("profile.phone".localized())
                             Spacer()
                             Text(phone)
                                 .foregroundColor(.secondary)
@@ -76,7 +75,7 @@ struct ProfileView: View {
                     
                     if let region = user.region, !region.isEmpty {
                         HStack {
-                            Text("地区")
+                            Text("profile.region".localized())
                             Spacer()
                             Text(region)
                                 .foregroundColor(.secondary)
@@ -85,7 +84,7 @@ struct ProfileView: View {
                 }
                 
                 if let favoriteTags = user.favoriteTags, !favoriteTags.isEmpty {
-                    Section(header: Text("喜好标签")) {
+                    Section(header: Text("profile.favorite_tags".localized())) {
                         let columns = [
                             GridItem(.flexible()),
                             GridItem(.flexible()),
@@ -118,7 +117,7 @@ struct ProfileView: View {
                         EditProfileView()
                             .environmentObject(userManager)
                     } label: {
-                        Label("编辑个人资料", systemImage: "pencil")
+                        Label("profile.edit_profile".localized(), systemImage: "pencil")
                     }
                 }
             }
@@ -126,7 +125,7 @@ struct ProfileView: View {
         .task {
             try? await viewModel.loadCurrentUser()
         }
-        .navigationTitle("个人资料")
+        .navigationTitle("profile.title".localized())
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 NavigationLink {

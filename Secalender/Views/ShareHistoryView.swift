@@ -22,10 +22,10 @@ struct ShareHistoryView: View {
                         Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 48))
                             .foregroundColor(.gray)
-                        Text("暂无分享历史")
+                        Text("share_history.no_history".localized())
                             .font(.headline)
                             .foregroundColor(.gray)
-                        Text("你分享的活动将显示在这里")
+                        Text("share_history.description".localized())
                             .font(.subheadline)
                             .foregroundColor(.gray)
                     }
@@ -134,7 +134,7 @@ struct SharedEventRow: View {
             
             HStack {
                 if event.isOpenChecked {
-                    Text("公开给好友")
+                    Text("share_history.public_to_friends".localized())
                         .font(.caption)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
@@ -143,7 +143,7 @@ struct SharedEventRow: View {
                         .cornerRadius(4)
                 }
                 Spacer()
-                Text("分享于 \(event.createTime)")
+                Text("share_history.shared_at".localized(with: event.createTime))
                     .font(.caption)
                     .foregroundColor(.gray)
             }

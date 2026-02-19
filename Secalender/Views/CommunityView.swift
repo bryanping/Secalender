@@ -8,11 +8,12 @@ import SwiftUI
 
 enum CommunityTab: Int, CaseIterable {
     case friends, groups, nearby
+    @MainActor
     var title: String {
         switch self {
-        case .friends: return "朋友分享"
-        case .groups:  return "社群分享"
-        case .nearby:  return "附近活動"
+        case .friends: return "community.friends_share".localized()
+        case .groups:  return "community.groups_share".localized()
+        case .nearby:  return "community.nearby_events".localized()
         }
     }
 }
@@ -50,7 +51,7 @@ struct CommunityView: View {
             }
             .padding(.top, 10)
             .padding(.horizontal)
-            .background(Color.white)
+            .background(Color(.systemBackground))
             Divider()
 
             // 分頁內容
@@ -61,7 +62,7 @@ struct CommunityView: View {
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         }
-        .navigationTitle("社群互動")
+        .navigationTitle("community.title".localized())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if selectedTab == .friends {
@@ -74,10 +75,10 @@ struct CommunityView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         NavigationLink(destination: AddGroupView()) {
-                            Label("創建新社群", systemImage: "plus.circle")
+                            Label("community.create_group".localized(), systemImage: "plus.circle")
                         }
                         NavigationLink(destination: SearchGroupView()) {
-                            Label("搜索社群", systemImage: "magnifyingglass")
+                            Label("community.search_group".localized(), systemImage: "magnifyingglass")
                         }
                     } label: {
                         Image(systemName: "person.3.fill")

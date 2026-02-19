@@ -5,112 +5,642 @@
 //
 
 import SwiftUI
-import Firebase
+import FirebaseFirestore
 import Combine
 
 struct EditProfileView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
     @Environment(\.dismiss) var dismiss
 
-    @State private var alias: String = ""
-    @State private var displayName: String = ""
-    @State private var gender: String = "Unknown"
-    @State private var phone: String = ""
-    @State private var region: String = ""
-    @State private var userCode: String = ""
-    @State private var selectedTags: Set<String> = []  // 选中的喜好标签
-    @State private var showErrorAlert = false
-    @State private var errorMessage = ""
-
-    @State private var isAliasAvailable: Bool = true
-    @State private var isCheckingAlias: Bool = false
-    @State private var isUserCodeAvailable: Bool = true
-    @State private var isCheckingUserCode: Bool = false
-    @State private var cancellable: AnyCancellable?
-    @State private var userCodeCancellable: AnyCancellable?
-
     var body: some View {
-        Form {
-            Section(header: Text("基本资料")) {
-                // 用户ID（8位数字+大写字母）
-                HStack {
-                    Text("用户ID")
-                    Spacer()
-                    if userManager.userCodeModified {
-                        Text(userCode)
-                            .foregroundColor(.secondary)
-                        Text("（已修改）")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                    } else {
-                        TextField("8位数字+大写字母", text: $userCode)
-                            .multilineTextAlignment(.trailing)
-                            .autocapitalization(.allCharacters)
-                            .disableAutocorrection(true)
-                            .onChange(of: userCode) { oldValue, newValue in
-                                // 只允许输入数字和大写字母，最多8位
-                                let filtered = newValue.uppercased().filter { $0.isNumber || ($0.isLetter && $0.isUppercase) }
-                                if filtered.count <= 8 {
-                                    userCode = filtered
-                                    if userCode.count == 8 {
-                                        checkUserCodeAvailabilityDebounced(userCode: userCode)
-                                    }
-                                } else {
-                                    userCode = String(filtered.prefix(8))
-                                }
-                            }
+        List {
+            // MARK: - 基本资料
+            Section(header: Text("profile.basic_info".localized())) {
+
+                // 显示名称
+                NavigationLink(destination: EditDisplayNameView().environmentObject(userManager)) {
+                    HStack {
+                        Text("profile.display_name".localized())
+                        Spacer()
+                        if let name = userManager.displayName, !name.isEmpty {
+                            Text(name)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("profile.not_set".localized())
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
                 
-                if !userManager.userCodeModified {
+                // 用户ID
+                NavigationLink(destination: EditUserCodeView().environmentObject(userManager)) {
+                    HStack {
+                        Text("profile.user_id".localized())
+                        Spacer()
+                        if let userCode = userManager.userCode {
+                            Text(userCode)
+                                .foregroundColor(.secondary)
+                                .font(.system(.body, design: .monospaced))
+                        } else {
+                            Text("profile.not_set".localized())
+                                .foregroundColor(.secondary)
+                        }
+                        if userManager.userCodeModified {
+                            Text("profile.modified".localized())
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                    }
+                }
+                
+                
+                // 性别
+                NavigationLink(destination: EditGenderView().environmentObject(userManager)) {
+                    HStack {
+                        Text("profile.gender".localized())
+                        Spacer()
+                        if let gender = userManager.gender, !gender.isEmpty {
+                            Text(gender == "Male" ? "profile.male".localized() : (gender == "Female" ? "profile.female".localized() : "profile.unknown".localized()))
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("profile.not_set".localized())
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                // 手机号
+                NavigationLink(destination: EditPhoneView().environmentObject(userManager)) {
+                    HStack {
+                        Text("profile.phone".localized())
+                        Spacer()
+                        if let phone = userManager.phone, !phone.isEmpty {
+                            Text(phone)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("profile.not_set".localized())
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                // 地区
+                NavigationLink(destination: EditRegionView().environmentObject(userManager)) {
+                    HStack {
+                        Text("profile.region".localized())
+                        Spacer()
+                        if let region = userManager.region, !region.isEmpty {
+                            Text(region)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("profile.not_set".localized())
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                // 个性签名
+                NavigationLink(destination: EditSignatureView().environmentObject(userManager)) {
+                    HStack {
+                        Text("profile.signature".localized())
+                        Spacer()
+                        if let signature = userManager.signature, !signature.isEmpty {
+                            Text(signature)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        } else {
+                            Text("profile.not_set".localized())
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+            
+            // MARK: - 喜好标签
+            Section(header: Text("profile.preferences".localized())) {
+                NavigationLink(destination: EditFavoriteTagsView().environmentObject(userManager)) {
+                    HStack {
+                        Text("profile.favorite_tags".localized())
+                        Spacer()
+                        Text("profile.selected_tags".localized(with: userManager.favoriteTags.count))
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
+            }
+        }
+        .navigationTitle("profile.edit_profile".localized())
+    }
+}
+
+// MARK: - 编辑用户ID
+struct EditUserCodeView: View {
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @Environment(\.dismiss) var dismiss
+    @State private var userCode: String = ""
+    @State private var isUserCodeAvailable: Bool = true
+    @State private var isCheckingUserCode: Bool = false
+    @State private var userCodeCancellable: AnyCancellable?
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
+    
+    var body: some View {
+        Form {
+            Section {
+                if userManager.userCodeModified {
+                    HStack {
+                        Text("profile.user_id".localized())
+                        Spacer()
+                        Text(userCode)
+                            .foregroundColor(.secondary)
+                            .font(.system(.body, design: .monospaced))
+                    }
+                    Text("profile.modified_hint".localized())
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                } else {
+                    TextField("profile.user_code_placeholder".localized(), text: $userCode)
+                        .autocapitalization(.allCharacters)
+                        .disableAutocorrection(true)
+                        .onChange(of: userCode) { oldValue, newValue in
+                            let filtered = newValue.uppercased().filter { $0.isNumber || ($0.isLetter && $0.isUppercase) }
+                            if filtered.count <= 8 {
+                                userCode = filtered
+                                if userCode.count == 8 {
+                                    checkUserCodeAvailabilityDebounced(userCode: userCode)
+                                }
+                            } else {
+                                userCode = String(filtered.prefix(8))
+                            }
+                        }
+                    
                     if isCheckingUserCode {
                         HStack {
                             ProgressView()
                                 .scaleEffect(0.8)
-                            Text("检查中...")
+                            Text("profile.checking".localized())
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     } else if !isUserCodeAvailable && userCode.count == 8 {
-                        Text("⚠️ 此ID已被使用")
+                        Text("profile.id_taken".localized())
                             .foregroundColor(.red)
                             .font(.caption)
                     } else if userCode.count == 8 {
-                        Text("✓ ID可用")
+                        Text("profile.id_available".localized())
                             .foregroundColor(.green)
                             .font(.caption)
                     }
                 }
-                
-                TextField("别名（唯一）", text: $alias)
+            } footer: {
+                if !userManager.userCodeModified {
+                    Text("profile.user_code_hint".localized())
+                }
+            }
+        }
+        .navigationTitle("profile.user_id".localized())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("common.done".localized()) {
+                    Task {
+                        await saveUserCode()
+                    }
+                }
+                .disabled(userManager.userCodeModified || userCode.count != 8 || !isUserCodeAvailable || userCode == (userManager.userCode ?? ""))
+            }
+        }
+        .onAppear {
+            userCode = userManager.userCode ?? ""
+        }
+        .alert("common.error".localized(), isPresented: $showErrorAlert) {
+            Button("common.ok".localized()) {}
+        } message: {
+            Text(errorMessage)
+        }
+    }
+    
+    private func checkUserCodeAvailabilityDebounced(userCode: String) {
+        userCodeCancellable?.cancel()
+        guard userCode != (userManager.userCode ?? "") else {
+            isUserCodeAvailable = true
+            return
+        }
+        isCheckingUserCode = true
+        userCodeCancellable = Just(userCode)
+            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+            .sink { value in
+                Task {
+                    self.isUserCodeAvailable = await checkUserCodeAvailable(value)
+                    self.isCheckingUserCode = false
+                }
+            }
+    }
+    
+    private func checkUserCodeAvailable(_ userCode: String) async -> Bool {
+        guard userCode != (userManager.userCode ?? "") else { return true }
+        do {
+            return try await UserManager.shared.isUserCodeUnique(userCode: userCode)
+        } catch {
+            return false
+        }
+    }
+    
+    private func saveUserCode() async {
+        guard !userManager.userCodeModified else { return }
+        guard isUserCodeAvailable && userCode.count == 8 else {
+            errorMessage = "profile.id_invalid".localized()
+            showErrorAlert = true
+            return
+        }
+        
+        do {
+            try await UserManager.shared.updateUserCode(for: userManager.userOpenId, to: userCode)
+            userManager.refresh()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
+        }
+    }
+}
+
+// MARK: - 编辑别名
+struct EditAliasView: View {
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @Environment(\.dismiss) var dismiss
+    @State private var alias: String = ""
+    @State private var isAliasAvailable: Bool = true
+    @State private var isCheckingAlias: Bool = false
+    @State private var cancellable: AnyCancellable?
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
+    
+    var body: some View {
+        Form {
+            Section {
+                TextField("profile.alias_placeholder".localized(), text: $alias)
                     .onChange(of: alias) { oldValue, newValue in
                         checkAliasAvailabilityDebounced(alias: newValue)
                     }
-
-                if !isAliasAvailable {
-                    Text("⚠️ 此别名已被使用")
+                
+                if isCheckingAlias {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("profile.checking".localized())
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } else if !isAliasAvailable && !alias.isEmpty {
+                    Text("profile.alias_taken".localized())
                         .foregroundColor(.red)
                         .font(.caption)
                 }
-
-                TextField("显示名称", text: $displayName)
-
-                Picker("性别", selection: $gender) {
-                    Text("男").tag("Male")
-                    Text("女").tag("Female")
-                    Text("未知").tag("Unknown")
-                }
-                
-                TextField("手机号", text: $phone)
-                    .keyboardType(.phonePad)
-                
-                TextField("地区", text: $region)
+            } footer: {
+                Text("profile.alias_hint".localized())
             }
-            
+        }
+        .navigationTitle("profile.alias".localized())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("common.done".localized()) {
+                    Task {
+                        await saveAlias()
+                    }
+                }
+                .disabled(!isAliasAvailable || alias.isEmpty || alias == (userManager.alias ?? ""))
+            }
+        }
+        .onAppear {
+            alias = userManager.alias ?? ""
+        }
+        .alert("common.error".localized(), isPresented: $showErrorAlert) {
+            Button("common.ok".localized()) {}
+        } message: {
+            Text(errorMessage)
+        }
+    }
+    
+    private func checkAliasAvailabilityDebounced(alias: String) {
+        cancellable?.cancel()
+        isCheckingAlias = true
+        cancellable = Just(alias)
+            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+            .sink { value in
+                Task {
+                    self.isAliasAvailable = await checkAliasAvailable(value)
+                    self.isCheckingAlias = false
+                }
+            }
+    }
+    
+    private func checkAliasAvailable(_ alias: String) async -> Bool {
+        guard alias != (userManager.alias ?? "") else { return true }
+        do {
+            let snapshot = try await Firestore.firestore()
+                .collection("users")
+                .whereField("alias", isEqualTo: alias)
+                .getDocuments()
+            return snapshot.documents.isEmpty
+        } catch {
+            return false
+        }
+    }
+    
+    private func saveAlias() async {
+        guard isAliasAvailable else {
+            errorMessage = "profile.alias_taken".localized()
+            showErrorAlert = true
+            return
+        }
+        
+        do {
+            try await UserManager.shared.updateAlias(for: userManager.userOpenId, to: alias)
+            userManager.refresh()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
+        }
+    }
+}
+
+// MARK: - 编辑显示名称
+struct EditDisplayNameView: View {
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @Environment(\.dismiss) var dismiss
+    @State private var displayName: String = ""
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
+    
+    var body: some View {
+        Form {
+            Section {
+                TextField("profile.display_name_placeholder".localized(), text: $displayName)
+            }
+        }
+        .navigationTitle("profile.display_name".localized())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("common.done".localized()) {
+                    Task {
+                        await saveDisplayName()
+                    }
+                }
+                .disabled(displayName == (userManager.displayName ?? ""))
+            }
+        }
+        .onAppear {
+            displayName = userManager.displayName ?? ""
+        }
+        .alert("common.error".localized(), isPresented: $showErrorAlert) {
+            Button("common.ok".localized()) {}
+        } message: {
+            Text(errorMessage)
+        }
+    }
+    
+    private func saveDisplayName() async {
+        do {
+            // 同时更新 name 和 display_name 字段，保持数据一致性
+            try await Firestore.firestore().collection("users").document(userManager.userOpenId).updateData([
+                "name": displayName,
+                "display_name": displayName  // 兼容 Web 端或其他可能使用此字段的地方
+            ])
+            userManager.refresh()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
+        }
+    }
+}
+
+// MARK: - 编辑性别
+struct EditGenderView: View {
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @Environment(\.dismiss) var dismiss
+    @State private var gender: String = "Unknown"
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
+    
+    var body: some View {
+        Form {
+            Section {
+                Picker("profile.gender".localized(), selection: $gender) {
+                    Text("profile.male".localized()).tag("Male")
+                    Text("profile.female".localized()).tag("Female")
+                    Text("profile.unknown".localized()).tag("Unknown")
+                }
+            }
+        }
+        .navigationTitle("profile.gender".localized())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("common.done".localized()) {
+                    Task {
+                        await saveGender()
+                    }
+                }
+                .disabled(gender == (userManager.gender ?? "Unknown"))
+            }
+        }
+        .onAppear {
+            gender = userManager.gender ?? "Unknown"
+        }
+        .alert("common.error".localized(), isPresented: $showErrorAlert) {
+            Button("common.ok".localized()) {}
+        } message: {
+            Text(errorMessage)
+        }
+    }
+    
+    private func saveGender() async {
+        do {
+            try await Firestore.firestore().collection("users").document(userManager.userOpenId).updateData([
+                "gender": gender
+            ])
+            userManager.refresh()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
+        }
+    }
+}
+
+// MARK: - 编辑手机号
+struct EditPhoneView: View {
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @Environment(\.dismiss) var dismiss
+    @State private var phone: String = ""
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
+    
+    var body: some View {
+        Form {
+            Section {
+                TextField("profile.phone_placeholder".localized(), text: $phone)
+                    .keyboardType(.phonePad)
+            }
+        }
+        .navigationTitle("profile.phone".localized())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("common.done".localized()) {
+                    Task {
+                        await savePhone()
+                    }
+                }
+                .disabled(phone == (userManager.phone ?? ""))
+            }
+        }
+        .onAppear {
+            phone = userManager.phone ?? ""
+        }
+        .alert("common.error".localized(), isPresented: $showErrorAlert) {
+            Button("common.ok".localized()) {}
+        } message: {
+            Text(errorMessage)
+        }
+    }
+    
+    private func savePhone() async {
+        do {
+            try await Firestore.firestore().collection("users").document(userManager.userOpenId).updateData([
+                "phone": phone
+            ])
+            userManager.refresh()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
+        }
+    }
+}
+
+// MARK: - 编辑地区
+struct EditRegionView: View {
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @Environment(\.dismiss) var dismiss
+    @State private var region: String = ""
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
+    
+    var body: some View {
+        Form {
+            Section {
+                TextField("profile.region_placeholder".localized(), text: $region)
+            }
+        }
+        .navigationTitle("profile.region".localized())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("common.done".localized()) {
+                    Task {
+                        await saveRegion()
+                    }
+                }
+                .disabled(region == (userManager.region ?? ""))
+            }
+        }
+        .onAppear {
+            region = userManager.region ?? ""
+        }
+        .alert("common.error".localized(), isPresented: $showErrorAlert) {
+            Button("common.ok".localized()) {}
+        } message: {
+            Text(errorMessage)
+        }
+    }
+    
+    private func saveRegion() async {
+        do {
+            try await Firestore.firestore().collection("users").document(userManager.userOpenId).updateData([
+                "region": region
+            ])
+            userManager.refresh()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
+        }
+    }
+}
+
+// MARK: - 编辑个性签名
+struct EditSignatureView: View {
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @Environment(\.dismiss) var dismiss
+    @State private var signature: String = ""
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
+    
+    var body: some View {
+        Form {
+            Section {
+                TextField("profile.signature_placeholder".localized(), text: $signature, axis: .vertical)
+                    .lineLimit(3...6)
+            } footer: {
+                Text("profile.signature_hint".localized())
+            }
+        }
+        .navigationTitle("profile.signature".localized())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("common.done".localized()) {
+                    Task {
+                        await saveSignature()
+                    }
+                }
+                .disabled(signature == (userManager.signature ?? ""))
+            }
+        }
+        .onAppear {
+            signature = userManager.signature ?? ""
+        }
+        .alert("common.error".localized(), isPresented: $showErrorAlert) {
+            Button("common.ok".localized()) {}
+        } message: {
+            Text(errorMessage)
+        }
+    }
+    
+    private func saveSignature() async {
+        do {
+            try await Firestore.firestore().collection("users").document(userManager.userOpenId).updateData([
+                "signature": signature
+            ])
+            userManager.refresh()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
+        }
+    }
+}
+
+// MARK: - 编辑喜好标签
+struct EditFavoriteTagsView: View {
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @Environment(\.dismiss) var dismiss
+    @State private var selectedTags: Set<String> = []
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
+    
+    var body: some View {
+        Form {
             Section(header: HStack {
-                Text("喜好标签")
+                Text("profile.preferences".localized())
                 Spacer()
-                Text("已选择 \(selectedTags.count)/6")
+                Text("profile.selected_tags".localized(with: selectedTags.count))
                     .font(.caption)
                     .foregroundColor(selectedTags.count > 6 ? .red : .secondary)
             }) {
@@ -134,159 +664,26 @@ struct EditProfileView: View {
                 }
                 .padding(.vertical, 8)
             }
-
-            Button("保存资料") {
-                Task {
-                    await validateAndUpdateProfile()
-                }
-            }
-            .disabled((!isAliasAvailable || alias.isEmpty) || (!userManager.userCodeModified && userCode.count == 8 && !isUserCodeAvailable) || selectedTags.count > 6)
         }
-        .navigationTitle("编辑个人资料")
+        .navigationTitle("profile.favorite_tags".localized())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("common.done".localized()) {
+                    Task {
+                        await saveFavoriteTags()
+                    }
+                }
+                .disabled(selectedTags.count > 6 || Array(selectedTags) == userManager.favoriteTags)
+            }
+        }
         .onAppear {
-            alias = userManager.alias ?? ""
-            displayName = userManager.displayName ?? ""
-            gender = userManager.gender ?? "Unknown"
-            phone = userManager.phone ?? ""
-            region = userManager.region ?? ""
-            userCode = userManager.userCode ?? ""
             selectedTags = Set(userManager.favoriteTags)
         }
-        .alert("错误", isPresented: $showErrorAlert) {
-            Button("好") {}
+        .alert("common.error".localized(), isPresented: $showErrorAlert) {
+            Button("common.ok".localized()) {}
         } message: {
             Text(errorMessage)
-        }
-    }
-
-    private func checkAliasAvailabilityDebounced(alias: String) {
-        // 取消前一个请求
-        cancellable?.cancel()
-
-        isCheckingAlias = true
-
-        // 延迟 0.5 秒触发请求，避免用户打字频繁触发
-        cancellable = Just(alias)
-            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
-            .sink { value in
-                Task {
-                    self.isAliasAvailable = await checkAliasAvailable(value)
-                    self.isCheckingAlias = false
-                }
-            }
-    }
-
-    private func checkAliasAvailable(_ alias: String) async -> Bool {
-        guard alias != (userManager.alias ?? "") else {
-            return true // 原本就属自己的 alias，视为可用
-        }
-
-        do {
-            let snapshot = try await Firestore.firestore()
-                .collection("users")
-                .whereField("alias", isEqualTo: alias)
-                .getDocuments()
-            return snapshot.documents.isEmpty
-        } catch {
-            print("检查 alias 出错：\(error.localizedDescription)")
-            return false
-        }
-    }
-
-    private func checkUserCodeAvailabilityDebounced(userCode: String) {
-        // 取消前一个请求
-        userCodeCancellable?.cancel()
-        
-        // 如果是自己的ID，视为可用
-        guard userCode != (userManager.userCode ?? "") else {
-            isUserCodeAvailable = true
-            return
-        }
-        
-        isCheckingUserCode = true
-        
-        // 延迟 0.5 秒触发请求
-        userCodeCancellable = Just(userCode)
-            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
-            .sink { value in
-                Task {
-                    self.isUserCodeAvailable = await checkUserCodeAvailable(value)
-                    self.isCheckingUserCode = false
-                }
-            }
-    }
-    
-    private func checkUserCodeAvailable(_ userCode: String) async -> Bool {
-        guard userCode != (userManager.userCode ?? "") else {
-            return true // 原本就属自己的ID，视为可用
-        }
-        
-        do {
-            return try await UserManager.shared.isUserCodeUnique(userCode: userCode)
-        } catch {
-            print("检查用户ID出错：\(error.localizedDescription)")
-            return false
-        }
-    }
-
-    private func validateAndUpdateProfile() async {
-        guard isAliasAvailable else {
-            errorMessage = "别名重复，无法保存"
-            showErrorAlert = true
-            return
-        }
-        
-        // 如果用户修改了ID，检查ID是否可用
-        if !userManager.userCodeModified && userCode != (userManager.userCode ?? "") {
-            guard isUserCodeAvailable && userCode.count == 8 else {
-                errorMessage = "用户ID不可用或格式不正确"
-                showErrorAlert = true
-                return
-            }
-        }
-
-        let userId = userManager.userOpenId
-
-        do {
-            // 更新别名
-            if alias != (userManager.alias ?? "") {
-                try await UserManager.shared.updateAlias(for: userId, to: alias)
-            }
-            
-            // 更新用户ID（如果修改了且未修改过）
-            if !userManager.userCodeModified && userCode != (userManager.userCode ?? "") && userCode.count == 8 {
-                try await UserManager.shared.updateUserCode(for: userId, to: userCode)
-            }
-            
-            // 更新其他字段
-            var updateData: [String: Any] = [
-                "name": displayName,
-                "gender": gender
-            ]
-            
-            if phone != (userManager.phone ?? "") {
-                updateData["phone"] = phone
-            }
-            
-            if region != (userManager.region ?? "") {
-                updateData["region"] = region
-            }
-            
-            // 更新喜好标签
-            let tagsArray = Array(selectedTags)
-            if tagsArray != userManager.favoriteTags {
-                try await UserManager.shared.updateFavoriteTags(for: userId, to: tagsArray)
-            }
-            
-            // 批量更新
-            try await Firestore.firestore().collection("users").document(userId).updateData(updateData)
-            
-            // 刷新用户数据
-            userManager.refresh()
-            dismiss()
-        } catch {
-            errorMessage = "更新失败：\(error.localizedDescription)"
-            showErrorAlert = true
         }
     }
     
@@ -297,6 +694,24 @@ struct EditProfileView: View {
             if selectedTags.count < 6 {
                 selectedTags.insert(tag)
             }
+        }
+    }
+    
+    private func saveFavoriteTags() async {
+        guard selectedTags.count <= 6 else {
+            errorMessage = "profile.max_tags_exceeded".localized()
+            showErrorAlert = true
+            return
+        }
+        
+        do {
+            let tagsArray = Array(selectedTags)
+            try await UserManager.shared.updateFavoriteTags(for: userManager.userOpenId, to: tagsArray)
+            userManager.refresh()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
         }
     }
 }

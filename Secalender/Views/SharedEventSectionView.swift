@@ -6,8 +6,6 @@
 //
 import SwiftUI
 import Foundation
-import CoreLocation
-import MapKit
 // import FirebaseFirestore  // 如果需要 EventManager 的功能，可能需要这个导入
 
 /// 事件类型分类
@@ -49,7 +47,7 @@ struct SharedEventSectionView: View {
             let isToday = Calendar.current.isDateInToday(date)
 
             HStack {
-                Text(dateFormatter.string(from: date))
+                Text(createDateFormatter().string(from: date))
                     .font(.callout)
                     .fontWeight(.semibold)
                     .foregroundColor(isToday ? .accentColor : .primary)
@@ -66,13 +64,27 @@ struct SharedEventSectionView: View {
                 // 空状态 - 不显示任何内容
             }
             
-            // 显示所有事件（排除已删除的事件）
+            // 顯示所有事件（排除已刪除的）
+            // 顯示順序：多日活動置頂 > 整日活動 > 時段活動
             let sortedEvents = events
-                .filter { $0.deleted != 1 }  // 排除已删除的事件
+                .filter { $0.deleted != 1 }
                 .sorted {
                     ($0.startDateTime ?? .distantPast) < ($1.startDateTime ?? .distantPast)
                 }
-            ForEach(sortedEvents, id: \.id) { event in
+            let multiDayEvents = sortedEvents.filter { $0.isMultiDay }
+            let allDayEvents = sortedEvents.filter { $0.isAllDay == true && !$0.isMultiDay }
+            let timedEvents = sortedEvents.filter { $0.isAllDay != true && !$0.isMultiDay }
+            
+            // 1. 多日活動：置頂、橫跨全寬半透明、側邊色彩引導線
+            ForEach(multiDayEvents, id: \.id) { event in
+                multiDayEventRow(event: event)
+            }
+            // 2. 整日活動：橫跨全寬、半透明背景、無具體時間
+            ForEach(allDayEvents, id: \.id) { event in
+                allDayEventRow(event: event)
+            }
+            // 3. 時段活動：原有排版（時間 + 內容）
+            ForEach(timedEvents, id: \.id) { event in
                 eventRowWithInteractions(
                     event: event,
                     isMine: event.creatorOpenid == currentUserOpenid
@@ -98,6 +110,139 @@ struct SharedEventSectionView: View {
         }
     }
 
+    /// 多日活動列：置頂、橫跨全寬半透明色塊、側邊色彩引導線
+    @ViewBuilder
+    private func multiDayEventRow(event: Event) -> some View {
+        let eventId = event.id ?? 0
+        let isSelected = selectedEventIds.contains(eventId)
+        let destination = AnyView(EventShareView(event: event, onEventUpdated: onEventUpdated))
+        
+        HStack(spacing: 12) {
+            if isMultiSelectMode {
+                Button(action: {
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        if isSelected {
+                            selectedEventIds.remove(eventId)
+                        } else {
+                            selectedEventIds.insert(eventId)
+                        }
+                    }
+                }) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .foregroundColor(isSelected ? .blue : .gray)
+                        .font(.title3)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .transaction { transaction in
+                    transaction.disablesAnimations = true
+                }
+            }
+            
+            Group {
+                if allowNavigation && !isMultiSelectMode {
+                    NavigationLink(destination: destination) {
+                        multiDayEventContent(event: event)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                } else {
+                    multiDayEventContent(event: event)
+                        .onTapGesture {
+                            if isMultiSelectMode {
+                                var transaction = Transaction()
+                                transaction.disablesAnimations = true
+                                withTransaction(transaction) {
+                                    if isSelected {
+                                        selectedEventIds.remove(eventId)
+                                    } else {
+                                        selectedEventIds.insert(eventId)
+                                    }
+                                }
+                            }
+                        }
+                }
+            }
+        }
+        .padding(.horizontal)
+        .background(Color(.systemBackground))
+        .task(id: event.id) {
+            if let eid = event.id,
+               event.creatorOpenid != currentUserOpenid,
+               participationStatuses[eid] == nil,
+               !loadingEventIds.contains(eid) {
+                await loadParticipationStatus(eventId: eid)
+            }
+        }
+    }
+    
+    /// 整日活動列：橫跨全寬、半透明背景色塊、無具體時間
+    @ViewBuilder
+    private func allDayEventRow(event: Event) -> some View {
+        let eventId = event.id ?? 0
+        let isSelected = selectedEventIds.contains(eventId)
+        let destination = AnyView(EventShareView(event: event, onEventUpdated: onEventUpdated))
+        
+        HStack(spacing: 12) {
+            if isMultiSelectMode {
+                Button(action: {
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        if isSelected {
+                            selectedEventIds.remove(eventId)
+                        } else {
+                            selectedEventIds.insert(eventId)
+                        }
+                    }
+                }) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .foregroundColor(isSelected ? .blue : .gray)
+                        .font(.title3)
+                }
+                .buttonStyle(PlainButtonStyle())
+                .transaction { transaction in
+                    transaction.disablesAnimations = true
+                }
+            }
+            
+            // 整日活動：不顯示時間，直接顯示橫跨全寬的半透明色塊
+            Group {
+                if allowNavigation && !isMultiSelectMode {
+                    NavigationLink(destination: destination) {
+                        allDayEventContent(event: event)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                } else {
+                    allDayEventContent(event: event)
+                        .onTapGesture {
+                            if isMultiSelectMode {
+                                var transaction = Transaction()
+                                transaction.disablesAnimations = true
+                                withTransaction(transaction) {
+                                    if isSelected {
+                                        selectedEventIds.remove(eventId)
+                                    } else {
+                                        selectedEventIds.insert(eventId)
+                                    }
+                                }
+                            }
+                        }
+                }
+            }
+        }
+        .padding(.horizontal)
+        .background(Color(.systemBackground))
+        .task(id: event.id) {
+            if let eid = event.id,
+               event.creatorOpenid != currentUserOpenid,
+               participationStatuses[eid] == nil,
+               !loadingEventIds.contains(eid) {
+                await loadParticipationStatus(eventId: eid)
+            }
+        }
+    }
+    
     @ViewBuilder
     private func eventRowWithInteractions(event: Event, isMine: Bool) -> some View {
         let eventId = event.id ?? 0
@@ -108,10 +253,15 @@ struct SharedEventSectionView: View {
             // 多选模式：显示勾选圈
             if isMultiSelectMode {
                 Button(action: {
-                    if isSelected {
-                        selectedEventIds.remove(eventId)
-                    } else {
-                        selectedEventIds.insert(eventId)
+                    // 使用 transaction 禁用动画，确保立即响应
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
+                        if isSelected {
+                            selectedEventIds.remove(eventId)
+                        } else {
+                            selectedEventIds.insert(eventId)
+                        }
                     }
                 }) {
                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -119,10 +269,14 @@ struct SharedEventSectionView: View {
                         .font(.title3)
                 }
                 .buttonStyle(PlainButtonStyle())
+                // 禁用按钮的默认动画
+                .transaction { transaction in
+                    transaction.disablesAnimations = true
+                }
             }
             
             if let start = event.startDateTime {
-                Text(timeFormatter.string(from: start))
+                Text(createTimeFormatter().string(from: start))
                 .foregroundColor(.gray)
                 .font(.subheadline)
                 .frame(width: 60, alignment: .trailing)
@@ -133,18 +287,62 @@ struct SharedEventSectionView: View {
                 if allowNavigation && !isMultiSelectMode {
                     NavigationLink(destination: destination) {
                         eventContent(event: event)
+                            // 在 NavigationLink 内部添加长按手势
+                            .onLongPressGesture(minimumDuration: 0.8) {
+                                // 长按结束，进入多选模式
+                                if !isMultiSelectMode {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        isMultiSelectMode = true
+                                        selectedEventIds.insert(eventId)
+                                    }
+                                }
+                            } onPressingChanged: { pressing in
+                                // 长按开始时的视觉反馈
+                                if pressing && longPressEventId == nil && !isMultiSelectMode {
+                                    longPressEventId = eventId
+                                    isLongPressing = true
+                                } else if !pressing {
+                                    // 长按取消时重置状态
+                                    isLongPressing = false
+                                    longPressEventId = nil
+                                }
+                            }
                     }
                     .buttonStyle(PlainButtonStyle())
                 } else {
                     eventContent(event: event)
                         .onTapGesture {
                             if isMultiSelectMode {
-                                // 多选模式下点击切换选择状态
-                                if isSelected {
-                                    selectedEventIds.remove(eventId)
-                                } else {
+                                // 多选模式下点击切换选择状态，使用 transaction 禁用动画
+                                var transaction = Transaction()
+                                transaction.disablesAnimations = true
+                                withTransaction(transaction) {
+                                    if isSelected {
+                                        selectedEventIds.remove(eventId)
+                                    } else {
+                                        selectedEventIds.insert(eventId)
+                                    }
+                                }
+                            }
+                        }
+                        // 在非导航模式下也添加长按手势
+                        .onLongPressGesture(minimumDuration: 0.8) {
+                            // 长按结束，进入多选模式
+                            if !isMultiSelectMode {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    isMultiSelectMode = true
                                     selectedEventIds.insert(eventId)
                                 }
+                            }
+                        } onPressingChanged: { pressing in
+                            // 长按开始时的视觉反馈
+                            if pressing && longPressEventId == nil && !isMultiSelectMode {
+                                longPressEventId = eventId
+                                isLongPressing = true
+                            } else if !pressing {
+                                // 长按取消时重置状态
+                                isLongPressing = false
+                                longPressEventId = nil
                             }
                         }
                 }
@@ -152,32 +350,6 @@ struct SharedEventSectionView: View {
         }
         .padding(.horizontal)
         .background(Color(.systemBackground))
-        //修改内容：只保留长按进入多选功能
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.8)
-                .onChanged { pressing in
-                    // 长按开始时的视觉反馈
-                    if pressing && longPressEventId == nil && !isMultiSelectMode {
-                        longPressEventId = eventId
-                        isLongPressing = true
-                        // 触觉反馈
-                        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                        impactFeedback.impactOccurred()
-                    }
-                }
-                .onEnded { _ in
-                    // 长按结束，进入多选模式
-                    isLongPressing = false
-                    longPressEventId = nil
-                    
-                    if !isMultiSelectMode {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            isMultiSelectMode = true
-                            selectedEventIds.insert(eventId)
-                        }
-                    }
-                }
-        )
 
         .task(id: event.id) {
             // 异步加载参与状态
@@ -190,14 +362,76 @@ struct SharedEventSectionView: View {
         }
     }
     
+    /// 多日活動內容：橫跨全寬半透明、左側色彩引導線、Day 1 / Day 2 標籤
+    @ViewBuilder
+    private func multiDayEventContent(event: Event) -> some View {
+        let baseColor = determineColorWithOpacity(for: event)
+        let dayNumber = multiDayDayNumber(for: event)
+        HStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(baseColor)
+                .frame(width: 4)
+            
+            HStack(spacing: 8) {
+                Text("plan_day.day".localized(with: dayNumber))
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white.opacity(0.95))
+                
+                if event.isFromExternalImport {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.9))
+                }
+                Text(event.title)
+                    .font(.subheadline)
+                    .foregroundColor(.white)
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(baseColor.opacity(0.65))
+        .cornerRadius(8)
+    }
+    
+    /// 計算多日活動在當前區塊日期是第幾天
+    private func multiDayDayNumber(for event: Event) -> Int {
+        guard let start = event.dateObj else { return 1 }
+        let calendar = Calendar.current
+        let startDay = calendar.startOfDay(for: start)
+        let currentDay = calendar.startOfDay(for: date)
+        let days = calendar.dateComponents([.day], from: startDay, to: currentDay).day ?? 0
+        return max(1, days + 1)
+    }
+    
+    /// 整日活動內容：橫跨全寬、半透明背景、顯示來源標籤（若為外部匯入）
+    @ViewBuilder
+    private func allDayEventContent(event: Event) -> some View {
+        HStack(spacing: 8) {
+            // 外部匯入：顯示日曆圖示標籤
+            if event.isFromExternalImport {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.9))
+            }
+            Text(event.title)
+                .font(.subheadline)
+                .foregroundColor(.white)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(determineColorWithOpacity(for: event).opacity(0.75))  // 半透明
+        .cornerRadius(8)
+    }
+    
     @ViewBuilder
     private func eventContent(event: Event) -> some View {
         let eventId = event.id ?? 0
         let isBeingLongPressed = longPressEventId == eventId && isLongPressing
         // 确保当 events 数组变化时重新计算重叠状态
         let hasOverlap = hasTimeOverlap(event: event, targetDate: event.dateObj ?? date)
-        // 检测交通时间不足
-        let hasInsufficientTravelTime = hasInsufficientTravelTime(event: event, targetDate: event.dateObj ?? date)
         
         HStack(spacing: 8) {
             // 时间重叠红点
@@ -206,11 +440,12 @@ struct SharedEventSectionView: View {
                     .fill(Color.red)
                     .frame(width: 8, height: 8)
             }
-            // 交通时间不足橘点（只有在没有时间重叠时才显示，避免重复提醒）
-            else if hasInsufficientTravelTime {
-                Circle()
-                    .fill(Color.orange)
-                    .frame(width: 8, height: 8)
+            
+            // 外部匯入：顯示日曆圖示標籤
+            if event.isFromExternalImport {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.9))
             }
             
             Text(event.title)
@@ -223,15 +458,17 @@ struct SharedEventSectionView: View {
         .background(determineColorWithOpacity(for: event))
         .cornerRadius(8)
         .opacity(isBeingLongPressed ? 0.9 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isBeingLongPressed)
-        .animation(.easeInOut(duration: 0.2), value: participationStatuses[eventId])
+        // 优化：只在非多选模式下应用动画，多选模式下禁用动画以提升响应速度
+        .animation(isMultiSelectMode ? nil : .spring(response: 0.3, dampingFraction: 0.7), value: isBeingLongPressed)
+        .animation(isMultiSelectMode ? nil : .easeInOut(duration: 0.2), value: participationStatuses[eventId])
         // 添加对事件关键属性的监听，确保事件更新后重新计算重叠和颜色
-        .animation(.easeInOut(duration: 0.2), value: event.startDateTime)
-        .animation(.easeInOut(duration: 0.2), value: event.endDateTime)
-        .animation(.easeInOut(duration: 0.2), value: event.deleted)
-        .animation(.easeInOut(duration: 0.2), value: event.date)
+        // 多选模式下禁用这些动画以提升勾选响应速度
+        .animation(isMultiSelectMode ? nil : .easeInOut(duration: 0.2), value: event.startDateTime)
+        .animation(isMultiSelectMode ? nil : .easeInOut(duration: 0.2), value: event.endDateTime)
+        .animation(isMultiSelectMode ? nil : .easeInOut(duration: 0.2), value: event.deleted)
+        .animation(isMultiSelectMode ? nil : .easeInOut(duration: 0.2), value: event.date)
         // 添加对 events 数组的监听，确保其他事件更新后重新计算重叠
-        .animation(.easeInOut(duration: 0.2), value: events.map { "\($0.id ?? 0)-\($0.startDateTime?.timeIntervalSince1970 ?? 0)-\($0.endDateTime?.timeIntervalSince1970 ?? 0)" })
+        .animation(isMultiSelectMode ? nil : .easeInOut(duration: 0.2), value: events.map { "\($0.id ?? 0)-\($0.startDateTime?.timeIntervalSince1970 ?? 0)-\($0.endDateTime?.timeIntervalSince1970 ?? 0)" })
     }
 
     //修改内容：拖动浮层，纯视觉，不带任何手势/导航/异步任务，避免拖动时死机
@@ -241,7 +478,7 @@ private func draggingOverlay(event: Event) -> some View {
     
     HStack(spacing: 12) {
         if let start = event.startDateTime {
-            Text(timeFormatter.string(from: start))
+            Text(createTimeFormatter().string(from: start))
                 .foregroundColor(.gray)
                 .font(.subheadline)
                 .frame(width: 60, alignment: .trailing)
@@ -254,10 +491,6 @@ private func draggingOverlay(event: Event) -> some View {
             if hasOverlap {
                 Circle()
                     .fill(Color.red)
-                    .frame(width: 8, height: 8)
-            } else if hasInsufficientTravelTime(event: event, targetDate: event.dateObj ?? date) {
-                Circle()
-                    .fill(Color.orange)
                     .frame(width: 8, height: 8)
             }
             Text(event.title)
@@ -365,6 +598,11 @@ private func draggingOverlay(event: Event) -> some View {
             return .gray
         }
         
+        // 外部匯入（Apple/Google Calendar）：較淡灰藍色，方便分辨
+        if event.isFromExternalImport {
+            return Color(red: 0.6, green: 0.7, blue: 0.85)  // 灰藍色
+        }
+        
         // 根据访问来源确定基础颜色（按照规则文档）
         let baseColor: Color
         switch determineAccessSource(for: event) {
@@ -410,16 +648,12 @@ private func draggingOverlay(event: Event) -> some View {
     
     // MARK: - 交互功能
     
-    /// 软删除事件
-    private func softDeleteEvent(eventId: Int) async {
-        do {
-            try await EventManager.shared.softDeleteEvent(eventId: eventId)
-            await MainActor.run {
-                onEventUpdated?()
-            }
-        } catch {
-            print("软删除事件失败: \(error.localizedDescription)")
-        }
+    /// 软删除事件（立即更新本地缓存，Firebase 更新在后台进行）
+    private func softDeleteEvent(eventId: Int) {
+        // 立即更新本地缓存（不等待网络）
+        EventManager.shared.softDeleteEvent(eventId: eventId)
+        // 立即通知 UI 更新
+        onEventUpdated?()
     }
     
     /// 检测事件是否有时间重叠
@@ -458,105 +692,27 @@ private func draggingOverlay(event: Event) -> some View {
         
         return false
     }
-    
-    /// 检测事件是否有交通时间不足的问题
-    private func hasInsufficientTravelTime(event: Event, targetDate: Date) -> Bool {
-        // 获取目标日期的所有事件（排除当前事件和已删除的事件），并按开始时间排序
-        let sameDayEvents = events.filter { otherEvent in
-            guard let otherEventId = otherEvent.id,
-                  let eventId = event.id,
-                  otherEventId != eventId,
-                  let otherDate = otherEvent.dateObj,
-                  // 排除已删除的事件
-                  otherEvent.deleted != 1 else {
-                return false
-            }
-            return Calendar.current.isDate(otherDate, inSameDayAs: targetDate)
-        }
-        .sorted { ($0.startDateTime ?? .distantPast) < ($1.startDateTime ?? .distantPast) }
-        
-        // 获取当前事件的开始时间和坐标
-        guard let eventStart = event.startDateTime,
-              let eventCoordinate = parseCoordinate(from: event.mapObj) else {
-            return false
-        }
-        
-        // 查找在当前事件之前结束的最近事件
-        for previousEvent in sameDayEvents {
-            guard let previousEnd = previousEvent.endDateTime,
-                  previousEnd < eventStart,  // 前一个事件在当前事件开始之前结束
-                  let previousCoordinate = parseCoordinate(from: previousEvent.mapObj) else {
-                continue
-            }
-            
-            // 计算两个事件之间的时间间隔（秒）
-            let timeInterval = eventStart.timeIntervalSince(previousEnd)
-            
-            // 如果时间间隔小于等于0，说明有时间重叠（这个情况已经在红点中处理了）
-            if timeInterval <= 0 {
-                continue
-            }
-            
-            // 计算交通时间（使用同步方式，但实际应该异步计算）
-            // 为了性能考虑，这里使用估算方式：基于直线距离估算
-            let fromLocation = CLLocation(latitude: previousCoordinate.latitude, longitude: previousCoordinate.longitude)
-            let toLocation = CLLocation(latitude: eventCoordinate.latitude, longitude: eventCoordinate.longitude)
-            let distance = fromLocation.distance(from: toLocation) // 米
-            let distanceKm = distance / 1000.0 // 公里
-            
-            // 估算交通时间（根据距离选择不同的交通方式）
-            // 准备时间：10分钟 = 600秒
-            let preparationTime: TimeInterval = 600
-            let estimatedTravelTime: TimeInterval
-            
-            if distanceKm < 1.0 {
-                // 短距离：步行，假设速度 5km/h = 1.39 m/s
-                estimatedTravelTime = (distance / 1.39) + preparationTime
-            } else if distanceKm < 10.0 {
-                // 中等距离：公共交通，假设速度 30km/h = 8.33 m/s
-                estimatedTravelTime = (distance / 8.33) + preparationTime
-            } else {
-                // 长距离：打车，假设速度 50km/h = 13.89 m/s
-                estimatedTravelTime = (distance / 13.89) + preparationTime
-            }
-            
-            // 如果可用时间小于估算的交通时间，则认为交通时间不足
-            if timeInterval < estimatedTravelTime {
-                return true
-            }
-            
-            // 只检查最近的前一个事件，避免重复计算
-            break
-        }
-        
-        return false
-    }
-    
-    /// 从 mapObj JSON 字符串中解析坐标
-    private func parseCoordinate(from mapObj: String) -> CLLocationCoordinate2D? {
-        guard !mapObj.isEmpty,
-              let jsonData = mapObj.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-              let latitude = json["latitude"] as? Double,
-              let longitude = json["longitude"] as? Double else {
-            return nil
-        }
-        
-        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-    }
 }
 
 // MARK: - Formatter 共用
 
-private let dateFormatter: DateFormatter = {
+/// 创建日期格式化器（使用本地化 locale 和星期缩写）
+@MainActor
+private func createDateFormatter() -> DateFormatter {
     let f = DateFormatter()
-    f.dateFormat = "M.d（E）"
+    // 使用 EEE 格式（星期缩写）避免文字过长
+    f.dateFormat = "M.d（EEE）"
+    // 使用 LocalizationManager 的 localeIdentifier 确保根据语言变化
+    f.locale = Locale(identifier: LocalizationManager.shared.localeIdentifier)
     return f
-}()
+}
 
-private let timeFormatter: DateFormatter = {
+/// 创建时间格式化器
+@MainActor
+private func createTimeFormatter() -> DateFormatter {
     let f = DateFormatter()
     f.dateFormat = "HH:mm"
+    f.locale = Locale(identifier: LocalizationManager.shared.localeIdentifier)
     return f
-}()
+}
 

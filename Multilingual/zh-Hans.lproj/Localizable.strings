@@ -1,0 +1,728 @@
+/* 
+  Localizable.strings
+  Secalender
+
+  Created by 林平 on 2026/1/27.
+  
+*/
+
+// MARK: - Language Names
+"language.english" = "English";
+"language.simplified_chinese" = "简体中文";
+"language.traditional_chinese" = "繁体中文";
+"language.german" = "德语";
+"language.french" = "法语";
+"language.spanish" = "西班牙语";
+"language.japanese" = "日语";
+
+// MARK: - Tab Bar
+"tab.calendar" = "日历";
+"tab.ai_planning" = "智能规划";
+"tab.my_templates" = "行程模板";
+"tab.template_store" = "模板市集";
+"tab.friends_community" = "朋友＆社群";
+"tab.settings" = "功能";
+
+// MARK: - AI Planner
+"ai_planner.tell_us_your_plan" = "告诉我们您的旅行计划";
+"ai_planner.start_with_basics" = "让我们从基本信息开始，为您打造行程。";
+"ai_planner.trip_theme" = "此行的主题?";
+"ai_planner.trip_theme_placeholder" = "例如：北京故宫之旅、上海外滩漫步";
+"ai_planner.where_are_you_going" = "你要去哪里?";
+"ai_planner.search_destination" = "搜索目的地...";
+"ai_planner.travel_days" = "旅行天数";
+"ai_planner.total_days" = "总共天数";
+"ai_planner.days" = "%d天";
+"ai_planner.travelers" = "同行人数";
+"ai_planner.adults" = "大人";
+"ai_planner.adults_description" = "13岁以上";
+"ai_planner.children" = "小孩";
+"ai_planner.children_description" = "12岁以下";
+"ai_planner.transportation" = "交通方式";
+"ai_planner.interests" = "兴趣偏好";
+"ai_planner.special_requirements" = "特殊需求";
+"ai_planner.budget_level" = "预算等级";
+"ai_planner.optimize_details" = "行程细节优化";
+"ai_planner.optimize_subtitle" = "微调细节，让我们为您推荐最精确的地点。";
+"ai_planner.surrounding_features" = "周边特色";
+"ai_planner.searching_features" = "正在搜索周边特色...";
+"ai_planner.no_features" = "暂无周边特色推荐";
+"ai_planner.selected_attractions" = "已选择 %d/%d 个景点";
+"ai_planner.pace" = "行程节奏";
+"ai_planner.departure_location" = "出发位置";
+"ai_planner.locating" = "正在定位...";
+"ai_planner.location_position" = "定位位置";
+"ai_planner.reposition" = "重新定位";
+"ai_planner.accommodation" = "住宿选择";
+"ai_planner.select_accommodation" = "选择住宿地址";
+"ai_planner.accommodation_hint" = "可搜索酒店或自选地址";
+"ai_planner.additional_requirements" = "其他需求";
+"ai_planner.additional_requirements_placeholder" = "还有其他想告诉AI的吗?例如:不吃生食、对花粉过敏...";
+"ai_planner.ai_generating" = "AI正在为您打造行程...";
+"ai_planner.generation_hint" = "这个过程可能需要一些时间，请稍候";
+"ai_planner.completing_itinerary" = "正在完成您的行程";
+"ai_planner.next_preferences" = "下一步:偏好设定";
+"ai_planner.previous" = "上一步";
+"ai_planner.next" = "下一步";
+"ai_planner.complete_setup" = "完成设定";
+"ai_planner.start_date" = "开始日期";
+"ai_planner.end_date" = "结束日期";
+"ai_planner.select_city" = "选择城市 - %@";
+"ai_planner.no_city_data" = "暂无城市资料";
+"ai_planner.no_matching_city" = "未找到匹配的城市";
+
+// MARK: - Transportation Types
+"transport.public_transport" = "大众运输";
+"transport.public_transport_desc" = "地铁、巴士、火车";
+"transport.self_drive" = "租车自驾";
+"transport.self_drive_desc" = "享受自由掌控的旅程";
+"transport.chartered_car" = "包车服务";
+"transport.chartered_car_desc" = "专业司机，尊荣接送";
+
+// MARK: - Interest Tags
+"interest.food" = "美食";
+"interest.history" = "历史";
+"interest.nature" = "自然";
+"interest.shopping" = "购物";
+"interest.nightlife" = "夜生活";
+"interest.art" = "艺术";
+
+// MARK: - Special Restrictions
+"restriction.child_friendly" = "儿童友善";
+"restriction.wheelchair_access" = "轮椅通道";
+"restriction.indoor_priority" = "室内优先";
+"restriction.early_rest" = "提早休息";
+
+// MARK: - Budget Levels
+"budget.economy" = "经济";
+"budget.standard" = "标准";
+"budget.luxury" = "奢华";
+
+// MARK: - Pace Options
+"pace.relaxed" = "轻松";
+"pace.moderate" = "适中";
+"pace.intensive" = "紧凑";
+
+// MARK: - Settings
+"settings.title" = "设定";
+"settings.account" = "账户设定";
+"settings.login_method" = "登入方式：%@";
+"settings.login_account" = "登入帐号：%@";
+"settings.member_login" = "会员登入";
+"settings.logout" = "登出";
+"settings.preferences" = "偏好设定";
+"settings.dark_mode" = "深色模式";
+"settings.cache_management" = "缓存管理";
+"settings.cache_size" = "缓存大小";
+"settings.last_updated" = "最后更新";
+"settings.clear_cache" = "清除行程缓存";
+"settings.no_cache" = "暂无缓存数据";
+"settings.about" = "关于应用";
+"settings.app_version" = "Secalender v1.0";
+"settings.developed_by" = "由 活动历 开发";
+"settings.error" = "错误";
+"settings.ok" = "好";
+"settings.confirm_logout" = "确定要登出吗？";
+"settings.yes" = "是";
+"settings.no" = "否";
+"settings.confirm_clear_cache" = "确定要清除缓存吗？";
+"settings.logout_failed" = "登出失败：%@";
+"settings.language" = "语言";
+"settings.language_system" = "系统语言";
+"settings.language_footer" = "选择您偏好的语言。应用将使用此语言，而不是系统语言。";
+
+// MARK: - Login Providers
+"login.google" = "Google登入";
+"login.apple" = "Apple登入";
+"login.email" = "邮箱登入";
+"login.facebook" = "Facebook登入";
+"login.phone" = "手机登入";
+"login.anonymous" = "匿名";
+
+// MARK: - Common Actions
+"common.cancel" = "取消";
+"common.confirm" = "确认";
+"common.ok" = "好";
+"common.retry" = "重试";
+"common.back" = "返回";
+"common.add" = "添加";
+"common.delete" = "删除";
+"common.edit" = "编辑";
+"common.save" = "保存";
+"common.search" = "搜索";
+"common.done" = "完成";
+"common.error" = "错误";
+
+// MARK: - AI Planning Welcome
+"welcome.where_to_travel" = "想去哪里旅行?";
+"welcome.create_perfect_itinerary" = "让我为您打造个人化行程";
+"welcome.start_ai_planning" = "开始 AI 规划";
+
+// MARK: - Events
+"event.create" = "创建活动";
+"event.edit" = "编辑活动";
+"event.delete" = "删除活动";
+"event.share" = "分享活动";
+"event.add_friend" = "添加创建者为好友";
+
+// MARK: - Friends & Groups
+"friends.title" = "朋友＆社群";
+"friends.add_friend" = "添加朋友";
+"friends.requests" = "好友请求";
+"friends.my_friends" = "我的好友";
+
+// MARK: - Location
+"location.search" = "搜索位置...";
+"location.select" = "选择位置";
+"location.current" = "当前位置";
+
+// MARK: - Calendar
+"calendar.title" = "日历";
+"calendar.today" = "今天";
+"calendar.month" = "月";
+"calendar.week" = "周";
+"calendar.day" = "日";
+"calendar.filter.all" = "全部";
+"calendar.filter.my_own" = "我的行程";
+"calendar.filter.friend_and_public" = "朋友＆社群";
+"calendar.filter.nearby" = "附近行程";
+
+// MARK: - Plans
+"plan.edit" = "编辑计划";
+"plan.details" = "计划详情";
+"plan.day" = "第%d天";
+
+// MARK: - Templates
+"template.my_templates" = "我的模板";
+"template.store" = "模板市集";
+"template.details" = "模板详情";
+
+// MARK: - Friends & Groups
+"friends.management" = "朋友管理";
+"groups.management" = "社群管理";
+"friends.loading" = "加载中...";
+"friends.no_friends" = "暂无好友";
+"friends.add_friend_hint" = "点击右上角 + 添加好友";
+"groups.no_groups" = "暂无社群";
+"groups.create_group_hint" = "点击右上角 + 创建社群";
+"friends.unknown" = "未知好友";
+"friends.delete" = "删除好友";
+"friends.delete_confirmation" = "确定要删除这位好友吗？";
+"groups.members_count" = "%d 位成员";
+"groups.owner" = "拥有者";
+"groups.admin" = "管理员";
+"groups.unknown_member" = "未知成员";
+"groups.set_admin" = "设为管理员";
+"groups.remove_admin" = "取消管理员";
+"groups.remove_member" = "移除成员";
+"groups.admin_list" = "管理员列表";
+"groups.regular_members" = "普通成员";
+"groups.admin_settings" = "管理员设置";
+"groups.load_members_failed" = "加载成员失败：%@";
+"groups.set_admin_failed" = "设置管理员失败：%@";
+"groups.invite_members" = "邀请成员";
+"groups.loading_friends" = "加载好友中...";
+"groups.no_friends_to_invite" = "暂无好友可邀请";
+"groups.invite" = "邀请";
+"groups.load_friends_failed" = "加载好友失败：%@";
+
+// MARK: - Add Friend
+"add_friend.title" = "添加好友";
+"add_friend.search_placeholder" = "请输入对方的别名、邮箱或用户ID";
+"add_friend.send_request" = "发送好友请求";
+"add_friend.request_sent" = "好友请求已发送 ✅";
+"add_friend.user_not_logged_in" = "用户未登录，请稍后再试";
+"add_friend.user_not_found" = "找不到该用户，请检查别名、邮箱或用户ID是否正确";
+"add_friend.already_friends" = "你们已经是好友了";
+"add_friend.request_already_sent" = "好友请求已发送";
+"add_friend.failed" = "发送好友请求失败：%@";
+"add_friend.cannot_add_self" = "无法添加自己为好友";
+
+// MARK: - Add Group
+"add_group.title" = "建立社群";
+"add_group.name" = "社群名称";
+"add_group.name_placeholder" = "请输入社群名称";
+"add_group.description" = "社群简介（可选）";
+"add_group.description_placeholder" = "请输入社群简介";
+"add_group.category" = "社群分类";
+"add_group.select_category" = "請選擇分類";
+"add_group.location" = "地點（城市）";
+"add_group.location_placeholder" = "例如：北京、上海、广州";
+"add_group.privacy" = "關注權限";
+"add_group.create" = "建立社群";
+"add_group.create_success" = "社群建立成功！";
+"add_group.create_failed" = "建立失败：%@";
+"add_group.name_required" = "請輸入社群名稱";
+"add_group.category_required" = "請選擇社群分類";
+"add_group.create_failed_prefix" = "建立失败：%@";
+
+// MARK: - Event Create
+"event_create.title" = "行程標題";
+"event_create.content" = "活動內容";
+"event_create.set_time" = "設定時間";
+"event_create.add_multi_day" = "添加多日行程";
+"event_create.no_manageable_groups" = "您没有可管理的社群";
+"event_create.select_group" = "選擇社群";
+"event_create.please_select_group" = "請選擇社群";
+"event_create.repeat" = "重複";
+"event_create.repeat_options.never" = "不重复";
+"event_create.repeat_options.daily" = "每天";
+"event_create.repeat_options.weekly" = "每周";
+"event_create.repeat_options.monthly" = "每月";
+"event_create.repeat_options.yearly" = "每年";
+"event_create.calendar" = "行事曆";
+"event_create.cancel_multi_day" = "取消多日行程";
+"event_create.create_trip" = "建立行程";
+"event_create.save" = "儲存";
+"event_create.cancel" = "取消";
+"event_create.selected_events" = "已选择 %d 个行程";
+"event_create.title_placeholder" = "例如：抵达北京首都机场";
+"event_create.content_placeholder" = "输入活动备注或细节...";
+"event_create.select_location" = "选择地点";
+"event_create.new_trip" = "新增行程";
+"event_create.no_groups_yet" = "您还没有可管理的社群";
+"event_create.public_to_friends" = "公开给好友";
+"event_create.other_settings" = "其他设置";
+"event_create.sync_to_calendar" = "同步到 Apple 日历";
+"event_create.invite_friends" = "邀请好友";
+"event_create.select_friends" = "选择好友";
+"event_create.friends_selected" = "已选 %d 位好友";
+
+// MARK: - Calendar
+"calendar.cancel" = "取消";
+"calendar.selected_events_count" = "已选择 %d 个行程";
+
+// MARK: - Location Picker
+"location_picker.searching" = "搜索中...";
+"location_picker.no_results" = "未找到相关地点";
+
+// MARK: - Trip Plan Card
+"trip_plan.planning" = "行程规划";
+"trip_plan.days" = "%d天";
+"trip_plan.more_days" = "...还有 %d 天的行程";
+"trip_plan.assumptions" = "包含 %d 个默认假设";
+"trip_plan.save" = "保存";
+"trip_plan.details" = "详情";
+
+// MARK: - Event Share
+"event_share.title" = "行程标题";
+"event_share.content" = "活动内容";
+"event_share.select_location" = "选择地点";
+"event_share.estimated_time" = "约 %d 分钟";
+"event_share.book_flight" = "预订机票";
+"event_share.book_train" = "预订高铁";
+"event_share.calculating" = "计算路程时间...";
+"event_share.calculate" = "计算路程时间";
+"event_share.set_time" = "设定时间";
+"event_share.share" = "分享";
+"event_share.share_event" = "分享活动";
+"event_share.permission_settings" = "权限设置";
+"event_share.no_permission" = "无权限访问";
+
+// MARK: - Plan Edit
+"plan_edit.start_date" = "开始日期";
+"plan_edit.add_trip" = "添加行程";
+"plan_edit.save_template" = "储存模版";
+"plan_edit.publish_trip" = "发布行程";
+
+// MARK: - Plan Detail
+"plan_detail.invalid_data" = "行程数据无效";
+"plan_detail.back" = "返回";
+"plan_detail.edit_trip" = "编辑行程";
+
+// MARK: - Group Events
+"group_events.no_groups" = "尚未加入任何社群";
+"group_events.no_activities" = "尚未有社群活动";
+
+// MARK: - Event Edit
+"event_edit.delete_confirmation" = "确定要删除这个活动吗？此操作无法撤销。";
+"event_edit.title" = "编辑活动";
+
+// MARK: - AI Conversation
+"ai_conversation.greeting" = "您好！我可以帮您规划行程，请告诉我您的需求";
+"ai_conversation.generating" = "正在生成行程...";
+"ai_conversation.or_manual_input" = "或手动输入：";
+"ai_conversation.confirm" = "确定";
+"ai_conversation.back" = "返回";
+
+// MARK: - My Templates
+"my_templates.delete_confirmation" = "确定要删除「%@」吗？此操作无法复原。";
+"my_templates.no_templates" = "还没有保存的行程模板";
+"my_templates.filter.my_creations" = "我的生成";
+"my_templates.filter.purchased" = "已购买";
+"my_templates.filter.friend_shares" = "好友分享";
+"my_templates.days" = "%d天";
+"my_templates.delete" = "删除";
+"my_templates.share" = "分享";
+
+// MARK: - Group Detail
+"group_detail.info" = "社群信息";
+"group_detail.name" = "名称";
+"group_detail.description" = "描述";
+"group_detail.owner" = "拥有者";
+"group_detail.members" = "成员";
+"group_detail.members_count" = "成员 (%d)";
+"group_detail.no_member_info" = "暂无成员信息";
+"group_detail.management" = "管理操作";
+"group_detail.delete_group" = "删除社群";
+"group_detail.leave_group" = "离开社群";
+"group_detail.delete_confirmation" = "确定要删除这个社群吗？此操作无法撤销。";
+"group_detail.set_admin" = "设置管理员";
+"group_detail.group_activities" = "社群活动";
+"group_detail.you" = "您";
+"group_detail.error" = "错误";
+"group_detail.confirm_delete" = "确认删除";
+
+// MARK: - Friend Requests
+"friend_requests.no_requests" = "暂无好友请求";
+"friend_requests.alias" = "别名: %@";
+
+// MARK: - Edit Profile
+"profile.basic_info" = "基本资料";
+"profile.user_id" = "用户ID";
+"profile.checking" = "检查中...";
+"profile.male" = "男";
+"profile.female" = "女";
+"profile.unknown" = "未知";
+"profile.preferences" = "喜好标签";
+"profile.selected_tags" = "已选择 %d/6";
+"profile.id_taken" = "⚠️ 此ID已被使用";
+"profile.id_available" = "✓ ID可用";
+"profile.alias_taken" = "⚠️ 此别名已被使用";
+"profile.alias_placeholder" = "别名（唯一）";
+"profile.display_name" = "显示名称";
+"profile.gender" = "性别";
+"profile.phone" = "手机号";
+"profile.region" = "地区";
+"profile.signature" = "个性签名";
+"profile.modified" = "（已修改）";
+"profile.modified_hint" = "用户ID只能修改一次，已修改过";
+"profile.not_set" = "未设置";
+"profile.user_code_placeholder" = "8位数字+大写字母";
+"profile.user_code_hint" = "8位数字或大写字母组合，只能修改一次";
+"profile.alias_hint" = "别名用于好友搜索，必须唯一";
+"profile.display_name_placeholder" = "请输入显示名称";
+"profile.phone_placeholder" = "请输入手机号";
+"profile.region_placeholder" = "请输入地区";
+"profile.signature_placeholder" = "请输入个性签名";
+"profile.signature_hint" = "展示您的个性，最多6行";
+"profile.max_tags_exceeded" = "最多只能选择6个标签";
+"profile.id_invalid" = "用户ID不可用或格式不正确";
+
+// MARK: - Member View
+"member.friends" = "好友";
+"member.share" = "分享";
+"member.achievements" = "任务成就";
+"member.settings" = "设定";
+"member.add_friend" = "添加好友";
+"member.friend_list" = "好友清单";
+"member.received_requests" = "收到的请求";
+"member.share_history" = "分享历史";
+"member.share_notifications" = "分享通知";
+"member.event_invitations" = "活动邀请";
+"member.achievements_tasks" = "成就与任务";
+"member.title" = "功能";
+"member.default_user" = "用户";
+"member.user_id" = "用户ID";
+
+// MARK: - Community
+"community.title" = "社群互动";
+"community.friends_share" = "朋友分享";
+"community.groups_share" = "社群分享";
+"community.nearby_events" = "附近活动";
+"community.create_group" = "创建新社群";
+"community.search_group" = "搜索社群";
+
+// MARK: - Achievements
+"achievements.early_bird.title" = "连续早起七天";
+"achievements.early_bird.description" = "培养早睡早起的好习惯";
+"achievements.family_trips.title" = "完成五套亲子行程";
+"achievements.family_trips.description" = "与孩子共享愉快时光";
+"achievements.low_carbon.title" = "低碳出行十次";
+"achievements.low_carbon.description" = "乘坐公共交通或骑乘自行车";
+
+// MARK: - Template Names
+"weekend_flash.template_name" = "周末快闪";
+"deep_culture.template_name" = "深度文化";
+
+// MARK: - Welcome Additional
+"welcome.quick_themes" = "快速主题";
+"welcome.view_more" = "查看更多";
+
+// MARK: - Invite Friends
+"invite.invite_link" = "邀请链接";
+"invite.generate_link" = "生成邀请链接";
+"invite.share_method" = "分享方式";
+"invite.success" = "邀请发送成功！";
+"invite.title" = "邀请好友参加";
+"invite.copy_link" = "复制链接";
+"invite.share" = "分享";
+"invite.share_link" = "分享链接";
+"invite.app_friends" = "应用好友";
+"invite.send_invite" = "发送邀请";
+"invite.send_invite_count" = "发送邀请 (%d)";
+"invite.no_contacts" = "暂无联系人";
+"invite.allow_contacts_access" = "请允许访问通讯录以邀请联系人";
+"invite.load_contacts_failed" = "加载通讯录失败: %@";
+"invite.invite_method" = "邀请方式";
+"invite.search_contacts" = "搜索联系人";
+"invite.loading" = "加载中...";
+"invite.title_nav" = "邀请好友";
+"invite.add_friends_first_message" = "在邀请活动前先添加好友";
+"invite.cancel" = "取消";
+"invite.contacts" = "联系人";
+
+// MARK: - Template Store
+"template_store.popular" = "热门推荐";
+"template_store.tags" = "标签";
+
+// MARK: - Multi Event
+"multi_event.title" = "多行程检视";
+"multi_event.total_count" = "共 %d 个行程";
+"multi_event.all_deleted" = "所有行程已删除";
+"multi_event.deleted_not_shown" = "已删除的行程不会显示在此列表中";
+"multi_event.delete_confirmation" = "已选择的 %d 个行程将被全部删除，此操作无法撤销。";
+
+// MARK: - Search Group
+"search_group.search" = "搜索";
+"search_group.no_results" = "未找到符合条件的社群";
+"search_group.try_different" = "请尝试使用不同的关键词或社群ID";
+"search_group.title" = "搜索社群";
+"search_group.placeholder" = "输入社群名称或ID进行搜索\n名称相似度需达到50%%以上";
+"search_group.join_success" = "已成功加入社群";
+
+// MARK: - Batch Share
+"batch_share.events_to_share" = "要分享的行程（%d 个）";
+"batch_share.no_friends" = "暂无好友";
+"batch_share.add_friends_first" = "添加好友后才能分享行程";
+"batch_share.success" = "分享成功！";
+"batch_share.share_to_friends" = "分享给 %d 位好友";
+
+// MARK: - Friend Events
+"friend_events.invite_more" = "邀请更多朋友加入";
+
+// MARK: - Share History
+"share_history.no_history" = "暂无分享历史";
+"share_history.description" = "你分享的活动将显示在这里";
+"share_history.public_to_friends" = "公开给好友";
+"share_history.shared_at" = "分享于 %@";
+
+// MARK: - Share Notifications
+"share_notifications.no_notifications" = "暂无分享通知";
+"share_notifications.description" = "你收到的活动分享将显示在这里";
+"share_notifications.received" = "你收到一个活动分享";
+"share_notifications.loading" = "加载活动信息...";
+
+// MARK: - Event Invitations
+"event_invitations.no_invitations" = "暂无活动邀请";
+"event_invitations.description" = "好友邀请你参加的活动将显示在这里";
+"event_invitations.invited" = "邀请你参加活动";
+"event_invitations.loading" = "加载活动信息...";
+
+// MARK: - Friend Selection
+"friend_selection.no_friends" = "暂无好友";
+"friend_selection.add_friends_first" = "添加好友后才能分享活动";
+
+// MARK: - Group Selector
+"group_selector.members" = "成员: %d";
+
+// MARK: - Calendar Options
+"calendar_options.error" = "错误";
+"calendar_options.no_calendars" = "暂无可用日历";
+"calendar_options.enable_permission" = "请前往设置开启日历权限";
+"calendar_options.retry" = "重试";
+
+// MARK: - Template Detail
+"template_detail.free" = "免费";
+"template_detail.add_to_my_templates" = "添加到我的模板";
+"template_detail.view_trip" = "检视行程";
+"template_detail.apply_to_calendar" = "套用至行事历";
+"template_detail.tip" = "提示";
+"template_detail.applied" = "已将模板套用至您的行事历。";
+"template_detail.confirm" = "确认";
+"template_detail.purchase_success" = "购买成功";
+"template_detail.thanks_purchase" = "感谢购买！您现在可以套用此模板。";
+"template_detail.ok" = "好的";
+"template_detail.title" = "模板详情";
+"template_detail.purchased" = "已购买";
+"template_detail.buy_template" = "购买模板";
+
+// MARK: - Plan Day Section
+"plan_day.day" = "第%d天";
+
+// MARK: - AI Plan Result
+"ai_plan_result.no_suggestions" = "没有建议行程";
+"ai_plan_result.add_to_schedule" = "添加到行程表";
+
+// MARK: - Event Share Action
+"event_share_action.select_friends" = "选择好友";
+"event_share_action.share_event" = "分享活动";
+"event_share_action.select_friends_to_share" = "选择好友分享";
+"event_share_action.generate_share_link" = "生成分享链接";
+"event_share_action.system_share" = "系统分享";
+"event_share_action.share_success" = "分享成功！";
+"event_share_action.friends_count" = "%d 位好友";
+
+// MARK: - Weekend Flash Template
+"weekend_flash.title" = "周末快闪";
+"weekend_flash.smart_planning" = "智能规划";
+"weekend_flash.trip_title" = "周末快闪行程";
+"weekend_flash.select_location" = "选择地点";
+"weekend_flash.select_location_title" = "选择地点";
+"weekend_flash.location_description" = "基于您所在国家，选择一个地点，我们为您推荐6个周边特色景点。";
+"weekend_flash.locating" = "正在定位...";
+"weekend_flash.click_to_select" = "点击选择旅行地点";
+"weekend_flash.nearby_features" = "周边特色";
+"weekend_flash.searching_features" = "正在搜寻周边特色...";
+"weekend_flash.no_features" = "暂无周边特色推荐";
+"weekend_flash.selected_attractions" = "已选择 %d 个景点";
+"weekend_flash.takes_time" = "这个过程可能需要一些时间，请稍候";
+"weekend_flash.completing" = "正在完成您的行程";
+"weekend_flash.start_planning" = "开始规划一日游";
+"weekend_flash.ai_creating" = "AI正在为您打造行程...";
+"weekend_flash.step_1_2" = "步骤 1/2";
+"weekend_flash.step_2_2" = "步骤 2/2";
+"weekend_flash.location_failed" = "定位失败，请检查位置权限设置";
+"weekend_flash.missing_required_info" = "缺少必要信息";
+"weekend_flash.missing_location_info" = "缺少地点信息";
+"weekend_flash.generation_failed" = "生成行程失败：%@";
+"weekend_flash.invalid_plan_data" = "生成的行程数据无效";
+"weekend_flash.task_analyzing" = "正在分析目的地信息";
+"weekend_flash.task_planning" = "正在规划活动安排";
+"weekend_flash.task_optimizing" = "正在优化路线";
+"weekend_flash.task_generating" = "正在生成完整行程";
+"weekend_flash.default_attraction_landmark" = "知名地标";
+"weekend_flash.default_attraction_culture" = "文化景点";
+"weekend_flash.default_attraction_nature" = "自然景观";
+"weekend_flash.default_attraction_food" = "美食街区";
+"weekend_flash.default_attraction_shopping" = "购物中心";
+"weekend_flash.default_attraction_art" = "艺术空间";
+
+// MARK: - Deep Culture Template
+"deep_culture.select_features" = "选择历史艺术特色";
+"deep_culture.features_description" = "基于您的位置，为您推荐历史艺术相关的周边特色景点。";
+"deep_culture.locating" = "正在定位...";
+"deep_culture.historical_features" = "历史艺术特色";
+"deep_culture.searching_features" = "正在搜寻历史艺术特色...";
+"deep_culture.no_features" = "暂无历史艺术特色推荐";
+"deep_culture.selected_attractions" = "已选择 %d/%d 个景点";
+"deep_culture.max_selection" = "请选择最多 %d 个景点";
+"deep_culture.selection_range" = "请选择 %d-%d 个景点";
+"deep_culture.other_option" = "其他";
+"deep_culture.other_category" = "其他";
+"deep_culture.takes_time" = "这个过程可能需要一些时间，请稍候";
+"deep_culture.completing" = "正在完成您的行程";
+"deep_culture.start_planning" = "开始规划";
+"deep_culture.ai_creating" = "AI正在为您打造行程...";
+
+// MARK: - Event Create Additional
+"event_create.trip_1" = "行程 1";
+"event_create.publish_settings" = "发布设置";
+"event_create.group_publish" = "由社群发布";
+"event_create.personal_publish" = "个人发布";
+"event_create.loading_groups" = "加载社群中...";
+"event_create.multi_day_trip" = "多日行程";
+"event_create.no_manageable_groups_multi" = "您还没有可管理的社群";
+
+// MARK: - Map App Selector
+"map_app_selector.title" = "选择地图应用";
+"map_app_selector.not_installed" = "未安装";
+"map_app_selector.system_builtin" = "系统自带";
+
+// MARK: - Nearby Events
+"nearby_events.locating" = "正在定位...";
+"nearby_events.location_error" = "无法获取当前位置，请检查定位权限设置";
+"nearby_events.retry" = "重试";
+
+// MARK: - Authentication
+"auth.subtitle" = "用AI规划您的下一次冒险";
+"auth.continue_with_google" = "Google 登入";
+"auth.continue_with_apple" = "Apple 登入";
+"auth.continue_with_email" = "邮箱登入";
+"auth.or" = "或";
+"auth.no_account" = "还没有账号？";
+"auth.sign_up" = "注册";
+"auth.skip_login" = "跳过登入，开始使用";
+"auth.terms_agreement" = "登入即表示同意我们的使用条款与隐私政策";
+
+// MARK: - Profile
+"profile.basic_info" = "基本信息";
+"profile.user_id" = "用户ID";
+"profile.display_name" = "显示名称";
+"profile.alias" = "别名";
+"profile.gender" = "性别";
+"profile.phone" = "手机号";
+"profile.region" = "地区";
+"profile.favorite_tags" = "喜好标签";
+"profile.edit_profile" = "编辑个人资料";
+"profile.title" = "个人资料";
+"profile.male" = "男";
+"profile.female" = "女";
+"profile.unknown" = "未知";
+
+// MARK: - Event UI Style
+"event_ui.all_day" = "整日";
+"event_ui.start" = "开始";
+"event_ui.end" = "结束";
+"event_ui.remove_end_time" = "移除结束时间";
+"event_ui.add_end_time" = "加入结束时间";
+"event_ui.other_settings" = "其他设置";
+"event_ui.public_to_friends" = "公开给好友";
+"event_ui.repeat" = "重复";
+"event_ui.calendar" = "行事历";
+"event_ui.event_introduction" = "活动介绍";
+"event_ui.time_info" = "时间信息";
+"event_ui.location_info" = "地点信息";
+"event_ui.click_to_view_map" = "点击查看地图";
+"event_ui.invitees" = "邀请人员";
+"event_ui.share" = "分享";
+"event_ui.share_event" = "分享活动";
+"event_ui.permission_settings" = "权限设置";
+"event_ui.date" = "日期";
+"event_ui.end_date" = "结束日期";
+"event_ui.all_day_event" = "全天事件";
+"event_ui.start_time" = "开始";
+"event_ui.end_time" = "结束时间";
+"event_ui.date_time" = "日期与时间";
+"event_create.calendar_options.health" = "健康";
+
+// MARK: - Event Share Additional
+"event_share.public_to_friends" = "公开给好友";
+"event_share.private_only" = "仅自己可见";
+"event_share.cannot_add_to_calendar" = "无法添加到行事历";
+"event_share.unknown_error" = "未知错误";
+"event_share.view_event" = "查看活动";
+"event_share.trip_info" = "行程信息";
+"event_share.shared_with" = "已分享给";
+"event_share.participants_count" = "%d 位参与者";
+"event_share.participate" = "参与";
+"event_share.not_participate" = "不参与";
+"event_share.load_groups_failed" = "加载用户社群失败";
+"event_share.get_group_details_failed" = "获取社群详情失败";
+"event_share.load_participation_status_failed" = "加载参与状态失败";
+"event_share.load_participants_failed" = "加载参与人员列表失败";
+"event_share.update_participation_status_failed" = "更新参与状态失败";
+"event_share.event_id_missing" = "事件ID不存在，无法删除";
+"event_share.delete_event_failed" = "删除事件失败";
+"event_share.geocoding_failed" = "地理编码失败";
+"event_share.location_fetch_failed" = "位置获取失败";
+"event_share.unknown_user" = "未知";
+
+// MARK: - Deep Link
+"deeplink.invite_expired" = "邀請連結已過期或無效";
+"deeplink.event_not_found" = "找不到該活動";
+"deeplink.creator_required" = "連結格式不正確，缺少活動建立者資訊";
+
+// MARK: - Common Loading
+"common.loading" = "加载中...";
+"common.load_failed" = "加载失败";
+
+// MARK: - Friend Requests Actions
+"friend_requests.accept" = "接受";
+"friend_requests.reject" = "拒绝";
+"friend_requests.accept_failed" = "接受失败";
+"friend_requests.reject_failed" = "拒绝失败";
+"friend_requests.unknown_user" = "未知用户";
+
+// MARK: - Friend Selection
+"friend_selection.select_friends" = "选择好友";

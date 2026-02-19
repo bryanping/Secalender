@@ -35,7 +35,10 @@ class EventDetailViewModel: ObservableObject {
                 try await EventManager.shared.updateEventInFirebaseOnly(event: event)
             } else {
                 // 新建事件：添加到 Firebase，本地缓存应该已经添加
-                try await EventManager.shared.addEventToFirebaseOnly(event: event)
+                let newId = try await EventManager.shared.addEventToFirebaseOnly(event: event)
+                await MainActor.run {
+                    event.id = newId
+                }
             }
         } catch {
             let errorMsg = error.localizedDescription

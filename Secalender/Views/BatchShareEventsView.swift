@@ -38,7 +38,7 @@ struct BatchShareEventsView: View {
             if !eventsToShare.isEmpty {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("要分享的行程（\(eventsToShare.count) 个）")
+                        Text("batch_share.events_to_share".localized(with: eventsToShare.count))
                             .font(.headline)
                             .padding(.horizontal)
                             .padding(.top)
@@ -65,9 +65,9 @@ struct BatchShareEventsView: View {
                         Image(systemName: "person.3")
                             .font(.system(size: 48))
                             .foregroundColor(.gray)
-                        Text("暂无好友")
+                        Text("batch_share.no_friends".localized())
                             .font(.headline)
-                        Text("添加好友后才能分享行程")
+                        Text("batch_share.add_friends_first".localized())
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -111,7 +111,7 @@ struct BatchShareEventsView: View {
             }
             
             if showSuccessMessage {
-                Text("分享成功！")
+                Text("batch_share.success".localized())
                     .foregroundColor(.green)
                     .font(.caption)
                     .padding(.horizontal)
@@ -132,7 +132,7 @@ struct BatchShareEventsView: View {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     } else {
-                        Text("分享给 \(selectedFriends.count) 位好友")
+                        Text("batch_share.share_to_friends".localized(with: selectedFriends.count))
                     }
                 }
                 .buttonStyle(.borderedProminent)
@@ -149,45 +149,12 @@ struct BatchShareEventsView: View {
                 isLoading = true
             }
             
-            do {
-                let db = Firestore.firestore()
-                let currentUserId = userManager.userOpenId
-                
-                let snapshot = try await db.collection("friends")
-                    .whereField("owner", isEqualTo: currentUserId)
-                    .getDocuments()
-                
-                var friendList: [FriendEntry] = []
-                
-                for doc in snapshot.documents {
-                    if let friendId = doc["friend"] as? String {
-                        // 获取好友详细信息
-                        let userDoc = try? await db.collection("users")
-                            .document(friendId)
-                            .getDocument()
-                        
-                        let friendData = userDoc?.data() ?? [:]
-                        let friend = FriendEntry(
-                            id: friendId,
-                            alias: doc["remarksname"] as? String,
-                            name: friendData["name"] as? String,
-                            email: friendData["email"] as? String,
-                            photoUrl: friendData["photoUrl"] as? String,
-                            gender: friendData["gender"] as? String
-                        )
-                        friendList.append(friend)
-                    }
-                }
-                
-                await MainActor.run {
-                    self.friends = friendList
-                    self.isLoading = false
-                }
-            } catch {
-                print("加载好友列表失败: \(error.localizedDescription)")
-                await MainActor.run {
-                    self.isLoading = false
-                }
+            // 使用 FriendManager 的缓存机制（参考微信做法）
+            let loadedFriends = await FriendManager.shared.getFriends(for: userManager.userOpenId)
+            
+            await MainActor.run {
+                self.friends = loadedFriends
+                self.isLoading = false
             }
         }
     }

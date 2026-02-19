@@ -14,6 +14,7 @@ final class EventCacheManager {
     
     private let userDefaults = UserDefaults.standard
     private let eventsCacheKey = "cached_events"
+    private let groupsCacheKey = "cached_group_ids"
     private let cacheTimestampKey = "events_cache_timestamp"
     private let cacheVersionKey = "events_cache_version"
     private let currentCacheVersion = 1
@@ -21,7 +22,7 @@ final class EventCacheManager {
     // MARK: - 缓存事件列表
     
     /// 保存事件列表到本地缓存
-    func saveEvents(_ events: [Event], for userId: String) {
+    func saveEvents(_ events: [Event], for userId: String, groupIds: Set<String>? = nil) {
         let cacheKey = "\(eventsCacheKey)_\(userId)"
         let timestampKey = "\(cacheTimestampKey)_\(userId)"
         
@@ -32,9 +33,28 @@ final class EventCacheManager {
             userDefaults.set(Date(), forKey: timestampKey)
             userDefaults.set(currentCacheVersion, forKey: "\(cacheVersionKey)_\(userId)")
             print("✅ 事件缓存已保存: \(events.count) 个事件")
+            
+            if let ids = groupIds {
+                saveGroupIds(ids, for: userId)
+            }
         } catch {
             print("❌ 保存事件缓存失败: \(error.localizedDescription)")
         }
+    }
+    
+    /// 保存用户加入的社群 ID 列表（与事件缓存共用时间戳，用于 cache-first 时跳过 Firestore）
+    func saveGroupIds(_ groupIds: Set<String>, for userId: String) {
+        let cacheKey = "\(groupsCacheKey)_\(userId)"
+        userDefaults.set(Array(groupIds), forKey: cacheKey)
+    }
+    
+    /// 从缓存加载社群 ID 列表
+    func loadGroupIds(for userId: String) -> Set<String> {
+        let cacheKey = "\(groupsCacheKey)_\(userId)"
+        guard let array = userDefaults.stringArray(forKey: cacheKey) else {
+            return []
+        }
+        return Set(array)
     }
     
     /// 从本地缓存加载事件列表
@@ -159,10 +179,12 @@ final class EventCacheManager {
     /// 清除指定用户的缓存
     func clearCache(for userId: String) {
         let cacheKey = "\(eventsCacheKey)_\(userId)"
+        let groupsKey = "\(groupsCacheKey)_\(userId)"
         let timestampKey = "\(cacheTimestampKey)_\(userId)"
         let versionKey = "\(cacheVersionKey)_\(userId)"
         
         userDefaults.removeObject(forKey: cacheKey)
+        userDefaults.removeObject(forKey: groupsKey)
         userDefaults.removeObject(forKey: timestampKey)
         userDefaults.removeObject(forKey: versionKey)
         
@@ -173,7 +195,7 @@ final class EventCacheManager {
     func clearAllCache() {
         let keys = userDefaults.dictionaryRepresentation().keys
         for key in keys {
-            if key.hasPrefix(eventsCacheKey) || key.hasPrefix(cacheTimestampKey) || key.hasPrefix(cacheVersionKey) {
+            if key.hasPrefix(eventsCacheKey) || key.hasPrefix(groupsCacheKey) || key.hasPrefix(cacheTimestampKey) || key.hasPrefix(cacheVersionKey) {
                 userDefaults.removeObject(forKey: key)
             }
         }

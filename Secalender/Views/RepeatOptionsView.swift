@@ -11,13 +11,15 @@ struct RepeatOptionsView: View {
     @Binding var selectedRepeat: String
     @Environment(\.dismiss) var dismiss
     
-    private let repeatOptions = [
-        ("never", "永不"),
-        ("daily", "每天"),
-        ("weekly", "每週"),
-        ("monthly", "每月"),
-        ("yearly", "每年")
-    ]
+    private var repeatOptions: [(String, String)] {
+        [
+            ("never", "event_create.repeat_options.never".localized()),
+            ("daily", "event_create.repeat_options.daily".localized()),
+            ("weekly", "event_create.repeat_options.weekly".localized()),
+            ("monthly", "event_create.repeat_options.monthly".localized()),
+            ("yearly", "event_create.repeat_options.yearly".localized())
+        ]
+    }
     
     var body: some View {
         NavigationView {
@@ -38,10 +40,10 @@ struct RepeatOptionsView: View {
                     }
                 }
             }
-            .navigationTitle("重複")
+            .navigationTitle("repeat_options.title".localized())
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("完成") {
+                    Button("repeat_options.done".localized()) {
                         dismiss()
                     }
                 }

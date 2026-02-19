@@ -40,7 +40,7 @@ struct InviteFriendsView: View {
                 Divider()
                 
                 // 标签选择器
-                Picker("邀请方式", selection: $selectedTab) {
+                Picker("invite.invite_method".localized(), selection: $selectedTab) {
                     ForEach(InviteTab.allCases, id: \.self) { tab in
                         Label(tab.title, systemImage: tab.icon).tag(tab)
                     }
@@ -60,7 +60,7 @@ struct InviteFriendsView: View {
                             HStack {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.gray)
-                        TextField("搜索联系人", text: $searchText)
+                        TextField("invite.search_contacts".localized(), text: $searchText)
                     }
                     .padding()
                     .background(Color(.systemGray6))
@@ -70,7 +70,7 @@ struct InviteFriendsView: View {
                 
                 // 内容区域
                 if isLoading {
-                    ProgressView("加载中...")
+                    ProgressView("invite.loading".localized())
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     contentView
@@ -79,7 +79,7 @@ struct InviteFriendsView: View {
                 // 底部操作区域
                 bottomActionBar
             }
-            .navigationTitle("邀请好友")
+            .navigationTitle("invite.title_nav".localized())
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showShareSheet) {
                 ShareSheet(activityItems: shareItems)
@@ -110,7 +110,7 @@ struct InviteFriendsView: View {
                 emptyStateView(
                     icon: "person.3",
                     title: "暂无好友",
-                    message: "添加好友后才能邀请参加活动"
+                    message: "invite.add_friends_first_message".localized()
                 )
                 } else {
                     List {
@@ -137,8 +137,8 @@ struct InviteFriendsView: View {
             if contacts.isEmpty {
                 emptyStateView(
                     icon: "person.crop.circle.badge.questionmark",
-                    title: "暂无联系人",
-                    message: "请允许访问通讯录以邀请联系人"
+                    title: "invite.no_contacts".localized(),
+                    message: "invite.allow_contacts_access".localized()
                 )
             } else {
                 let filteredContacts = searchText.isEmpty ? contacts : contactManager.searchContacts(searchText, in: contacts)
@@ -171,7 +171,7 @@ struct InviteFriendsView: View {
                         Image(systemName: "link")
                             .foregroundColor(.blue)
                             .font(.title2)
-                        Text("邀请链接")
+                        Text("invite.invite_link".localized())
                             .font(.headline)
                             .fontWeight(.semibold)
                     }
@@ -186,7 +186,7 @@ struct InviteFriendsView: View {
                         }) {
                             HStack {
                                 Image(systemName: "plus.circle.fill")
-                                Text("生成邀请链接")
+                                Text("invite.generate_link".localized())
                             }
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -211,7 +211,7 @@ struct InviteFriendsView: View {
                                         showSuccessMessage = false
                                     }
                                 }) {
-                                    Label("复制链接", systemImage: "doc.on.doc")
+                                    Label("invite.copy_link".localized(), systemImage: "doc.on.doc")
                                         .frame(maxWidth: .infinity)
                                         .padding()
                                         .background(Color(.systemGray5))
@@ -221,7 +221,7 @@ struct InviteFriendsView: View {
                                 Button(action: {
                                     shareInviteLink()
                                 }) {
-                                    Label("分享", systemImage: "square.and.arrow.up")
+                                    Label("invite.share".localized(), systemImage: "square.and.arrow.up")
                                         .frame(maxWidth: .infinity)
                                         .padding()
                                         .background(Color.blue)
@@ -239,7 +239,7 @@ struct InviteFriendsView: View {
                 
                 // 分享方式
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("分享方式")
+                    Text("invite.share_method".localized())
                         .font(.headline)
                         .fontWeight(.semibold)
                     
@@ -264,13 +264,13 @@ struct InviteFriendsView: View {
                     }
                     
                     if showSuccessMessage {
-                        Text("邀请发送成功！")
+                        Text("invite.success".localized())
                             .foregroundColor(.green)
                             .padding(.horizontal)
                     }
                     
                     HStack(spacing: 16) {
-                        Button("取消") {
+                        Button("invite.cancel".localized()) {
                             dismiss()
                         }
                         .buttonStyle(.bordered)
@@ -299,11 +299,11 @@ struct InviteFriendsView: View {
     private var buttonTitle: String {
         switch selectedTab {
         case .appFriends:
-            return "发送邀请"
+            return "invite.send_invite".localized()
         case .contacts:
-            return "发送邀请 (\(selectedContacts.count))"
+            return "invite.send_invite_count".localized(with: selectedContacts.count)
         case .shareLink:
-            return "分享链接"
+            return "invite.share_link".localized()
         }
     }
     
@@ -358,54 +358,10 @@ struct InviteFriendsView: View {
     private func loadFriends() async {
         guard !userManager.userOpenId.isEmpty else { return }
         
-        let db = Firestore.firestore()
-        
-        do {
-        // 获取当前用户的好友列表
-            let snapshot = try await db.collection("friends")
-            .whereField("owner", isEqualTo: userManager.userOpenId)
-                .getDocuments()
-            
-            guard !snapshot.documents.isEmpty else {
-                await MainActor.run {
-                    self.friends = []
-                }
-                    return
-                }
-                
-                // 提取好友ID列表
-            let friendIds = snapshot.documents.compactMap { $0["friend"] as? String }
-                
-            guard !friendIds.isEmpty else {
-                await MainActor.run {
-                    self.friends = []
-                }
-                            return
-                        }
-                        
-            // 根据好友ID获取好友详细信息
-            let userSnapshot = try await db.collection("users")
-                .whereField("openid", in: friendIds)
-                .getDocuments()
-                        
-            await MainActor.run {
-                self.friends = userSnapshot.documents.compactMap { doc in
-                            let data = doc.data()
-                            return FriendEntry(
-                                id: doc.documentID,
-                                alias: data["alias"] as? String,
-                        name: data["displayName"] as? String,
-                                email: data["email"] as? String,
-                        photoUrl: data["photoUrl"] as? String,
-                                gender: data["gender"] as? String
-                            )
-                        }
-                    }
-        } catch {
-            print("加载好友列表失败: \(error.localizedDescription)")
-            await MainActor.run {
-                self.friends = []
-            }
+        // 使用 FriendManager 的缓存机制（参考微信做法）
+        let loadedFriends = await FriendManager.shared.getFriends(for: userManager.userOpenId)
+        await MainActor.run {
+            self.friends = loadedFriends
         }
     }
     
@@ -416,7 +372,7 @@ struct InviteFriendsView: View {
                 self.contacts = fetchedContacts
             }
         } catch {
-            print("加载通讯录失败: \(error.localizedDescription)")
+            print("invite.load_contacts_failed".localized(with: error.localizedDescription))
             await MainActor.run {
                 self.contacts = []
             }
@@ -462,7 +418,7 @@ struct InviteFriendsView: View {
             }
         } catch {
             await MainActor.run {
-                errorMessage = "邀请失败：\(error.localizedDescription)"
+                errorMessage = "search_group.invite_failed".localized(with: error.localizedDescription)
                 isInviting = false
             }
         }
@@ -496,7 +452,7 @@ struct InviteFriendsView: View {
             }
         } catch {
             await MainActor.run {
-                errorMessage = "生成邀请链接失败：\(error.localizedDescription)"
+                errorMessage = "search_group.generate_link_failed".localized(with: error.localizedDescription)
             }
         }
     }
@@ -550,12 +506,17 @@ struct InviteFriendsView: View {
 // MARK: - Supporting Types
 
 enum InviteTab: String, CaseIterable {
-    case appFriends = "应用好友"
-    case contacts = "通讯录"
-    case shareLink = "分享链接"
+    case appFriends
+    case contacts
+    case shareLink
     
+    @MainActor
     var title: String {
-        rawValue
+        switch self {
+        case .appFriends: return "invite.app_friends".localized()
+        case .contacts: return "invite.contacts".localized()
+        case .shareLink: return "invite.share_link".localized()
+        }
     }
     
     var icon: String {
@@ -692,7 +653,7 @@ struct ShareOptionsGrid: View {
             
             ShareOptionButton(
                 icon: "doc.on.doc",
-                title: "复制链接",
+                title: "invite.copy_link".localized(),
                 color: .orange,
                 action: { onShare(.copy) }
             )

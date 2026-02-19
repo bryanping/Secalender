@@ -24,9 +24,9 @@ enum PlanningStep: Int {
 
 // MARK: - 交通方式枚举
 enum TransportationType: String, CaseIterable {
-    case publicTransport = "大眾運輸"
-    case selfDrive = "租車自駕"
-    case charteredCar = "包車服務"
+    case publicTransport
+    case selfDrive
+    case charteredCar
     
     var icon: String {
         switch self {
@@ -35,12 +35,20 @@ enum TransportationType: String, CaseIterable {
         case .charteredCar: return "person.fill"
         }
     }
-    
+    @MainActor
+    var displayName: String {
+        switch self {
+        case .publicTransport: return "transport.public_transport".localized()
+        case .selfDrive: return "transport.self_drive".localized()
+        case .charteredCar: return "transport.chartered_car".localized()
+        }
+    }
+    @MainActor
     var description: String {
         switch self {
-        case .publicTransport: return "地鐵、巴士、火車"
-        case .selfDrive: return "享受自由掌控的旅程"
-        case .charteredCar: return "專業司機,尊榮接送"
+        case .publicTransport: return "transport.public_transport_desc".localized()
+        case .selfDrive: return "transport.self_drive_desc".localized()
+        case .charteredCar: return "transport.chartered_car_desc".localized()
         }
     }
 }
@@ -80,10 +88,10 @@ enum SurroundingFeature: String, CaseIterable {
 
 // MARK: - 特殊限制枚举
 enum SpecialRestriction: String, CaseIterable {
-    case childFriendly = "兒童友善"
-    case wheelchairAccess = "輪椅通道"
-    case indoorPriority = "室內優先"
-    case earlyRest = "提早休息"
+    case childFriendly
+    case wheelchairAccess
+    case indoorPriority
+    case earlyRest
     
     var icon: String {
         switch self {
@@ -93,16 +101,25 @@ enum SpecialRestriction: String, CaseIterable {
         case .earlyRest: return "moon.fill"
         }
     }
+    @MainActor
+    var displayName: String {
+        switch self {
+        case .childFriendly: return "restriction.child_friendly".localized()
+        case .wheelchairAccess: return "restriction.wheelchair_access".localized()
+        case .indoorPriority: return "restriction.indoor_priority".localized()
+        case .earlyRest: return "restriction.early_rest".localized()
+        }
+    }
 }
 
 // MARK: - 兴趣标签
 enum InterestTag: String, CaseIterable {
-    case food = "美食"
-    case history = "歷史"
-    case nature = "自然"
-    case shopping = "購物"
-    case nightlife = "夜生活"
-    case art = "藝術"
+    case food
+    case history
+    case nature
+    case shopping
+    case nightlife
+    case art
 //    case adventure = "冒險"
 //    case wellness = "身心健康"
     
@@ -118,15 +135,27 @@ enum InterestTag: String, CaseIterable {
 //        case .wellness: return "figure.mind.and.body"
         }
     }
+    @MainActor
+    var displayName: String {
+        switch self {
+        case .food: return "interest.food".localized()
+        case .history: return "interest.history".localized()
+        case .nature: return "interest.nature".localized()
+        case .shopping: return "interest.shopping".localized()
+        case .nightlife: return "interest.nightlife".localized()
+        case .art: return "interest.art".localized()
+        }
+    }
 }
 
 // MARK: - BudgetLevel 扩展（用于UI显示）
+@MainActor
 extension BudgetLevel {
     var displayName: String {
         switch self {
-        case .low: return "經濟"
-        case .moderate: return "標準"
-        case .high: return "奢華"
+        case .low: return "budget.economy".localized()
+        case .moderate: return "budget.standard".localized()
+        case .high: return "budget.luxury".localized()
         }
     }
     
@@ -184,6 +213,7 @@ struct AIPlannerView: View {
     @State private var gpsLocationAddress: String = ""
     @State private var gpsLocationName: String = ""  // 定位位置的名字
     @State private var isLocatingGPS = false
+    @State private var userCountryName: String? = nil  // 用户所在国家（中文）
     
     // 自定义出发位置
     @State private var useCustomDepartureLocation = false
@@ -209,6 +239,11 @@ struct AIPlannerView: View {
     @State private var showPlanDetailView = false
     @State private var showPlanEditView = false
     @State private var planToEdit: PlanResult? = nil  // 用于编辑的 plan
+    
+    // 多行程检视相关状态
+    @State private var showMultiEventView = false
+    @State private var savedEventIds: [Int] = []
+    @State private var allEvents: [Event] = []  // 用于 MultiEventView 的事件列表
     
     // 错误处理
     @State private var showErrorAlert = false
@@ -307,11 +342,18 @@ struct AIPlannerView: View {
                     }
                 }
             }
+            .task {
+                // 从缓存加载用户所在国家（如果已有）
+                if let cachedCountry = LocationCacheManager.shared.loadUserCountry() {
+                    userCountryName = cachedCountry
+                }
+            }
             .sheet(isPresented: $showLocationPicker) {
                 NavigationView {
                     CountryCityPickerView(
                         selectedCountry: $selectedCountry,
                         selectedCity: $selectedCity,
+                        userCountry: userCountryName,
                         onSelect: { country, city in
                             selectedCountry = country
                             selectedCity = city
@@ -361,8 +403,8 @@ struct AIPlannerView: View {
                 }
             }
             // 修复：使用 generatedPlan 直接驱动 sheet，避免首次空白
-            // PlanResult 已经是 Identifiable，可以直接用 sheet(item:)
-            .sheet(item: $generatedPlan) { plan in
+            // PlanResult 已经是 Identifiable，使用 fullScreenCover 实现全屏从右侧滑出
+            .fullScreenCover(item: $generatedPlan) { plan in
                 NavigationView {
                     PlanDetailView(
                         plan: plan,
@@ -393,11 +435,17 @@ struct AIPlannerView: View {
                     PlanEditView(
                         plan: plan,
                         customTitle: tripTheme.isEmpty ? nil : tripTheme,  // 传递用户填写的"此行的主題"
-                        onSaveToCalendar: {
-                            // 保存到日历后，关闭编辑页面，然后关闭 AIPlannerView（流程完成）
+                        onSaveToCalendar: { eventIds in
+                            // 保存到日历后，导航到多行程检视页面
+                            savedEventIds = eventIds
                             showPlanEditView = false
-                            generatedPlan = nil
-                            dismiss()  // 流程完成，关闭 AIPlannerView
+                            // 加载事件列表
+                            Task {
+                                await loadEventsForMultiView()
+                                await MainActor.run {
+                                    showMultiEventView = true
+                                }
+                            }
                         },
                         onSaveToTemplate: { editedPlan, title in
                             // 修复：使用编辑后的 PlanResult，而不是进入编辑页前的 generatedPlan
@@ -419,12 +467,65 @@ struct AIPlannerView: View {
                     .environmentObject(userManager)
                 }
             }
+            .sheet(isPresented: $showMultiEventView) {
+                NavigationView {
+                    MultiEventView(
+                        eventIds: savedEventIds,
+                        allEvents: $allEvents,
+                        source: .template,  // 标识从行程模版打开
+                        onComplete: {
+                            // 完成操作后不关闭页面，保持在多行程检视页面
+                        },
+                        onRefreshEvents: {
+                            // 刷新事件列表
+                            await loadEventsForMultiView()
+                        },
+                        onDismiss: nil,  // 从模版打开时不使用 onDismiss
+                        onBackToTemplate: {
+                            // 返回到行程模版（PlanDetailView）
+                            showMultiEventView = false
+                            // 重新打开详情页
+                            if let plan = generatedPlan {
+                                generatedPlan = nil
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    generatedPlan = plan
+                                }
+                            }
+                        }
+                    )
+                    .environmentObject(userManager)
+                }
+            }
             // 修复：删除 onChange dismiss 逻辑，避免多重 dismiss
             // PlanDetailView 关闭时只关闭自己的 sheet，AIPlannerView 只在流程完成时 dismiss
             .alert("錯誤", isPresented: $showErrorAlert) {
                 Button("好") {}
             } message: {
                 Text(errorMessage)
+            }
+        }
+    }
+    
+    // MARK: - 加载事件列表（用于 MultiEventView）
+    private func loadEventsForMultiView() async {
+        guard !userManager.userOpenId.isEmpty else { return }
+        
+        // 从本地缓存加载事件
+        let cachedEvents = EventCacheManager.shared.loadEvents(for: userManager.userOpenId)
+        await MainActor.run {
+            allEvents = cachedEvents.filter { $0.deleted != 1 }
+        }
+        
+        // 后台同步 Firebase
+        Task {
+            do {
+                try await EventManager.shared.fetchEvents()
+                let updatedEvents = EventCacheManager.shared.loadEvents(for: userManager.userOpenId)
+                await MainActor.run {
+                    allEvents = updatedEvents.filter { $0.deleted != 1 }
+                }
+            } catch {
+                print("⚠️ 加载事件失败: \(error.localizedDescription)")
             }
         }
     }
@@ -486,20 +587,20 @@ struct AIPlannerView: View {
         VStack(alignment: .leading, spacing: 18) {
             // 标题和副标题
             VStack(alignment: .leading, spacing: 8) {
-                Text("告訴我們您的旅行計畫")
+                Text("ai_planner.tell_us_your_plan".localized())
                     .font(.system(size: 28, weight: .bold))
                 
-                Text("讓我們從基本資訊開始,為您打造完美的行程。")
+                Text("ai_planner.start_with_basics".localized())
                     .font(.subheadline)
                     .foregroundColor(.secondary)
     }
     
             // 主题输入
             VStack(alignment: .leading, spacing: 8) {
-                Text("此行的主題?")
+                Text("ai_planner.trip_theme".localized())
                     .font(.headline)
                 
-                TextField("例如:京都之夏、東京美食之旅", text: $tripTheme)
+                TextField("ai_planner.trip_theme_placeholder".localized(), text: $tripTheme)
                     .focused($isTextFieldFocused)
                     .padding()
                     .background(Color(UIColor.systemBackground))
@@ -516,7 +617,7 @@ struct AIPlannerView: View {
             
             // 目的地输入（国家-城市选择器）
             VStack(alignment: .leading, spacing: 8) {
-                Text("你要去哪裡?")
+                Text("ai_planner.where_are_you_going".localized())
                     .font(.headline)
                 
                 Button(action: {
@@ -525,7 +626,7 @@ struct AIPlannerView: View {
                     HStack {
                         Image(systemName: "mappin.circle.fill")
                             .foregroundColor(.blue)
-                        Text(destination.isEmpty ? "搜尋目的地..." : destination)
+                        Text(destination.isEmpty ? "ai_planner.search_destination".localized() : destination)
                             .foregroundColor(destination.isEmpty ? .secondary : .primary)
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -583,14 +684,14 @@ struct AIPlannerView: View {
     
             // 旅行天数
             VStack(alignment: .leading, spacing: 8) {
-                Text("旅行天數")
+                Text("ai_planner.travel_days".localized())
                     .font(.headline)
                 
                 HStack {
                     Image(systemName: "calendar")
                         .foregroundColor(.blue)
                     
-                    Text("總共天數")
+                    Text("ai_planner.total_days".localized())
                         .foregroundColor(.secondary)
                     
                     Spacer()
@@ -608,7 +709,7 @@ struct AIPlannerView: View {
                         }
                         .disabled(travelDays <= 1)
                         
-                        Text("\(travelDays)天")
+                        Text("ai_planner.days".localized(with: travelDays))
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(.primary)
                             .frame(minWidth: 50)
@@ -636,7 +737,7 @@ struct AIPlannerView: View {
             
             // 同行人数
             VStack(alignment: .leading, spacing: 8) {
-                Text("同行人數")
+                Text("ai_planner.travelers".localized())
                     .font(.headline)
                 
                 VStack(spacing: 12) {
@@ -644,11 +745,11 @@ struct AIPlannerView: View {
                     HStack {
                         // 左侧：文字信息
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("大人")
+                            Text("ai_planner.adults".localized())
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.primary)
                             
-                            Text("13歲以上")
+                            Text("ai_planner.adults_description".localized())
                                 .font(.system(size: 13))
                                 .foregroundColor(.secondary)
                         }
@@ -712,11 +813,11 @@ struct AIPlannerView: View {
                     HStack {
                         // 左侧：文字信息
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("小孩")
+                            Text("ai_planner.children".localized())
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.primary)
                             
-                            Text("2-12歲")
+                            Text("ai_planner.children_description".localized())
                                 .font(.system(size: 13))
                                 .foregroundColor(.secondary)
                         }
@@ -787,7 +888,7 @@ struct AIPlannerView: View {
             
             // 交通方式
             VStack(alignment: .leading, spacing: 16) {
-                Text("交通方式")
+                Text("ai_planner.transportation".localized())
                     .font(.system(size: 20, weight: .semibold))
                 
                 VStack(spacing: 12) {
@@ -804,7 +905,7 @@ struct AIPlannerView: View {
             
             // 兴趣偏好
             VStack(alignment: .leading, spacing: 16) {
-                Text("興趣偏好")
+                Text("ai_planner.interests".localized())
                     .font(.system(size: 20, weight: .semibold))
                 
                 // 按钮布局（2列，与特殊限制一致）
@@ -826,7 +927,7 @@ struct AIPlannerView: View {
             
             // 特殊限制
             VStack(alignment: .leading, spacing: 16) {
-                Text("特殊需求")
+                Text("ai_planner.special_requirements".localized())
                     .font(.system(size: 20, weight: .semibold))
                 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -848,7 +949,7 @@ struct AIPlannerView: View {
             
             // 預算等級
             VStack(alignment: .leading, spacing: 16) {
-                Text("預算等級")
+                Text("ai_planner.budget_level".localized())
                     .font(.system(size: 20, weight: .semibold))
                 
                 Picker("預算等級", selection: $budgetLevel) {
@@ -1175,7 +1276,7 @@ struct AIPlannerView: View {
             // 中央图标
             ZStack {
                 Circle()
-                    .fill(Color.white)
+                    .fill(Color(.systemBackground))
                     .frame(width: 120, height: 120)
                     .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
                 
@@ -1205,7 +1306,7 @@ struct AIPlannerView: View {
             
             // 标题和副标题
         VStack(spacing: 8) {
-                Text("AI正在為您打造完美行程...")
+                Text("AI正在為您打造行程...")
                     .font(.system(size: 20, weight: .semibold))
                 
                 Text("這個過程可能需要一些時間，請稍候")
@@ -1277,7 +1378,7 @@ struct AIPlannerView: View {
                     goToNextStep()
                 }) {
                 HStack {
-                        Text("下一步:偏好設定")
+                        Text("ai_planner.next_preferences".localized())
                     Spacer()
                         Image(systemName: "arrow.right")
                     }
@@ -1294,12 +1395,12 @@ struct AIPlannerView: View {
                     Button(action: {
                         goToPreviousStep()
                     }) {
-                        Text("上一步")
+                        Text("ai_planner.previous".localized())
                             .font(.headline)
                             .foregroundColor(.blue)
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background(Color.white)
+                            .background(Color(.systemBackground))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 20)
                                     .stroke(Color.blue, lineWidth: 1)
@@ -1309,7 +1410,7 @@ struct AIPlannerView: View {
                     Button(action: {
                         goToNextStep()
                     }) {
-                        Text("下一步")
+                        Text("ai_planner.next".localized())
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding()
@@ -1323,12 +1424,12 @@ struct AIPlannerView: View {
                     Button(action: {
                         goToPreviousStep()
                     }) {
-                        Text("上一步")
+                        Text("ai_planner.previous".localized())
                             .font(.headline)
                             .foregroundColor(.blue)
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background(Color.white)
+                            .background(Color(.systemBackground))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 20)
                                     .stroke(Color.blue, lineWidth: 1)
@@ -1338,7 +1439,7 @@ struct AIPlannerView: View {
                     Button(action: {
                         goToNextStep()
                     }) {
-                        Text("完成設定")
+                        Text("ai_planner.complete_setup".localized())
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding()
@@ -1372,13 +1473,13 @@ struct AIPlannerView: View {
                         .font(.system(size: 18))
                         .foregroundColor(isSelected ? .blue : .primary)
                     
-                    Text(tag.rawValue)
+                    Text(tag.displayName)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.primary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(isSelected ? Color.blue.opacity(0.1) : Color.white)
+                .background(isSelected ? Color.blue.opacity(0.1) : Color(.systemBackground))
                 .cornerRadius(20)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
@@ -1403,7 +1504,7 @@ struct AIPlannerView: View {
                         .frame(width: 40)
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(type.rawValue)
+                        Text(type.displayName)
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.primary)
                         
@@ -1497,7 +1598,7 @@ struct AIPlannerView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(isSelected ? Color.blue : Color.white)
+                .background(isSelected ? Color.blue : Color(.systemBackground))
                 .cornerRadius(20)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
@@ -1526,7 +1627,7 @@ struct AIPlannerView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(isSelected ? Color.blue : Color.white)
+                .background(isSelected ? Color.blue : Color(.systemBackground))
                 .cornerRadius(20)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
@@ -1549,13 +1650,13 @@ struct AIPlannerView: View {
                         .font(.system(size: 18))
                         .foregroundColor(isSelected ? .blue : .primary)
                     
-                    Text(restriction.rawValue)
+                    Text(restriction.displayName)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.primary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(isSelected ? Color.blue.opacity(0.1) : Color.white)
+                .background(isSelected ? Color.blue.opacity(0.1) : Color(.systemBackground))
                 .cornerRadius(20)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
@@ -1660,6 +1761,11 @@ struct AIPlannerView: View {
                     // 保存位置名字
                     self.gpsLocationName = placemark.name ?? ""
                     
+                    // 获取并保存用户所在国家（转换为中文）
+                    if let country = placemark.country {
+                        self.userCountryName = self.convertCountryToChinese(country)
+                    }
+                    
                     // 构建地址（不包含名字和国家，因为名字单独显示）
                     var addressComponents: [String] = []
                     if let locality = placemark.locality { addressComponents.append(locality) }
@@ -1676,6 +1782,22 @@ struct AIPlannerView: View {
                 }
             }
         }
+    }
+    
+    // MARK: - 国家名称转换（英文转中文）
+    private func convertCountryToChinese(_ englishCountry: String) -> String? {
+        let dataManager = DestinationDataManager.shared
+        let allCountries = dataManager.getAllCountries()
+        
+        // 先尝试直接搜索（支持简繁体英文）
+        let matchedCountries = dataManager.searchCountries(englishCountry)
+        if let matchedCountry = matchedCountries.first {
+            return matchedCountry
+        }
+        
+        // 如果搜索不到，尝试使用 DestinationData 中的映射
+        // 这里可以扩展更多映射，但优先使用 searchCountries 因为它已经支持简繁体英文
+        return nil
     }
     
     // MARK: - 构建GPS定位显示文本（名字+地址）
@@ -1810,29 +1932,83 @@ struct AIPlannerView: View {
         }
     }
     
-    // 调用 OpenAI API 获取周边特色（只基于城市，不考虑兴趣偏好和特殊需求）
+    // 调用 OpenAI API 获取周边特色（整合城市资料库和兴趣偏好权重）
     private func fetchSurroundingAttractions() async throws -> [SurroundingAttraction] {
         // 提取城市名（如果格式是"国家 - 城市"，只取城市部分）
         let cityName: String
+        let countryName: String?
         if destination.contains(" - ") {
             let components = destination.components(separatedBy: " - ")
+            countryName = components.first
             cityName = components.last ?? destination
         } else {
             cityName = destination
+            countryName = nil
         }
         
-        // 构建提示词（只基于城市，不考虑兴趣偏好和特殊需求）
-        // 兴趣偏好和特殊需求将在最后生成行程时再考虑
-        let prompt = "推荐\(cityName)的4-8个知名地标或景点，只返回JSON数组：[\"景点1\",\"景点2\",...]"
-        
-        // 调用 OpenAI API（带超时处理）
-        let response = try await OpenAIManager.shared.generateSurroundingAttractions(
-            prompt: prompt,
-            timeout: 20.0  // 15秒超时
+        // 1. 首先尝试从城市资料库获取（优先使用资料库，避免重复API调用）
+        let database = CityAttractionsDatabase.shared
+        let interestTags = selectedInterests.map { $0.rawValue }
+        var cityAttractions = database.getFilteredAttractions(
+            for: cityName,
+            country: countryName,
+            interestTags: interestTags,
+            sortBy: .popularity,
+            referenceLocation: nil,
+            routeLocations: [],
+            excludeAttractions: [],
+            maxDistance: nil,
+            futureRouteLocations: []
         )
         
-        // 解析响应
-        return parseSurroundingAttractions(response)
+        // 2. 转换为SurroundingAttraction格式
+        var attractions: [SurroundingAttraction] = cityAttractions.map { cityAttraction in
+            SurroundingAttraction(
+                id: cityAttraction.id,
+                name: cityAttraction.name,
+                category: cityAttraction.category,
+                icon: cityAttraction.icon
+            )
+        }
+        
+        // 3. 如果资料库中没有足够的数据（少于6个），使用API补充
+        if attractions.count < 6 {
+            // 构建提示词，包含兴趣偏好（增加权重）
+            var prompt = "推荐\(cityName)的4-8个知名地标或景点"
+            if !interestTags.isEmpty {
+                prompt += "，优先推荐与以下兴趣相关的：\(interestTags.joined(separator: "、"))"
+            }
+            prompt += "，只返回JSON数组：[\"景点1\",\"景点2\",...]"
+            
+            // 调用 OpenAI API（带超时处理）
+            let response = try await OpenAIManager.shared.generateSurroundingAttractions(
+                prompt: prompt,
+                timeout: 30.0  // 国外目的地/网络延迟更高时容易超时，适当放宽
+            )
+            
+            // 解析API响应
+            let apiAttractions = parseSurroundingAttractions(response)
+            
+            // 合并并去重
+            let existingNames = Set(attractions.map { $0.name.lowercased() })
+            let newAttractions = apiAttractions.filter { attraction in
+                !existingNames.contains(attraction.name.lowercased())
+            }
+            attractions.append(contentsOf: newAttractions)
+        }
+        
+        // 4. 根据兴趣偏好重新排序（匹配兴趣的排在前面）
+        if !interestTags.isEmpty {
+            attractions.sort { attraction1, attraction2 in
+                let match1 = attraction1.category.lowercased().contains(interestTags.joined(separator: " ").lowercased()) ||
+                             interestTags.contains { tag in attraction1.category.lowercased().contains(tag.lowercased()) }
+                let match2 = attraction2.category.lowercased().contains(interestTags.joined(separator: " ").lowercased()) ||
+                             interestTags.contains { tag in attraction2.category.lowercased().contains(tag.lowercased()) }
+                return match1 && !match2
+            }
+        }
+        
+        return Array(attractions.prefix(8))
     }
     
     // 解析周边特色响应（只包含名称的字符串数组）
@@ -2266,10 +2442,18 @@ struct AIPlannerView: View {
             selectedAttractions: selectedAttractionNames,
             currentGPSLocation: departureLocation,
             accommodationAddress: accommodationAddressString,
-            accommodationType: accommodationTypeString
+            accommodationType: accommodationTypeString,
+            adults: adults,
+            children: children
         )
         
-        var plan = try AITripGenerator.shared.convertToPlanResult(aiPlan, slots: result.slots)
+        let context = AITripGenerator.PlanConversionContext(
+            departureLocation: departureLocation,
+            accommodationAddress: accommodationAddressString,
+            accommodationCoordinate: accommodationCoordinate,
+            transportPreference: result.slots.transportPreference.value
+        )
+        var plan = try AITripGenerator.shared.convertToPlanResult(aiPlan, slots: result.slots, adults: adults, children: children, context: context)
         plan.assumptions = result.assumptions
         
         return plan
@@ -2345,8 +2529,8 @@ struct AIPlannerView: View {
             destination: destination
         )
         
-        // 保存模板
-        TripTemplateManager.shared.saveTemplate(template, for: userId)
+        // 保存模板（不自动同步到行事历，用户需要在 PlanDetailView 中选择"加入行程"）
+        TripTemplateManager.shared.saveTemplate(template, for: userId, syncToAppleCalendar: false)
         
         print("✅ 行程已保存到模板：\(templateTitle)")
     }
@@ -2403,46 +2587,46 @@ struct DateRangePickerView: View {
 struct CountryCityPickerView: View {
     @Binding var selectedCountry: String?
     @Binding var selectedCity: String?
-    var restrictedCountry: String? = nil  // 限制只显示特定国家（用于周末快闪）
+    var userCountry: String? = nil  // 用户所在国家（可选）
     var onSelect: (String, String) -> Void
     
     @State private var searchText: String = ""
-    @State private var selectedCountryIndex: Int? = nil
+    @State private var viewingCountry: String? = nil  // 使用国家名而不是索引
     
     // 使用共享的数据管理器
     private let dataManager = DestinationDataManager.shared
     
-    private var sortedCountries: [String] {
-        let allCountries = dataManager.getAllCountries()
-        // 如果有限制国家，只返回该国家
-        if let restricted = restrictedCountry {
-            return allCountries.contains(restricted) ? [restricted] : allCountries
+    private var filteredCountries: [String] {
+        let allCountries: [String]
+        if searchText.isEmpty {
+            allCountries = dataManager.getAllCountries()
+        } else {
+            // 使用 DestinationDataManager 的搜索功能（支持简繁体英文）
+            allCountries = dataManager.searchCountries(searchText)
         }
+        
+        // 如果有用户所在国家，将其排到最上面
+        guard let userCountry = userCountry, !userCountry.isEmpty else {
+            return allCountries
+        }
+        
+        // 检查用户所在国家是否在列表中
+        if let userCountryIndex = allCountries.firstIndex(of: userCountry) {
+            var sortedCountries = allCountries
+            // 移除用户所在国家
+            sortedCountries.remove(at: userCountryIndex)
+            // 将用户所在国家插入到最前面
+            sortedCountries.insert(userCountry, at: 0)
+            return sortedCountries
+        }
+        
+        // 如果用户所在国家不在列表中，返回原列表
         return allCountries
     }
     
-    private var filteredCountries: [String] {
-        let countries = sortedCountries
-        if searchText.isEmpty {
-            return countries
-        }
-        // 使用 DestinationDataManager 的搜索功能（支持简繁体英文）
-        let searchResults = dataManager.searchCountries(searchText)
-        // 如果有限制国家，只返回匹配的限制国家
-        if let restricted = restrictedCountry {
-            return searchResults.filter { $0 == restricted }
-        }
-        return searchResults
-    }
-    
+    /// 获取城市列表（简化：不做特殊处理）
     private func cities(for country: String) -> [String] {
-        // 如果国家是"中國"，需要特殊处理（包含旅游景点）
-        if country == "中國" {
-            let (cities, attractions) = dataManager.getCitiesGrouped(for: country)
-            return cities + attractions
-        } else {
-            return dataManager.getCities(for: country)
-        }
+        return dataManager.getCities(for: country)
     }
     
     /// 搜索城市（支持简繁体英文）
@@ -2450,8 +2634,6 @@ struct CountryCityPickerView: View {
         if searchTerm.isEmpty {
             return cities(for: country)
         }
-        // 使用DestinationDataManager的搜索功能（已处理中国的特殊情况）
-        // searchCities方法的第一个参数是可选的，需要传递country
         return dataManager.searchCities(in: country, searchTerm: searchTerm)
     }
     
@@ -2466,17 +2648,22 @@ struct CountryCityPickerView: View {
             .padding()
             .background(Color(.systemGray6))
             
-            if let countryIndex = selectedCountryIndex, countryIndex < filteredCountries.count {
+            if let country = viewingCountry {
                 // 显示城市列表（支持搜索）
-                let country = filteredCountries[countryIndex]
                 let filteredCities = searchCities(in: country, searchTerm: searchText)
                 
                 List {
                     Section(header: Text("選擇城市 - \(country)\(searchText.isEmpty ? "" : " (搜尋: \(searchText))")")) {
-                        if filteredCities.isEmpty && !searchText.isEmpty {
-                            Text("未找到匹配的城市")
-                                .foregroundColor(.secondary)
-                                .padding()
+                        if filteredCities.isEmpty {
+                            if searchText.isEmpty {
+                                Text("暫無城市資料")
+                                    .foregroundColor(.secondary)
+                                    .padding()
+                            } else {
+                                Text("未找到匹配的城市")
+                                    .foregroundColor(.secondary)
+                                    .padding()
+                            }
                         } else {
                             ForEach(filteredCities, id: \.self) { city in
                                 Button(action: {
@@ -2500,63 +2687,24 @@ struct CountryCityPickerView: View {
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button("返回") {
-                            selectedCountryIndex = nil
+                            viewingCountry = nil
                             searchText = ""  // 返回时清空搜索
                         }
                     }
                 }
             } else {
-                // 显示国家列表（如果有限制国家，直接显示该国家的城市列表）
-                if let restricted = restrictedCountry, !restricted.isEmpty {
-                    // 直接显示限制国家的城市列表
-                    let filteredCities = searchCities(in: restricted, searchTerm: searchText)
-                    
-                    List {
-                        Section(header: Text("選擇城市 - \(restricted)\(searchText.isEmpty ? "" : " (搜尋: \(searchText))")")) {
-                            if filteredCities.isEmpty {
-                                if searchText.isEmpty {
-                                    Text("暫無城市資料")
-                                        .foregroundColor(.secondary)
-                                        .padding()
-                                } else {
-                                    Text("未找到匹配的城市")
-                                        .foregroundColor(.secondary)
-                                        .padding()
-                                }
-                            } else {
-                                ForEach(filteredCities, id: \.self) { city in
-                                    Button(action: {
-                                        selectedCountry = restricted
-                                        selectedCity = city
-                                        onSelect(restricted, city)
-                                    }) {
-                                        HStack {
-                                            Text(city)
-                                            Spacer()
-                                            if selectedCountry == restricted && selectedCity == city {
-                                                Image(systemName: "checkmark")
-                                                    .foregroundColor(.blue)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    // 显示国家列表（无限制时）
-                    List {
-                        ForEach(Array(filteredCountries.enumerated()), id: \.element) { index, country in
-                            Button(action: {
-                                selectedCountryIndex = index
-                            }) {
-                                HStack {
-                                    Text(country)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(.secondary)
-                                        .font(.caption)
-                                }
+                // 显示国家列表
+                List {
+                    ForEach(filteredCountries, id: \.self) { country in
+                        Button(action: {
+                            viewingCountry = country
+                        }) {
+                            HStack {
+                                Text(country)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
                             }
                         }
                     }

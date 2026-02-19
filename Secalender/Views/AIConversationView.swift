@@ -82,7 +82,7 @@ struct AIConversationView: View {
                         HStack {
                             Image(systemName: "sparkles")
                                 .foregroundColor(.orange)
-                            Text("您好！我可以帮您规划行程，请告诉我您的需求")
+                            Text("ai_conversation.greeting".localized())
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -123,7 +123,7 @@ struct AIConversationView: View {
                         HStack {
                             ProgressView()
                                 .scaleEffect(0.8)
-                            Text("正在生成行程...")
+                            Text("ai_conversation.generating".localized())
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -282,7 +282,7 @@ struct AIConversationView: View {
             }
             
             // 手动输入
-            Text("或手动输入：")
+            Text("ai_conversation.or_manual_input".localized())
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .padding(.top, 8)
@@ -294,7 +294,7 @@ struct AIConversationView: View {
             Button(action: {
                 handleFollowUpAnswer(question: question)
             }) {
-                Text("确定")
+                Text("ai_conversation.confirm".localized())
                     .font(.headline)
                     .frame(maxWidth: .infinity)
             }
@@ -310,7 +310,7 @@ struct AIConversationView: View {
                 followUpAnswer = ""
                 classificationResult = nil
             }) {
-                Text("返回")
+                Text("ai_conversation.back".localized())
                     .foregroundColor(.secondary)
             }
             .padding(.top, 8)
@@ -852,8 +852,8 @@ struct AIConversationView: View {
         
         print("🔄 [自动保存] 开始保存行程到模板: \(defaultTitle)")
         
-        // 保存模板
-        TripTemplateManager.shared.saveTemplate(template, for: userId)
+        // 保存模板（不自动同步到行事历，用户需要在 PlanDetailView 中选择"加入行程"）
+        TripTemplateManager.shared.saveTemplate(template, for: userId, syncToAppleCalendar: false)
         
         print("✅ [自动保存] 行程已自动保存到模板: \(defaultTitle)")
     }
@@ -884,8 +884,8 @@ struct AIConversationView: View {
             destination: destination
         )
         
-        // 保存模板
-        TripTemplateManager.shared.saveTemplate(template, for: userId)
+        // 保存模板（不自动同步到行事历，用户需要在 PlanDetailView 中选择"加入行程"）
+        TripTemplateManager.shared.saveTemplate(template, for: userId, syncToAppleCalendar: false)
         
         // 显示成功提示
         let successMessage = ChatMessage(role: .system, content: "✅ 已保存到行程模板：\(templateTitle)")

@@ -16,11 +16,12 @@ enum PlannerTab: CaseIterable, Hashable {
     case myTemplates
     case templateStore
     
+    @MainActor
     var title: String {
         switch self {
-        case .aiPlanning: return "AI 規劃"
-        case .myTemplates: return "行程模板"
-        case .templateStore: return "模板市集"
+        case .aiPlanning: return "tab.ai_planning".localized()
+        case .myTemplates: return "tab.my_templates".localized()
+        case .templateStore: return "tab.template_store".localized()
         }
     }
 }

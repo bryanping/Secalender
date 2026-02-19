@@ -62,6 +62,26 @@ final class InviteLinkManager {
         return (eventId, eventTitle, creatorId)
     }
     
+    /// 從 URL 解析邀請代碼
+    /// 支援格式：https://secalender.app/invite/{code}、secalender://invite/{code}
+    /// - Parameter url: 分享連結 URL
+    /// - Returns: 邀請代碼，無法解析時回傳 nil
+    func parseInviteCode(from url: URL) -> String? {
+        let path: String
+        if url.scheme == "secalender" {
+            path = url.host.map { "\($0)\(url.path)" } ?? url.path
+        } else if url.host?.hasSuffix("secalender.app") == true {
+            path = url.path
+        } else {
+            return nil
+        }
+        // /invite/{code} 或 invite/{code}
+        let trimmed = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        guard trimmed.hasPrefix("invite/") else { return nil }
+        let code = String(trimmed.dropFirst(7)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return code.isEmpty ? nil : code
+    }
+    
     /// 生成分享文本
     func generateShareText(event: Event, inviteLink: String) -> String {
         var text = "📅 邀请你参加活动：\(event.title)\n\n"

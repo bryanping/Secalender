@@ -32,7 +32,7 @@ struct SearchGroupView: View {
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.gray)
-                    TextField("輸入社群名稱或ID", text: $searchQuery)
+                    TextField("search_group.search_placeholder".localized(), text: $searchQuery)
                         .textFieldStyle(.plain)
                         .onSubmit {
                             triggerSearch()
@@ -68,7 +68,7 @@ struct SearchGroupView: View {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         } else {
-                            Text("搜索")
+                            Text("search_group.search".localized())
                                 .fontWeight(.semibold)
                         }
                     }
@@ -84,7 +84,7 @@ struct SearchGroupView: View {
                 // 結果列表
                 if isLoading {
                     Spacer()
-                    ProgressView("搜索中...")
+                    ProgressView("search_group.searching".localized())
                     Spacer()
                 } else if searchResults.isEmpty && !searchQuery.isEmpty {
                     Spacer()
@@ -92,10 +92,10 @@ struct SearchGroupView: View {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 48))
                             .foregroundColor(.gray)
-                        Text("未找到符合條件的社群")
+                        Text("search_group.no_results".localized())
                             .font(.headline)
                             .foregroundColor(.secondary)
-                        Text("請嘗試使用不同的關鍵詞或社群ID")
+                        Text("search_group.try_different".localized())
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -126,7 +126,7 @@ struct SearchGroupView: View {
                         Text("搜索社群")
                             .font(.headline)
                             .foregroundColor(.secondary)
-                        Text("輸入社群名稱或ID進行搜索\n名稱相似度需達到50%以上")
+                        Text("search_group.placeholder".localized())
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -134,26 +134,26 @@ struct SearchGroupView: View {
                     Spacer()
                 }
             }
-            .navigationTitle("搜索社群")
+            .navigationTitle("search_group.title".localized())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") {
+                    Button("search_group.cancel".localized()) {
                         dismiss()
                     }
                 }
             }
-            .alert("錯誤", isPresented: $showErrorAlert) {
-                Button("確定", role: .cancel) {}
+            .alert("search_group.error".localized(), isPresented: $showErrorAlert) {
+                Button("settings.ok".localized(), role: .cancel) {}
             } message: {
-                Text(errorMessage ?? "未知錯誤")
+                Text(errorMessage ?? "search_group.unknown_error".localized())
             }
-            .alert("加入成功", isPresented: $showJoinSuccess) {
-                Button("確定", role: .cancel) {
+            .alert("search_group.join_success_title".localized(), isPresented: $showJoinSuccess) {
+                Button("settings.ok".localized(), role: .cancel) {
                     dismiss()
                 }
             } message: {
-                Text("已成功加入社群")
+                Text("search_group.join_success".localized())
             }
         }
     }
@@ -261,6 +261,16 @@ struct SearchGroupView: View {
         }
         
         do {
+            // 檢查手機號是否已驗證
+            let isVerified = try await UserManager.shared.isPhoneVerified(userId: userManager.userOpenId)
+            if !isVerified {
+                await MainActor.run {
+                    errorMessage = "加入社群需要先驗證手機號碼，請前往個人資料完成驗證"
+                    showErrorAlert = true
+                }
+                return
+            }
+            
             // 檢查社群權限
             let group = try await GroupManager.shared.getGroup(groupId: groupId)
             

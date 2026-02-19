@@ -40,9 +40,9 @@ struct GroupDetailView: View {
     var body: some View {
         List {
             // 社群信息
-            Section(header: Text("社群信息")) {
+            Section(header: Text("group_detail.info".localized())) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("名称")
+                    Text("group_detail.name".localized())
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Text(group.name)
@@ -51,7 +51,7 @@ struct GroupDetailView: View {
                 
                 if !group.description.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("描述")
+                        Text("group_detail.description".localized())
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Text(group.description)
@@ -60,15 +60,15 @@ struct GroupDetailView: View {
                 }
                 
                 HStack {
-                    Text("擁有者")
+                    Text("group_detail.owner".localized())
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Spacer()
                     if isOwner {
-                        Label("您", systemImage: "crown.fill")
+                        Label("group_detail.you".localized(), systemImage: "crown.fill")
                             .foregroundColor(.orange)
                     } else {
-                        Text("成員")
+                        Text("group_detail.members".localized())
                             .foregroundColor(.secondary)
                     }
                 }
@@ -76,7 +76,7 @@ struct GroupDetailView: View {
             
             // 成員列表
             Section(header: HStack {
-                Text("成员 (\(group.members.count))")
+                Text("group_detail.members_count".localized(with: group.members.count))
                 Spacer()
                 if canManage {
                     Button(action: { showInviteMembers = true }) {
@@ -86,9 +86,9 @@ struct GroupDetailView: View {
                 }
             }) {
                 if isLoadingMembers {
-                    ProgressView("加载成员中...")
+                    ProgressView("friends.loading".localized())
                 } else if members.isEmpty {
-                    Text("暂无成员信息")
+                    Text("group_detail.no_member_info".localized())
                         .foregroundColor(.secondary)
                 } else {
                     ForEach(members) { member in
@@ -114,13 +114,13 @@ struct GroupDetailView: View {
             
             // 管理操作
             if canManage {
-                Section(header: Text("管理操作")) {
+                Section(header: Text("group_detail.management".localized())) {
                     if isOwner {
-                        NavigationLink("設置管理員") {
+                        NavigationLink("group_detail.set_admin".localized()) {
                             AdminManagementView(group: $group, currentUserId: userManager.userOpenId)
                         }
                     }
-                    NavigationLink("社群活動") {
+                    NavigationLink("group_detail.group_activities".localized()) {
                         GroupEventsView(groupId: group.id ?? "")
                     }
                 }
@@ -134,7 +134,7 @@ struct GroupDetailView: View {
                     }) {
                         HStack {
                             Spacer()
-                            Text("刪除社群")
+                            Text("group_detail.delete_group".localized())
                             Spacer()
                         }
                     }
@@ -148,7 +148,7 @@ struct GroupDetailView: View {
                     }) {
                         HStack {
                             Spacer()
-                            Text("離開社群")
+                            Text("group_detail.leave_group".localized())
                             Spacer()
                         }
                     }
@@ -171,20 +171,20 @@ struct GroupDetailView: View {
                 }
             })
         }
-        .alert("錯誤", isPresented: $showErrorAlert) {
-            Button("確定", role: .cancel) {}
+        .alert("group_detail.error".localized(), isPresented: $showErrorAlert) {
+            Button("settings.ok".localized(), role: .cancel) {}
         } message: {
-            Text(errorMessage ?? "未知錯誤")
+            Text(errorMessage ?? "settings.error".localized())
         }
-        .alert("確認刪除", isPresented: $showDeleteConfirmation) {
-            Button("取消", role: .cancel) {}
-            Button("刪除", role: .destructive) {
+        .alert("group_detail.confirm_delete".localized(), isPresented: $showDeleteConfirmation) {
+            Button("common.cancel".localized(), role: .cancel) {}
+            Button("common.delete".localized(), role: .destructive) {
                 Task {
                     await deleteGroup()
                 }
             }
         } message: {
-            Text("確定要刪除這個社群嗎？此操作無法撤銷。")
+            Text("group_detail.delete_confirmation".localized())
         }
     }
     

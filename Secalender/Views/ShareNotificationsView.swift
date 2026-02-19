@@ -22,10 +22,10 @@ struct ShareNotificationsView: View {
                         Image(systemName: "bell")
                             .font(.system(size: 48))
                             .foregroundColor(.gray)
-                        Text("暂无分享通知")
+                        Text("share_notifications.no_notifications".localized())
                             .font(.headline)
                             .foregroundColor(.gray)
-                        Text("你收到的活动分享将显示在这里")
+                        Text("share_notifications.description".localized())
                             .font(.subheadline)
                             .foregroundColor(.gray)
                     }
@@ -86,7 +86,7 @@ struct ShareNotificationRow: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("你收到一个活动分享")
+            Text("share_notifications.received".localized())
                 .font(.headline)
                 .foregroundColor(.primary)
             
@@ -134,7 +134,7 @@ struct ShareNotificationRow: View {
                 HStack {
                     ProgressView()
                         .scaleEffect(0.8)
-                    Text("加载活动信息...")
+                    Text("share_notifications.loading".localized())
                         .font(.caption)
                         .foregroundColor(.gray)
                 }

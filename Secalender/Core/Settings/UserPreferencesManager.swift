@@ -20,6 +20,7 @@ final class UserPreferencesManager {
     private let userDefaults = UserDefaults.standard
     private let syncToAppleCalendarKey = "syncToAppleCalendarDefault"
     private let userCalendarsKey = "userCalendars"
+    private let autoImportAppleCalendarKey = "autoImportAppleCalendar"
     
     // MARK: - 同步到Apple日历默认设置
     
@@ -121,6 +122,44 @@ final class UserPreferencesManager {
         }
         
         return calendars
+    }
+    
+    // MARK: - 自动导入 Apple 日历设置
+    
+    /// 获取自动导入 Apple 日历的设置
+    func getAutoImportAppleCalendar(for userId: String) -> Bool {
+        // 先从本地缓存读取
+        if let cached = userDefaults.object(forKey: "\(autoImportAppleCalendarKey)_\(userId)") as? Bool {
+            return cached
+        }
+        return false
+    }
+    
+    /// 设置自动导入 Apple 日历
+    func setAutoImportAppleCalendar(_ value: Bool, for userId: String) async throws {
+        // 保存到本地缓存
+        userDefaults.set(value, forKey: "\(autoImportAppleCalendarKey)_\(userId)")
+        
+        // 保存到Firebase
+        try await db.collection("user_preferences")
+            .document(userId)
+            .setData([
+                "autoImportAppleCalendar": value,
+                "updatedAt": FieldValue.serverTimestamp()
+            ], merge: true)
+    }
+    
+    /// 从Firebase加载自动导入设置
+    func loadAutoImportAppleCalendar(for userId: String) async throws {
+        let doc = try await db.collection("user_preferences")
+            .document(userId)
+            .getDocument()
+        
+        if let data = doc.data(),
+           let value = data["autoImportAppleCalendar"] as? Bool {
+            // 更新本地缓存
+            userDefaults.set(value, forKey: "\(autoImportAppleCalendarKey)_\(userId)")
+        }
     }
 }
 

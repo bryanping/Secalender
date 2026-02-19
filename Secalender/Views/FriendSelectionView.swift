@@ -32,11 +32,11 @@ struct FriendSelectionView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                    Text("暂无好友")
+                    Text("friend_selection.no_friends".localized())
                         .font(.title2)
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
-                    Text("添加好友后才能分享活动")
+                    Text("friend_selection.add_friends_first".localized())
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -137,59 +137,18 @@ struct FriendSelectionView: View {
     private func loadFriends() {
         guard !userManager.userOpenId.isEmpty else { return }
         
-        isLoading = true
-        let db = Firestore.firestore()
-        
-        // 获取当前用户的好友列表
-        db.collection("friends")
-            .whereField("owner", isEqualTo: userManager.userOpenId)
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    print("加载好友列表失败: \(error.localizedDescription)")
-                    self.errorMessage = "加载失败: \(error.localizedDescription)"
-                    self.isLoading = false
-                    return
-                }
-                
-                guard let docs = snapshot?.documents, !docs.isEmpty else {
-                    self.isLoading = false
-                    return
-                }
-                
-                // 提取好友ID列表
-                let friendIds = docs.compactMap { $0["friend"] as? String }
-                
-                // 如果没有好友，直接返回
-                if friendIds.isEmpty {
-                    self.isLoading = false
-                    return
-                }
-                
-                // 根据好友ID获取好友详细信息
-                db.collection("users")
-                    .whereField("openid", in: friendIds) // 使用openid字段匹配
-                    .getDocuments { snap, err in
-                        defer { self.isLoading = false }
-                        
-                        if let err = err {
-                            self.errorMessage = "获取好友详情失败: \(err.localizedDescription)"
-                            return
-                        }
-                        
-                        guard let documents = snap?.documents else { return }
-                        
-                        self.friends = documents.compactMap { doc in
-                            let data = doc.data()
-                            return FriendEntry(
-                                id: doc.documentID,
-                                alias: data["alias"] as? String,
-                                name: data["displayName"] as? String, // 使用displayName字段
-                                email: data["email"] as? String,
-                                photoUrl: data["photoUrl"] as? String, // 使用photoUrl字段
-                                gender: data["gender"] as? String
-                            )
-                        }
-                    }
+        Task {
+            await MainActor.run {
+                isLoading = true
             }
+            
+            // 使用 FriendManager 的缓存机制（参考微信做法）
+            let loadedFriends = await FriendManager.shared.getFriends(for: userManager.userOpenId)
+            
+            await MainActor.run {
+                self.friends = loadedFriends
+                self.isLoading = false
+            }
+        }
     }
 }

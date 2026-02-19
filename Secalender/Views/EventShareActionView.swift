@@ -33,7 +33,7 @@ struct FriendSelectionView: View {
     var onComplete: () -> Void
     
     var body: some View {
-        Text("选择好友")
+        Text("event_share_action.select_friends".localized())
             .onAppear {
                 // 简化实现
                 onComplete()
@@ -59,7 +59,7 @@ struct EventShareActionView: View {
             VStack(spacing: 20) {
                 // 活动信息预览
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("分享活动")
+                    Text("event_share_action.share_event".localized())
                         .font(.title2)
                         .fontWeight(.bold)
                     
@@ -99,10 +99,10 @@ struct EventShareActionView: View {
                     }) {
                         HStack {
                             Image(systemName: "person.2.fill")
-                            Text("选择好友分享")
+                            Text("event_share_action.select_friends_to_share".localized())
                             Spacer()
                             if !selectedFriends.isEmpty {
-                                Text("\(selectedFriends.count) 位好友")
+                                Text("event_share_action.friends_count".localized(with: selectedFriends.count))
                                     .foregroundColor(.blue)
                             }
                             Image(systemName: "chevron.right")
@@ -118,7 +118,7 @@ struct EventShareActionView: View {
                     }) {
                         HStack {
                             Image(systemName: "link")
-                            Text("生成分享链接")
+                            Text("event_share_action.generate_share_link".localized())
                             Spacer()
                             Image(systemName: "chevron.right")
                         }
@@ -133,7 +133,7 @@ struct EventShareActionView: View {
                     }) {
                         HStack {
                             Image(systemName: "square.and.arrow.up")
-                            Text("系统分享")
+                            Text("event_share_action.system_share".localized())
                             Spacer()
                             Image(systemName: "chevron.right")
                         }
@@ -153,7 +153,7 @@ struct EventShareActionView: View {
                 }
                 
                 if showSuccessMessage {
-                    Text("分享成功！")
+                    Text("event_share_action.share_success".localized())
                         .foregroundColor(.green)
                         .padding()
                 }
@@ -216,15 +216,28 @@ struct EventShareActionView: View {
     }
     
     private func generateShareLink() {
-        let shareLink = "https://secalender.app/event/\(event.id ?? 0)"
-        let shareText = """
-        邀请你参加活动：\(event.title)
-        时间：\(event.date) \(event.startTime) - \(event.endTime)
-        地点：\(event.destination)
-        链接：\(shareLink)
-        """
-        self.shareText = shareText
-        showShareSheet = true
+        isLoading = true
+        errorMessage = nil
+        Task {
+            do {
+                let link = try await InviteLinkManager.shared.generateEventInviteLink(
+                    eventId: event.id ?? 0,
+                    eventTitle: event.title,
+                    creatorId: userManager.userOpenId
+                )
+                let shareText = InviteLinkManager.shared.generateShareText(event: event, inviteLink: link)
+                await MainActor.run {
+                    self.shareText = shareText
+                    isLoading = false
+                    showShareSheet = true
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "生成分享連結失敗：\(error.localizedDescription)"
+                    isLoading = false
+                }
+            }
+        }
     }
     
     private func prepareSystemShare() {

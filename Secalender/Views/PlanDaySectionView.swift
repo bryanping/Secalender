@@ -32,7 +32,7 @@ struct PlanDaySectionView: View {
     private var dayHeaderView: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("第\(dayIndex)天")
+                Text("plan_day.day".localized(with: dayIndex))
                     .font(.headline)
                 Spacer()
                 Text(formattedDate(from: day.date))

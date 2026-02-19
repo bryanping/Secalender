@@ -20,6 +20,7 @@ struct SavedTripTemplate: Identifiable, Codable, Equatable {
     var usageCount: Int       // 使用次数
     var isFavorite: Bool      // 是否收藏
     var destination: String?  // 目的地（快速访问）
+    var rating: Double?       // 评分（0-5，nil表示未评分）
     
     init(
         id: UUID = UUID(),
@@ -31,7 +32,8 @@ struct SavedTripTemplate: Identifiable, Codable, Equatable {
         notes: String? = nil,
         usageCount: Int = 0,
         isFavorite: Bool = false,
-        destination: String? = nil
+        destination: String? = nil,
+        rating: Double? = nil
     ) {
         self.id = id
         self.title = title
@@ -42,6 +44,7 @@ struct SavedTripTemplate: Identifiable, Codable, Equatable {
         self.notes = notes
         self.usageCount = usageCount
         self.isFavorite = isFavorite
+        self.rating = rating
         
         // 自动提取目的地
         if let dest = destination {
@@ -142,9 +145,16 @@ final class TripTemplateManager {
         
         // 检查权限状态
         let status = EKEventStore.authorizationStatus(for: .event)
-        guard status == .authorized else {
-            print("⚠️ 日历权限未授权，无法同步到手机日历")
-            return
+        if #available(iOS 17.0, *) {
+            guard status == .fullAccess || status == .writeOnly else {
+                print("⚠️ 日历权限未授权，无法同步到手机日历")
+                return
+            }
+        } else {
+            guard status == .authorized else {
+                print("⚠️ 日历权限未授权，无法同步到手机日历")
+                return
+            }
         }
         
         // 遍历所有天的活动，添加到手机日历

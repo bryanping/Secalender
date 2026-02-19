@@ -30,6 +30,9 @@
 	<true/>
 	<key>GOOGLE_APP_ID</key>
 	<string>1:271916944141:ios:c73c13e2d28cf2dd9dbe44</string>
+    <key>GOOGLE_MAPS_API_KEY</key>
+    <string>$(GOOGLE_MAPS_API_KEY)</string>
+    
 </dict>
 </plist>
   

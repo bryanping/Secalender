@@ -21,15 +21,17 @@ struct FriendsAndGroupsView: View {
     @State private var showAddGroup = false
     @Namespace private var underlineNamespace
     
-    @State private var hasInitialized = false //修改内容：避免重复触发 loadData
+    @State private var hasInitialized = false
+    @State private var activityInvitations: [NotificationEntry] = []
     
     enum ManagementTab: Int, CaseIterable {
         case friends, groups
         
+        @MainActor
         var title: String {
             switch self {
-            case .friends: return "朋友管理"
-            case .groups: return "社群管理"
+            case .friends: return "friends.management".localized()
+            case .groups: return "groups.management".localized()
             }
         }
         
@@ -48,19 +50,26 @@ struct FriendsAndGroupsView: View {
                 contentView
             }
 
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    toolbarButton
-                }
-            }
             .task {
-                //修改内容：只在首次进入执行一次，避免 .onAppear + .task 重叠
                 guard !hasInitialized else { return }
                 hasInitialized = true
+                // 與 MyFriendListView 一致：先顯示緩存本地數據
+                let cached = FriendCacheManager.shared.loadFriends(for: userManager.userOpenId)
+                if !cached.isEmpty {
+                    self.friends = cached
+                    self.isLoading = false
+                }
                 await loadData()
             }
             .refreshable {
-                await loadData()
+                await MainActor.run { self.isLoading = true }
+                let loadedFriends = await FriendManager.shared.getFriends(for: userManager.userOpenId, forceRefresh: true)
+                await MainActor.run {
+                    self.friends = loadedFriends
+                    self.isLoading = false
+                }
+                await loadGroups()
+                await loadActivityInvitations()
             }
             //修改内容：移除 onAppear 的重复加载，避免多次请求导致卡顿
             //.onAppear { Task { await loadData() } }
@@ -155,26 +164,11 @@ struct FriendsAndGroupsView: View {
         }
     }
     
-    // MARK: - Toolbar Button
-    @ViewBuilder
-    private var toolbarButton: some View {
-        Button {
-            if selectedTab == .friends {
-                showAddFriend = true
-            } else {
-                showAddGroup = true
-            }
-        } label: {
-            Image(systemName: "plus.circle.fill")
-                .font(.title3)
-        }
-    }
-    
     // MARK: - 朋友管理视图
     @ViewBuilder
     private var friendsView: some View {
         if isLoading {
-            ProgressView("加载中...")
+            ProgressView("friends.loading".localized())
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.systemGroupedBackground))
         } else if friends.isEmpty {
@@ -188,11 +182,11 @@ struct FriendsAndGroupsView: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                Text("暂无好友")
+                Text("friends.no_friends".localized())
                     .font(.title2)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
-                Text("点击右上角 + 添加好友")
+                Text("friends.add_friend_hint".localized())
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -200,7 +194,19 @@ struct FriendsAndGroupsView: View {
             .background(Color(.systemGroupedBackground))
         } else {
             ScrollView {
-                LazyVStack(spacing: 12) {
+                LazyVStack(spacing: 16) {
+                    if !activityInvitations.isEmpty {
+                        FriendActivityCardStackView(
+                            invitations: activityInvitations,
+                            onRespond: { invitationId, status in
+                                Task {
+                                    await respondToActivityInvitation(invitationId: invitationId, status: status)
+                                }
+                            }
+                        )
+                        .environmentObject(userManager)
+                    }
+                    
                     ForEach(friends, id: \.id) { friend in
                         FriendRowView(friend: friend)
                             .glassCard(radius: 14, padding: 16)
@@ -214,11 +220,32 @@ struct FriendsAndGroupsView: View {
         }
     }
     
+    private func loadActivityInvitations() async {
+        do {
+            let all = try await EventManager.shared.fetchNotifications(for: userManager.userOpenId)
+            let pending = all.filter { $0.type == "event_invitation" && $0.status == "pending" }
+            await MainActor.run { self.activityInvitations = pending }
+        } catch {
+            await MainActor.run { self.activityInvitations = [] }
+        }
+    }
+    
+    private func respondToActivityInvitation(invitationId: String, status: String) async {
+        do {
+            try await EventManager.shared.respondToInvitation(notificationId: invitationId, status: status)
+            await MainActor.run {
+                activityInvitations.removeAll { $0.id == invitationId }
+            }
+        } catch {
+            print("響應邀請失敗: \(error.localizedDescription)")
+        }
+    }
+    
     // MARK: - 社群管理视图
     @ViewBuilder
     private var groupsView: some View {
         if isLoading {
-            ProgressView("加载中...")
+            ProgressView("friends.loading".localized())
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.systemGroupedBackground))
         } else if groups.isEmpty {
@@ -232,11 +259,11 @@ struct FriendsAndGroupsView: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                Text("暂无社群")
+                Text("groups.no_groups".localized())
                     .font(.title2)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
-                Text("点击右上角 + 创建社群")
+                Text("groups.create_group_hint".localized())
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -260,41 +287,24 @@ struct FriendsAndGroupsView: View {
     
     // MARK: - 数据加载
     private func loadData() async {
-        await MainActor.run { self.isLoading = true } //修改内容：UI state 放主线程
+        let hasCached = !FriendCacheManager.shared.loadFriends(for: userManager.userOpenId).isEmpty
+        if !hasCached {
+            await MainActor.run { self.isLoading = true }
+        }
         
         async let f: Void = loadFriends()
         async let g: Void = loadGroups()
-        _ = await (f, g)
+        async let a: Void = loadActivityInvitations()
+        _ = await (f, g, a)
         
-        await MainActor.run { self.isLoading = false } //修改内容：UI state 放主线程
+        await MainActor.run { self.isLoading = false }
     }
     
     private func loadFriends() async {
-        let db = Firestore.firestore()
-        
-        do {
-            let snapshot = try await db.collection("friends")
-                .whereField("owner", isEqualTo: userManager.userOpenId)
-                .getDocuments()
-            
-            let friendIds = snapshot.documents.compactMap { $0["friend"] as? String }
-            print("📋 加载好友，找到 \(friendIds.count) 个好友ID")
-            
-            guard !friendIds.isEmpty else {
-                await MainActor.run { self.friends = [] }
-                return
-            }
-            
-            //修改内容：批量用 documentID 查询 + 分批（避免 Firestore in 限制）
-            let loadedFriends = try await fetchUsersByDocumentIds(db: db, userIds: friendIds)
-            await MainActor.run {
-                self.friends = loadedFriends
-            }
-        } catch {
-            print("❌ 加载好友失败: \(error.localizedDescription)")
-            await MainActor.run {
-                self.friends = []
-            }
+        // 與 MyFriendListView 一致：使用緩存機制，背景確認有無錯誤
+        let loadedFriends = await FriendManager.shared.getFriends(for: userManager.userOpenId)
+        await MainActor.run {
+            self.friends = loadedFriends
         }
     }
     
@@ -308,58 +318,6 @@ struct FriendsAndGroupsView: View {
         }
     }
     
-    // MARK: - Helpers（批量取 user 文档，分批避免 in 限制）
-    private func fetchUsersByDocumentIds(db: Firestore, userIds: [String]) async throws -> [FriendEntry] { //修改内容
-        let chunks = userIds.chunked(into: 10)
-        var results: [FriendEntry] = []
-        results.reserveCapacity(userIds.count)
-        
-        try await withThrowingTaskGroup(of: [FriendEntry].self) { group in
-            for chunk in chunks {
-                group.addTask {
-                    let snapshot = try await db.collection("users")
-                        .whereField(FieldPath.documentID(), in: chunk)
-                        .getDocuments()
-                    
-                    return snapshot.documents.compactMap { doc in
-                        let data = doc.data()
-                        return FriendEntry(
-                            id: doc.documentID,
-                            alias: data["alias"] as? String,
-                            name: data["name"] as? String,
-                            email: data["email"] as? String,
-                            photoUrl: data["photo_url"] as? String,
-                            gender: data["gender"] as? String
-                        )
-                    }
-                }
-            }
-            
-            for try await part in group {
-                results.append(contentsOf: part)
-            }
-        }
-        
-        // 让排序稳定：按照原 friendIds 的顺序排列
-        let order = Dictionary(uniqueKeysWithValues: userIds.enumerated().map { ($0.element, $0.offset) })
-        results.sort { (order[$0.id] ?? 0) < (order[$1.id] ?? 0) }
-        return results
-    }
-}
-
-// MARK: - 小工具：数组分批
-private extension Array { //修改内容
-    func chunked(into size: Int) -> [[Element]] {
-        guard size > 0 else { return [self] }
-        var result: [[Element]] = []
-        var index = 0
-        while index < count {
-            let end = Swift.min(index + size, count)
-            result.append(Array(self[index..<end]))
-            index = end
-        }
-        return result
-    }
 }
 
 
@@ -368,84 +326,87 @@ struct FriendRowView: View {
     let friend: FriendEntry
     @EnvironmentObject var userManager: FirebaseUserManager
     @State private var showDeleteConfirmation = false
+    @State private var showFriendDetail = false
     
     var body: some View {
-        HStack(spacing: 16) {
-            // 头像 - 玻璃态效果
-            if let urlStr = friend.photoUrl, let url = URL(string: urlStr) {
-                AsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                }
-                .frame(width: 56, height: 56)
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(.white.opacity(0.3), lineWidth: 2)
-                )
-                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-            } else {
-                Circle()
-                    .fill(.ultraThinMaterial)
+        Button {
+            showFriendDetail = true
+        } label: {
+            HStack(spacing: 16) {
+                // 头像 - 玻璃态效果
+                if let urlStr = friend.photoUrl, let url = URL(string: urlStr) {
+                    AsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    } placeholder: {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                    }
                     .frame(width: 56, height: 56)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 24))
-                    )
+                    .clipShape(Circle())
                     .overlay(
                         Circle()
                             .stroke(.white.opacity(0.3), lineWidth: 2)
                     )
                     .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-            }
-            
-            // 信息
-            VStack(alignment: .leading, spacing: 6) {
-                Text(friend.alias ?? friend.email ?? friend.name ?? "未知好友")
+                } else {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 56, height: 56)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .foregroundColor(.secondary)
+                                .font(.system(size: 24))
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(.white.opacity(0.3), lineWidth: 2)
+                        )
+                        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+                }
+                
+                // 名字
+                Text(friend.alias ?? friend.name ?? friend.email ?? "friends.unknown".localized())
                     .font(.headline)
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
                 
-                if let email = friend.email {
-                    Text(email)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                Spacer()
+                
+                // 删除按钮 - 玻璃态效果
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                        showDeleteConfirmation = true
+                    }
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.red)
+                        .frame(width: 40, height: 40)
+                        .background(.ultraThinMaterial, in: Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(.white.opacity(0.2), lineWidth: 1)
+                        )
                 }
-            }
-            
-            Spacer()
-            
-            // 删除按钮 - 玻璃态效果
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                    showDeleteConfirmation = true
-                }
-            } label: {
-                Image(systemName: "trash")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(.red)
-                    .frame(width: 40, height: 40)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(.white.opacity(0.2), lineWidth: 1)
-                    )
+                .buttonStyle(.plain)
             }
         }
-        .alert("删除好友", isPresented: $showDeleteConfirmation) {
-            Button("取消", role: .cancel) {}
-            Button("删除", role: .destructive) {
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showFriendDetail) {
+            FriendDetailView(friendId: friend.id)
+                .environmentObject(userManager)
+        }
+        .alert("friends.delete".localized(), isPresented: $showDeleteConfirmation) {
+            Button("common.cancel".localized(), role: .cancel) {}
+            Button("common.delete".localized(), role: .destructive) {
                 Task {
                     await deleteFriend()
                 }
             }
         } message: {
-            Text("确定要删除这位好友吗？")
+            Text("friends.delete_confirmation".localized())
         }
     }
     
@@ -514,7 +475,7 @@ struct GroupRowView: View {
                             .lineLimit(2)
                     }
                     
-                    Text("\(group.members.count) 位成员")
+                    Text("groups.members_count".localized(with: group.members.count))
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
@@ -534,8 +495,172 @@ struct GroupRowView: View {
     }
 }
 
+// MARK: - 朋友活動卡片預覽（滑動略過/參與）
+struct FriendActivityCardStackView: View {
+    let invitations: [NotificationEntry]
+    let onRespond: (String, String) async -> Void
+    
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @State private var displayedInvitations: [NotificationEntry] = []
+    @State private var cardOffsets: [String: CGFloat] = [:]
+    @State private var cardRotations: [String: Double] = [:]
+    private let swipeThreshold: CGFloat = 80
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle
+            cardStack
+        }
+        .onAppear { displayedInvitations = invitations }
+        .onChange(of: invitations) { displayedInvitations = invitations }
+    }
+    
+    private var sectionTitle: some View {
+        Text("朋友活動邀請")
+            .font(.headline)
+            .fontWeight(.semibold)
+            .foregroundColor(.primary)
+            .padding(.horizontal)
+    }
+    
+    private var cardStack: some View {
+        ZStack {
+            ForEach(Array(displayedInvitations.enumerated().reversed()), id: \.element.id) { index, invitation in
+                swipeableCard(invitation: invitation, index: index)
+            }
+        }
+        .frame(height: 200)
+        .padding(.horizontal)
+    }
+    
+    @ViewBuilder
+    private func swipeableCard(invitation: NotificationEntry, index: Int) -> some View {
+        FriendActivityCard(invitation: invitation)
+            .environmentObject(userManager)
+            .offset(x: cardOffsets[invitation.id] ?? 0)
+            .rotationEffect(.degrees(cardRotations[invitation.id] ?? 0))
+            .zIndex(Double(displayedInvitations.count - index))
+            .gesture(dragGesture(for: invitation))
+    }
+    
+    private func dragGesture(for invitation: NotificationEntry) -> some Gesture {
+        DragGesture()
+            .onChanged { value in
+                let dx = value.translation.width
+                cardOffsets[invitation.id] = dx
+                cardRotations[invitation.id] = Double(dx / 20)
+            }
+            .onEnded { value in
+                handleSwipeEnd(for: invitation, translation: value.translation.width)
+            }
+    }
+    
+    private func handleSwipeEnd(for invitation: NotificationEntry, translation: CGFloat) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+            if translation > swipeThreshold {
+                cardOffsets[invitation.id] = 500
+                cardRotations[invitation.id] = 15
+                Task { await performResponse(invitationId: invitation.id, status: "accepted") }
+            } else if translation < -swipeThreshold {
+                cardOffsets[invitation.id] = -500
+                cardRotations[invitation.id] = -15
+                Task { await performResponse(invitationId: invitation.id, status: "declined") }
+            } else {
+                cardOffsets[invitation.id] = 0
+                cardRotations[invitation.id] = 0
+            }
+        }
+    }
+    
+    private func performResponse(invitationId: String, status: String) async {
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        await onRespond(invitationId, status)
+        await MainActor.run {
+            displayedInvitations.removeAll { $0.id == invitationId }
+            cardOffsets[invitationId] = nil
+            cardRotations[invitationId] = nil
+        }
+    }
+}
 
-
+struct FriendActivityCard: View {
+    let invitation: NotificationEntry
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @State private var event: Event?
+    @State private var senderName: String = "好友"
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(senderName)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    if let e = event {
+                        Text(e.title)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        Text("\(e.date) \(e.startTime)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("活動邀請")
+                            .font(.headline)
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    }
+                }
+                Spacer()
+                HStack(spacing: 16) {
+                    Text("略過")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                    Text("參與")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                }
+            }
+            if let e = event, !e.destination.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "location.fill")
+                        .font(.caption2)
+                    Text(e.destination)
+                        .font(.caption)
+                        .lineLimit(1)
+                }
+                .foregroundColor(.secondary)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+        )
+        .task {
+            await loadData()
+        }
+    }
+    
+    private func loadData() async {
+        let e = await EventManager.shared.fetchEventForInvitation(eventId: invitation.eventId, creatorId: invitation.senderId)
+        await MainActor.run { event = e }
+        
+        do {
+            let doc = try await Firestore.firestore()
+                .collection("users")
+                .document(invitation.senderId)
+                .getDocument()
+            if let data = doc.data() {
+                let name = (data["display_name"] as? String) ?? (data["alias"] as? String) ?? (data["name"] as? String) ?? (data["email"] as? String) ?? "好友"
+                await MainActor.run { senderName = name }
+            }
+        } catch {
+            print("載入發送者資訊失敗: \(error.localizedDescription)")
+        }
+    }
+}
 
 // MARK: - 成員行視圖
 struct MemberRowView: View {
@@ -587,15 +712,15 @@ struct MemberRowView: View {
             // 成員信息
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(member.alias ?? member.email ?? member.name ?? "未知成员")
+                    Text(member.alias ?? member.email ?? member.name ?? "groups.unknown_member".localized())
                         .font(.headline)
                     
                     if isMemberOwner {
-                        Label("擁有者", systemImage: "crown.fill")
+                        Label("groups.owner".localized(), systemImage: "crown.fill")
                             .font(.caption2)
                             .foregroundColor(.orange)
                     } else if isMemberAdmin {
-                        Label("管理員", systemImage: "star.fill")
+                        Label("groups.admin".localized(), systemImage: "star.fill")
                             .font(.caption2)
                             .foregroundColor(.blue)
                     }
@@ -620,7 +745,7 @@ struct MemberRowView: View {
                                     await onRemoveAdmin(member.userId)
                                 }
                             }) {
-                                Label("取消管理員", systemImage: "star.slash")
+                                Label("groups.remove_admin".localized(), systemImage: "star.slash")
                             }
                         } else {
                             Button(action: {
@@ -628,7 +753,7 @@ struct MemberRowView: View {
                                     await onSetAdmin(member.userId)
                                 }
                             }) {
-                                Label("設為管理員", systemImage: "star.fill")
+                                Label("groups.set_admin".localized(), systemImage: "star.fill")
                             }
                         }
                     }
@@ -638,7 +763,7 @@ struct MemberRowView: View {
                             await onRemoveMember(member.userId)
                         }
                     }) {
-                        Label("移除成員", systemImage: "person.badge.minus")
+                        Label("groups.remove_member".localized(), systemImage: "person.badge.minus")
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -657,28 +782,28 @@ struct AdminManagementView: View {
     
     var body: some View {
         List {
-            Section("管理員列表") {
+            Section("groups.admin_list".localized()) {
                 ForEach(members.filter { group.admins.contains($0.userId) }) { member in
                     HStack {
-                        Text(member.alias ?? member.email ?? member.name ?? "未知")
+                        Text(member.alias ?? member.email ?? member.name ?? "groups.unknown_member".localized())
                         Spacer()
                         if group.owner == member.userId {
-                            Label("擁有者", systemImage: "crown.fill")
+                            Label("groups.owner".localized(), systemImage: "crown.fill")
                                 .foregroundColor(.orange)
                         } else {
-                            Label("管理員", systemImage: "star.fill")
+                            Label("groups.admin".localized(), systemImage: "star.fill")
                                 .foregroundColor(.blue)
                         }
                     }
                 }
             }
             
-            Section("普通成員") {
+            Section("groups.regular_members".localized()) {
                 ForEach(members.filter { !group.admins.contains($0.userId) && group.owner != $0.userId }) { member in
                     HStack {
-                        Text(member.alias ?? member.email ?? member.name ?? "未知")
+                        Text(member.alias ?? member.email ?? member.name ?? "groups.unknown_member".localized())
                         Spacer()
-                        Button("設為管理員") {
+                        Button("groups.set_admin".localized()) {
                             Task {
                                 await setAdmin(memberId: member.userId)
                             }
@@ -688,7 +813,7 @@ struct AdminManagementView: View {
                 }
             }
         }
-        .navigationTitle("管理員設置")
+        .navigationTitle("groups.admin_settings".localized())
         .task {
             await loadMembers()
         }
@@ -699,7 +824,7 @@ struct AdminManagementView: View {
         do {
             members = try await GroupManager.shared.getGroupMembers(groupId: group.id ?? "")
         } catch {
-            print("加載成員失敗：\(error.localizedDescription)")
+            print("groups.load_members_failed".localized(with: error.localizedDescription))
         }
         isLoading = false
     }
@@ -715,7 +840,7 @@ struct AdminManagementView: View {
             group = try await GroupManager.shared.getGroup(groupId: groupId)
             await loadMembers()
         } catch {
-            print("設置管理員失敗：\(error.localizedDescription)")
+            print("groups.set_admin_failed".localized(with: error.localizedDescription))
         }
     }
 } // MARK: - 邀請成員視圖
@@ -735,14 +860,14 @@ struct InviteMembersToGroupView: View {
         NavigationView {
             List {
                 if isLoading {
-                    ProgressView("加載好友中...")
+                    ProgressView("groups.loading_friends".localized())
                 } else if friends.isEmpty {
-                    Text("暫無好友可邀請")
+                    Text("groups.no_friends_to_invite".localized())
                         .foregroundColor(.secondary)
                 } else {
                     ForEach(friends, id: \.id) { friend in
                         HStack {
-                            Text(friend.alias ?? friend.email ?? friend.name ?? "未知")
+                            Text(friend.alias ?? friend.email ?? friend.name ?? "friends.unknown".localized())
                             Spacer()
                             if selectedFriendIds.contains(friend.id) {
                                 Image(systemName: "checkmark.circle.fill")
@@ -760,16 +885,16 @@ struct InviteMembersToGroupView: View {
                     }
                 }
             }
-            .navigationTitle("邀請成員")
+            .navigationTitle("groups.invite_members".localized())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") {
+                    Button("common.cancel".localized()) {
                         dismiss()
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("邀請") {
+                    Button("groups.invite".localized()) {
                         Task {
                             await inviteMembers()
                         }
@@ -780,46 +905,22 @@ struct InviteMembersToGroupView: View {
             .task {
                 await loadFriends()
             }
-            .alert("錯誤", isPresented: $showErrorAlert) {
-                Button("確定", role: .cancel) {}
+            .alert("settings.error".localized(), isPresented: $showErrorAlert) {
+                Button("settings.ok".localized(), role: .cancel) {}
             } message: {
-                Text(errorMessage ?? "未知錯誤")
+                Text(errorMessage ?? "settings.error".localized())
             }
         }
     }
     
     private func loadFriends() async {
         isLoading = true
-        do {
-            let db = Firestore.firestore()
-            let snapshot = try await db.collection("friends")
-                .whereField("owner", isEqualTo: userManager.userOpenId)
-                .getDocuments()
-            
-            let friendIds = snapshot.documents.compactMap { $0["friend"] as? String }
-            
-            if !friendIds.isEmpty {
-                let userSnapshot = try await db.collection("users")
-                    .whereField("user_id", in: friendIds)
-                    .getDocuments()
-                
-                friends = userSnapshot.documents.compactMap { doc in
-                    let data = doc.data()
-                    return FriendEntry(
-                        id: doc.documentID,
-                        alias: data["alias"] as? String,
-                        name: data["name"] as? String,
-                        email: data["email"] as? String,
-                        photoUrl: data["photo_url"] as? String,
-                        gender: data["gender"] as? String
-                    )
-                }
-            }
-        } catch {
-            errorMessage = "加載好友失敗：\(error.localizedDescription)"
-            showErrorAlert = true
+        // 使用 FriendManager 的缓存机制（参考微信做法）
+        let loadedFriends = await FriendManager.shared.getFriends(for: userManager.userOpenId)
+        await MainActor.run {
+            self.friends = loadedFriends
+            self.isLoading = false
         }
-        isLoading = false
     }
     
     private func inviteMembers() async {

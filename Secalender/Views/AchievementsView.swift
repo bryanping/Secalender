@@ -16,14 +16,14 @@ struct Achievement: Identifiable {
 
 struct AchievementsView: View {
     @State private var achievements: [Achievement] = [
-        Achievement(title: "連續早起七天",
-                    description: "培養早睡早起的好習慣",
+        Achievement(title: "achievements.early_bird.title".localized(),
+                    description: "achievements.early_bird.description".localized(),
                     progress: 0.5),
-        Achievement(title: "完成五套親子行程",
-                    description: "與孩子共享愉快時光",
+        Achievement(title: "achievements.family_trips.title".localized(),
+                    description: "achievements.family_trips.description".localized(),
                     progress: 0.2),
-        Achievement(title: "低碳出行十次",
-                    description: "乘坐公共交通或騎乘自行車",
+        Achievement(title: "achievements.low_carbon.title".localized(),
+                    description: "achievements.low_carbon.description".localized(),
                     progress: 0.7)
     ]
 
@@ -49,7 +49,7 @@ struct AchievementsView: View {
                 }
             }
             .listStyle(InsetGroupedListStyle())
-            .navigationTitle("成就與任務")
+            .navigationTitle("member.achievements_tasks".localized())
         }
     }
 }

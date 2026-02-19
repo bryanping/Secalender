@@ -7,10 +7,47 @@
 
 import SwiftUI
 
+// MARK: - 中间按钮功能类型
+enum MiddleButtonAction {
+    case createEvent      // 建立行程
+    case aiConversation   // AI对话
+    case memberActions    // 成员功能（添加好友、创建社群、分享行程）
+    
+    var icon: String {
+        switch self {
+        case .createEvent:
+            return "plus"
+        case .aiConversation:
+            return "message.fill"
+        case .memberActions:
+            return "ellipsis.circle.fill"
+        }
+    }
+    
+    static func action(for tab: Int) -> MiddleButtonAction {
+        switch tab {
+        case 1: return .createEvent      // CalendarView
+        case 2: return .aiConversation   // TravelTemplateView
+        case 3: return .memberActions    // FriendsAndGroupsView - 显示功能菜单
+        case 4: return .createEvent      // MemberView - 建立行程
+        default: return .createEvent
+        }
+    }
+}
+
 struct ContentView: View {
     @State private var selectedTab = 1
     @State private var showCreateEvent = false
+    @State private var showAIConversation = false
+    @State private var showMemberActionSheet = false
+    @State private var showFriendsActionSheet = false  // FriendsAndGroupsView 的功能菜单
+    @State private var showAddFriend = false
+    @State private var showAddGroup = false
     @EnvironmentObject var userManager: FirebaseUserManager
+    
+    // 中间按钮旋转动画状态
+    @State private var iconRotation: Double = 0
+    @State private var previousTab: Int = 1
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -41,14 +78,21 @@ struct ContentView: View {
                 Spacer()
                 CustomTabBar(
                     selectedTab: $selectedTab,
-                    onCreateTap: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            showCreateEvent = true
-                        }
-                    }
+                    middleButtonAction: MiddleButtonAction.action(for: selectedTab),
+                    iconRotation: iconRotation,
+                    onMiddleButtonTap: handleMiddleButtonTap
                 )
             }
             .ignoresSafeArea(edges: .bottom)
+        }
+        .onChange(of: selectedTab) { newTab in
+            // 当切换页面时，添加旋转动画
+            if newTab != previousTab {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    iconRotation += 360
+                }
+                previousTab = newTab
+            }
         }
         .sheet(isPresented: $showCreateEvent) {
             EventCreateView(
@@ -66,20 +110,75 @@ struct ContentView: View {
             )
             .environmentObject(userManager)
         }
-    }   
+        .sheet(isPresented: $showAIConversation) {
+            AIConversationView()
+                .environmentObject(userManager)
+        }
+        .sheet(isPresented: $showAddFriend) {
+            AddFriendView()
+                .environmentObject(userManager)
+        }
+        .sheet(isPresented: $showAddGroup) {
+            AddGroupView()
+                .environmentObject(userManager)
+        }
+        .sheet(isPresented: $showFriendsActionSheet) {
+            FriendsActionBottomSheet(
+                onAddFriend: {
+                    showFriendsActionSheet = false
+                    showAddFriend = true
+                },
+                onAddGroup: {
+                    showFriendsActionSheet = false
+                    showAddGroup = true
+                },
+                onDismiss: {
+                    showFriendsActionSheet = false
+                }
+            )
+            .presentationDetents([.height(200)])
+            .presentationDragIndicator(.visible)
+        }
+       
+    }
+    
+    // MARK: - 中间按钮点击处理
+    private func handleMiddleButtonTap() {
+        let action = MiddleButtonAction.action(for: selectedTab)
+        
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            switch action {
+            case .createEvent:
+                showCreateEvent = true
+            case .aiConversation:
+                showAIConversation = true
+            case .memberActions:
+                // 根据当前 tab 显示不同的菜单
+                if selectedTab == 3 {
+                    // FriendsAndGroupsView - 显示添加好友、创建社群、分享行程菜单
+                    showFriendsActionSheet = true
+                } else {
+                    // MemberView - 显示成员功能菜单（虽然现在不会到这里，因为 MemberView 是 createEvent）
+                    showMemberActionSheet = true
+                }
+            }
+        }
+    }
 }
 
 // MARK: - 自定义TabBar组件
 struct CustomTabBar: View {
     @Binding var selectedTab: Int
-    let onCreateTap: () -> Void
+    let middleButtonAction: MiddleButtonAction
+    let iconRotation: Double
+    let onMiddleButtonTap: () -> Void
     
     var body: some View {
         HStack(spacing: 0) {
             // Tab 1: 行事曆
             TabBarButton(
                 icon: "calendar",
-                label: "行事曆",
+                label: "tab.calendar".localized(),
                 isSelected: selectedTab == 1,
                 action: { selectedTab = 1 }
             )
@@ -87,13 +186,13 @@ struct CustomTabBar: View {
             // Tab 2: 智能規劃
             TabBarButton(
                 icon: "sparkles",
-                label: "智能規劃",
+                label: "tab.ai_planning".localized(),
                 isSelected: selectedTab == 2,
                 action: { selectedTab = 2 }
             )
             
-            // 中间的创建按钮 - 更柔和的设计
-            Button(action: onCreateTap) {
+            // 中间的动态按钮 - 根据页面显示不同图标和功能
+            Button(action: onMiddleButtonTap) {
                 ZStack {
                     // 背景圆圈 - 使用更柔和的玻璃态效果
                     Circle()
@@ -119,8 +218,8 @@ struct CustomTabBar: View {
                         .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
                         .shadow(color: .white.opacity(0.2), radius: 1, x: 0, y: -1)
                     
-                    // Plus图标
-                    Image(systemName: "plus")
+                    // 动态图标，带旋转动画和过渡效果
+                    Image(systemName: middleButtonAction.icon)
                         .font(.system(size: 25, weight: .semibold))
                         .foregroundStyle(
                             LinearGradient(
@@ -132,6 +231,9 @@ struct CustomTabBar: View {
                                 endPoint: .bottomTrailing
                             )
                         )
+                        .rotationEffect(.degrees(iconRotation))
+                        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: middleButtonAction.icon)
+                        .transition(.scale.combined(with: .opacity))
                 }
             }
             .offset(y: -22) // 轻微向上偏移
@@ -140,7 +242,7 @@ struct CustomTabBar: View {
             // Tab 3: 朋友＆社群
             TabBarButton(
                 icon: "person.2.fill",
-                label: "朋友＆社群",
+                label: "tab.friends_community".localized(),
                 isSelected: selectedTab == 3,
                 action: { selectedTab = 3 }
             )
@@ -148,7 +250,7 @@ struct CustomTabBar: View {
             // Tab 4: 功能
             TabBarButton(
                 icon: "gearshape",
-                label: "功能",
+                label: "tab.settings".localized(),
                 isSelected: selectedTab == 4,
                 action: { selectedTab = 4 }
             )
@@ -212,6 +314,86 @@ struct TabBarButton: View {
         }
         .buttonStyle(.plain)
         .padding(.bottom, 25)
+    }
+}
+
+// MARK: - 底部弹出菜单组件
+struct FriendsActionBottomSheet: View {
+    let onAddFriend: () -> Void
+    let onAddGroup: () -> Void
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // 拖拽指示器
+            RoundedRectangle(cornerRadius: 2.5)
+                .fill(Color.secondary.opacity(0.3))
+                .frame(width: 36, height: 5)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
+            
+            // 标题
+            Text("选择功能")
+                .font(.headline)
+                .foregroundColor(.primary)
+                .padding(.bottom, 20)
+            
+            // 功能按钮
+            VStack(spacing: 12) {
+                Button(action: onAddFriend) {
+                    HStack {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 18))
+                            .foregroundColor(.blue)
+                            .frame(width: 24)
+                        
+                        Text("添加好友")
+                            .font(.body)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .background(Color(UIColor.systemGray6))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: onAddGroup) {
+                    HStack {
+                        Image(systemName: "person.3.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.blue)
+                            .frame(width: 24)
+                        
+                        Text("创建社群")
+                            .font(.body)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .background(Color(UIColor.systemGray6))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 20)
+            
+            Spacer()
+        }
+        .padding(.bottom, 20)
+        .background(Color(UIColor.systemBackground))
     }
 }
 

@@ -180,7 +180,8 @@ class EventManager {
     
     /// 只添加到 Firebase（不更新本地缓存，用于后台同步）
     /// 注意：调用此方法前应该已经添加到本地缓存
-    func addEventToFirebaseOnly(event: Event) async throws {
+    /// - Returns: 新创建事件的 ID，供创建时邀请好友等后续操作使用
+    func addEventToFirebaseOnly(event: Event) async throws -> Int {
         var newEvent = event
         let now = Date()
         let formatter = DateFormatter()
@@ -210,8 +211,9 @@ class EventManager {
             print("✅ 个人活动 Firebase 保存成功: userId=\(userId), eventId=\(intId)")
         }
         
-        // 更新本地缓存中的事件ID（因为 Firebase 生成了新的 ID）
-        EventCacheManager.shared.updateEventInCache(newEvent, for: userId)
+        // 更新本地缓存（用帶 id 的事件替換臨時事件）
+        EventCacheManager.shared.addEventToCache(newEvent, for: userId)
+        return intId
     }
 
     /// 读取所有活动（优先使用本地缓存，后台同步Firebase）
@@ -355,61 +357,84 @@ class EventManager {
         return EventCacheManager.shared.loadEvents(for: userId)
     }
     
+    /// 獲取邀請的活動詳情（從創建者的 events 子集合）
+    func fetchEventForInvitation(eventId: Int, creatorId: String) async -> Event? {
+        do {
+            let snapshot = try await db.collection("users")
+                .document(creatorId)
+                .collection("events")
+                .whereField("id", isEqualTo: eventId)
+                .limit(to: 1)
+                .getDocuments()
+            guard let doc = snapshot.documents.first else { return nil }
+            return parseEventFromDocument(doc)
+        } catch {
+            print("⚠️ 獲取邀請活動失敗: \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
     /// 软删除活动（设置 deleted = 1，保留记录）
-    func softDeleteEvent(eventId: Int) async throws {
+    /// 立即更新本地缓存，Firebase 更新在后台异步进行
+    func softDeleteEvent(eventId: Int) {
         print("尝试软删除活动，ID: \(eventId)")
         
         let userId = Auth.auth().currentUser?.uid ?? ""
         guard !userId.isEmpty else {
-            throw NSError(domain: "EventManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "用户未登录"])
+            print("⚠️ 用户未登录，无法删除")
+            return
         }
         
-        // 先更新本地缓存（立即响应）
-        if !userId.isEmpty {
-            if var cachedEvent = EventCacheManager.shared.loadEvents(for: userId).first(where: { $0.id == eventId }) {
-                cachedEvent.deleted = 1
-                EventCacheManager.shared.updateEventInCache(cachedEvent, for: userId)
-            }
+        // 先更新本地缓存（立即响应，不等待网络）
+        if var cachedEvent = EventCacheManager.shared.loadEvents(for: userId).first(where: { $0.id == eventId }) {
+            cachedEvent.deleted = 1
+            EventCacheManager.shared.updateEventInCache(cachedEvent, for: userId)
+            print("✅ 本地缓存已更新: ID \(eventId)")
         }
         
-        // 更新 Firebase（后台同步）
-        do {
-            // 先尝试从个人事件中更新
-            let userEventsSnapshot = try await db.collection("users")
-                .document(userId)
-                .collection("events")
-                .whereField("id", isEqualTo: eventId)
-                .getDocuments()
-            
-            if let userEventDoc = userEventsSnapshot.documents.first {
-                try await userEventDoc.reference.updateData(["deleted": 1])
-                print("✅ 个人活动软删除成功: ID \(eventId)")
-                return
-            }
-            
-            // 如果不是个人事件，尝试从所有社群的 groupEvents 中更新
-            let groupsSnapshot = try await db.collection("groups")
-                .whereField("members", arrayContains: userId)
-                .getDocuments()
-            
-            for groupDoc in groupsSnapshot.documents {
-                let groupId = groupDoc.documentID
-                let groupEventsSnapshot = try await db.collection("groups")
-                    .document(groupId)
-                    .collection("groupEvents")
+        // 通知 UI 刷新
+        NotificationCenter.default.post(name: NSNotification.Name("EventSaved"), object: nil)
+        
+        // 后台异步更新 Firebase（不阻塞 UI）
+        Task {
+            do {
+                // 先尝试从个人事件中更新
+                let userEventsSnapshot = try await db.collection("users")
+                    .document(userId)
+                    .collection("events")
                     .whereField("id", isEqualTo: eventId)
                     .getDocuments()
                 
-                if let groupEventDoc = groupEventsSnapshot.documents.first {
-                    try await groupEventDoc.reference.updateData(["deleted": 1])
-                    print("✅ 社群活动软删除成功: groupId=\(groupId), eventId=\(eventId)")
+                if let userEventDoc = userEventsSnapshot.documents.first {
+                    try await userEventDoc.reference.updateData(["deleted": 1])
+                    print("✅ 个人活动 Firebase 软删除成功: ID \(eventId)")
                     return
                 }
+                
+                // 如果不是个人事件，尝试从所有社群的 groupEvents 中更新
+                let groupsSnapshot = try await db.collection("groups")
+                    .whereField("members", arrayContains: userId)
+                    .getDocuments()
+                
+                for groupDoc in groupsSnapshot.documents {
+                    let groupId = groupDoc.documentID
+                    let groupEventsSnapshot = try await db.collection("groups")
+                        .document(groupId)
+                        .collection("groupEvents")
+                        .whereField("id", isEqualTo: eventId)
+                        .getDocuments()
+                    
+                    if let groupEventDoc = groupEventsSnapshot.documents.first {
+                        try await groupEventDoc.reference.updateData(["deleted": 1])
+                        print("✅ 社群活动 Firebase 软删除成功: groupId=\(groupId), eventId=\(eventId)")
+                        return
+                    }
+                }
+                
+                print("⚠️ Firebase中找不到活动，但已更新本地缓存: ID \(eventId)")
+            } catch {
+                print("⚠️ Firebase软删除失败，但已更新本地缓存: \(error.localizedDescription)")
             }
-            
-            print("⚠️ Firebase中找不到活动，但已更新本地缓存: ID \(eventId)")
-        } catch {
-            print("⚠️ Firebase软删除失败，但已更新本地缓存: \(error.localizedDescription)")
         }
     }
     
@@ -893,7 +918,7 @@ class EventManager {
 }
 
 // 通知条目结构
-struct NotificationEntry: Identifiable {
+struct NotificationEntry: Identifiable, Equatable {
     let id: String
     let eventId: Int
     let senderId: String

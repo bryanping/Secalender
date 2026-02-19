@@ -47,8 +47,11 @@ class EventFormState: ObservableObject {
     @Published var availableGroups: [CommunityGroup] = []
     @Published var isLoadingGroups: Bool = false
     
+    /// 创建时邀请的好友 ID 列表（行程创建完成後發送邀請）
+    @Published var selectedFriendsToInvite: [String] = []
+    
     // 缓存日历显示文本和颜色，避免频繁计算
-    @Published var calendarDisplayText: String = "活動安排"
+    @Published var calendarDisplayText: String = "event_create.calendar".localized()
     @Published var calendarColor: Color = .red
 }
 
@@ -58,6 +61,7 @@ enum EventSheetType: Identifiable {
     case calendarOptions
     case locationPicker
     case groupSelector
+    case friendSelector
     
     var id: String {
         switch self {
@@ -65,6 +69,7 @@ enum EventSheetType: Identifiable {
         case .calendarOptions: return "calendarOptions"
         case .locationPicker: return "locationPicker"
         case .groupSelector: return "groupSelector"
+        case .friendSelector: return "friendSelector"
         }
     }
 }
@@ -102,44 +107,49 @@ struct EventCreateView: View {
     }
     
     // 重複選項
-    private let repeatOptions = [
-        ("never", "永不"),
-        ("daily", "每天"),
-        ("weekly", "每週"),
-        ("monthly", "每月"),
-        ("yearly", "每年")
-    ]
+    private var repeatOptions: [(String, String)] {
+        [
+            ("never", "event_create.repeat_options.never".localized()),
+            ("daily", "event_create.repeat_options.daily".localized()),
+            ("weekly", "event_create.repeat_options.weekly".localized()),
+            ("monthly", "event_create.repeat_options.monthly".localized()),
+            ("yearly", "event_create.repeat_options.yearly".localized())
+        ]
+    }
     
-    // 行事曆組件選項
-    private let calendarOptions = [
-        ("default", "活動安排"),
-        ("work", "工作"),
-        ("personal", "個人"),
-        ("family", "家庭"),
-        ("study", "學習")
-    ]
+    // 行事曆組件選項（仅作为回退，实际应使用系统日历名称）
+    private var calendarOptions: [(String, String)] {
+        [
+            ("work", "event_create.calendar_options.work".localized()),
+            ("personal", "event_create.calendar_options.personal".localized()),
+            ("family", "event_create.calendar_options.family".localized()),
+            ("study", "event_create.calendar_options.study".localized())
+        ]
+    }
     
     // 路程時間選項
-    private let travelTimeOptions = [
-        ("無", nil),
-        ("5 分鐘", "5"),
-        ("15 分鐘", "15"),
-        ("30 分鐘", "30"),
-        ("1 小時", "60"),
-        ("1.5 小時", "90"),
-        ("2 小時", "120")
-    ]
+    private var travelTimeOptions: [(String, String?)] {
+        [
+            ("event_create.travel_time.none".localized(), nil),
+            ("event_create.travel_time.minutes".localized(with: 5), "5"),
+            ("event_create.travel_time.minutes".localized(with: 15), "15"),
+            ("event_create.travel_time.minutes".localized(with: 30), "30"),
+            ("event_create.travel_time.hours".localized(with: 1.0), "60"),
+            ("event_create.travel_time.hours".localized(with: 1.5), "90"),
+            ("event_create.travel_time.hours".localized(with: 2.0), "120")
+        ]
+    }
     
     // MARK: - 單日行程表單部分（优化：使用单一EventFormCard包裹所有字段）
     @ViewBuilder
     private var singleDayEventSections: some View {
         // 單一卡片包含所有字段：行程標題、活動內容、地點、時間
-        EventFormCard(icon: "calendar", title: "行程 1", iconColor: .blue) {
+        EventFormCard(icon: "calendar", title: "event_create.trip_1".localized(), iconColor: .blue) {
             VStack(spacing: 16) {
                 // 行程標題
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text("行程標題")
+                        Text("event_create.title".localized())
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
                         
@@ -150,7 +160,7 @@ struct EventCreateView: View {
                             .foregroundColor(formState.title.count >= 20 ? .red : .secondary)
                     }
                     
-                    TextField("例如:抵達東京成田機場", text: Binding(
+                    TextField("event_create.title_placeholder".localized(), text: Binding(
                         get: { formState.title },
                         set: { newValue in
                             // 限制最多20个字符
@@ -170,12 +180,12 @@ struct EventCreateView: View {
                 
                 // 活動內容
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("活動內容")
+                    Text("event_create.content".localized())
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
                     
                     GlassTextEditor(
-                        placeholder: "輸入活動備註或細節...",
+                        placeholder: "event_create.content_placeholder".localized(),
                         text: $formState.information,
                         minHeight: 80
                     )
@@ -193,7 +203,7 @@ struct EventCreateView: View {
                                 .foregroundColor(.blue)
                                 .font(.system(size: 20))
                             
-                            Text(formState.destination.isEmpty ? "選擇地點" : formState.destination)
+                            Text(formState.destination.isEmpty ? "event_create.select_location".localized() : formState.destination.formattedForDisplay)
                                 .foregroundColor(formState.destination.isEmpty ? .gray : .primary)
                                 .multilineTextAlignment(.center)
                                 .lineLimit(2)
@@ -216,7 +226,7 @@ struct EventCreateView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
 
-                        Text("設定時間")
+                        Text("event_create.set_time".localized())
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
                     }
@@ -239,14 +249,15 @@ struct EventCreateView: View {
             }
         }
         .onChange(of: formState.isAllDay) { oldValue, newValue in
-            // 优化：添加防抖，避免频繁更新
             guard newValue else { return }
             Task { @MainActor in
-                formState.isHasEnd = false
                 let calendar = Calendar.current
                 formState.selectedStartTime = calendar.startOfDay(for: formState.selectedStartDate)
-                formState.selectedEndDate = formState.selectedStartDate
                 formState.selectedEndTime = calendar.date(byAdding: .hour, value: 1, to: formState.selectedStartTime) ?? formState.selectedStartTime
+                if viewModel.event.endDate == nil || viewModel.event.endDate == viewModel.event.date {
+                    formState.isHasEnd = false
+                    formState.selectedEndDate = formState.selectedStartDate
+                }
             }
         }
         
@@ -283,7 +294,7 @@ struct EventCreateView: View {
                     Image(systemName: "plus.circle.fill")
                         .foregroundColor(.blue)
                         .font(.system(size: 18))
-                    Text("添加多日行程")
+                    Text("event_create.add_multi_day".localized())
                         .foregroundColor(.blue)
                         .font(.system(size: 16, weight: .semibold))
                 }
@@ -291,7 +302,7 @@ struct EventCreateView: View {
                 .padding(.vertical, 16)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white)
+                        .fill(Color(.systemBackground))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
@@ -303,10 +314,10 @@ struct EventCreateView: View {
             .padding(.horizontal)
         
         // 社群/个人设置卡片
-        EventFormCard(icon: "person.2.fill", title: "發布設置", iconColor: .blue) {
+        EventFormCard(icon: "person.2.fill", title: "event_create.publish_settings".localized(), iconColor: .blue) {
                 VStack(spacing: 16) {
                     // 个人/社群切换（优化：减少 onChange 触发频率）
-                    Toggle(formState.isGroupEvent ? "由社群发布" : "個人發布", isOn: $formState.isGroupEvent)
+                    Toggle(formState.isGroupEvent ? "event_create.group_publish".localized() : "event_create.personal_publish".localized(), isOn: $formState.isGroupEvent)
                         .tint(.blue)
                         .onChange(of: formState.isGroupEvent) { oldValue, newValue in
                             // 优化：使用防抖，避免频繁触发
@@ -323,16 +334,16 @@ struct EventCreateView: View {
                     // 社群选择器（仅在开启社群发布且有多個社群时显示）
                     if formState.isGroupEvent {
                         if formState.isLoadingGroups {
-                            ProgressView("加载社群中...")
+                            ProgressView("event_create.loading_groups".localized())
                                 .frame(maxWidth: .infinity, alignment: .center)
                         } else if formState.availableGroups.isEmpty {
-                            Text("您没有可管理的社群")
+                            Text("event_create.no_manageable_groups".localized())
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .center)
                         } else {
                             HStack {
-                                Text("選擇社群")
+                                Text("event_create.select_group".localized())
                                     .foregroundColor(.primary)
                                 Spacer()
                                 Button(action: {
@@ -344,7 +355,7 @@ struct EventCreateView: View {
                                             Text(group.name)
                                                 .foregroundColor(.blue)
                                         } else {
-                                            Text("請選擇社群")
+                                            Text("event_create.please_select_group".localized())
                                                 .foregroundColor(.gray)
                                         }
                                         Image(systemName: "chevron.right")
@@ -358,19 +369,42 @@ struct EventCreateView: View {
                     
                     // 仅在个人发布时显示"公开给好友"开关
                     if !formState.isGroupEvent {
-                        Toggle("公開給好友", isOn: $formState.isOpenChecked)
+                        Toggle("event_create.public_to_friends".localized(), isOn: $formState.isOpenChecked)
                             .tint(.blue)
+                    }
+                    
+                    // 创建时邀请好友（行程创建完成後自動發送邀請）
+                    HStack {
+                        Image(systemName: "person.badge.plus")
+                            .foregroundColor(.blue)
+                        Text("event_create.invite_friends".localized())
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Button(action: {
+                            activeSheet = .friendSelector
+                        }) {
+                            if formState.selectedFriendsToInvite.isEmpty {
+                                Text("event_create.select_friends".localized())
+                                    .foregroundColor(.gray)
+                            } else {
+                                Text("event_create.friends_selected".localized(with: formState.selectedFriendsToInvite.count))
+                                    .foregroundColor(.blue)
+                            }
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.gray)
+                                .font(.caption)
+                        }
                     }
                 }
             }
         
         // 其他设置卡片（包含重复、邀请、公开等）
-        EventFormCard(icon: "gearshape.fill", title: "其他设置", iconColor: .gray) {
+        EventFormCard(icon: "gearshape.fill", title: "event_create.other_settings".localized(), iconColor: .gray) {
                 VStack(spacing: 16) {
                     // 重複設置（僅在非多日行程時顯示）
                     if !formState.isMultiDayEvent {
                         HStack {
-                            Text("重複")
+                            Text("event_create.repeat".localized())
                                 .foregroundColor(.primary)
                             Spacer()
                             Button(action: {
@@ -382,7 +416,7 @@ struct EventCreateView: View {
                         }
                     }
                     
-                    Toggle("同步到 Apple 日曆", isOn: $syncToAppleCalendar)
+                    Toggle("event_create.sync_to_calendar".localized(), isOn: $syncToAppleCalendar)
                         .tint(.blue)
                         .onChange(of: syncToAppleCalendar) { oldValue, newValue in
                             // 优化：使用防抖，避免频繁触发
@@ -397,7 +431,7 @@ struct EventCreateView: View {
                         HStack {
                             Image(systemName: "circle.fill")
                                 .foregroundColor(formState.calendarColor)
-                            Text("行事曆")
+                            Text("event_create.calendar".localized())
                                 .foregroundColor(.primary)
                             Spacer()
                             Button(action: {
@@ -457,7 +491,7 @@ struct EventCreateView: View {
                         Image(systemName: "plus.circle.fill")
                             .foregroundColor(.blue)
                             .font(.system(size: 18))
-                        Text("添加多日行程")
+                        Text("event_create.add_multi_day".localized())
                             .foregroundColor(.blue)
                             .font(.system(size: 16, weight: .semibold))
                     }
@@ -465,7 +499,7 @@ struct EventCreateView: View {
                     .padding(.vertical, 16)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white)
+                            .fill(Color(.systemBackground))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
@@ -478,10 +512,10 @@ struct EventCreateView: View {
             }
             
             // 社群/个人设置卡片（多行程模式）
-            EventFormCard(icon: "person.3.fill", title: "发布设置", iconColor: .purple) {
+            EventFormCard(icon: "person.3.fill", title: "event_create.publish_settings".localized(), iconColor: .purple) {
                 VStack(spacing: 16) {
                     // 个人/社群切换（优化：复用单日行程的逻辑）
-                    Toggle(formState.isGroupEvent ? "由社群发布" : "个人发布", isOn: $formState.isGroupEvent)
+                    Toggle(formState.isGroupEvent ? "event_create.group_publish".localized() : "event_create.personal_publish".localized(), isOn: $formState.isGroupEvent)
                         .tint(.purple)
                         .onChange(of: formState.isGroupEvent) { oldValue, newValue in
                             guard oldValue != newValue else { return }
@@ -504,7 +538,7 @@ struct EventCreateView: View {
                                 Spacer()
                             }
                         } else if formState.availableGroups.isEmpty {
-                            Text("您还没有可管理的社群")
+                            Text("event_create.no_manageable_groups_multi".localized())
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         } else {
@@ -517,7 +551,7 @@ struct EventCreateView: View {
                                         Text(group.name)
                                             .foregroundColor(.blue)
                                     } else {
-                                        Text("選擇社群")
+                                        Text("event_create.select_group".localized())
                                             .foregroundColor(.gray)
                                     }
                                     Spacer()
@@ -531,14 +565,37 @@ struct EventCreateView: View {
                     
                     // 仅在个人发布时显示"公开给好友"开关
                     if !formState.isGroupEvent {
-                        Toggle("公開給好友", isOn: $formState.isOpenChecked)
+                        Toggle("event_create.public_to_friends".localized(), isOn: $formState.isOpenChecked)
                             .tint(.blue)
+                    }
+                    
+                    // 创建时邀请好友（行程创建完成後自動發送邀請）
+                    HStack {
+                        Image(systemName: "person.badge.plus")
+                            .foregroundColor(.blue)
+                        Text("event_create.invite_friends".localized())
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Button(action: {
+                            activeSheet = .friendSelector
+                        }) {
+                            if formState.selectedFriendsToInvite.isEmpty {
+                                Text("event_create.select_friends".localized())
+                                    .foregroundColor(.gray)
+                            } else {
+                                Text("event_create.friends_selected".localized(with: formState.selectedFriendsToInvite.count))
+                                    .foregroundColor(.blue)
+                            }
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.gray)
+                                .font(.caption)
+                        }
                     }
                 }
             }
             
             // 取消多日行程按鈕
-            EventFormCard(icon: "calendar.badge.minus", title: "多日行程", iconColor: .red) {
+            EventFormCard(icon: "calendar.badge.minus", title: "event_create.multi_day_trip".localized(), iconColor: .red) {
                 Button(action: {
                     withAnimation {
                         formState.isMultiDayEvent = false
@@ -546,7 +603,7 @@ struct EventCreateView: View {
                     }
                 }) {
                     HStack {
-                        Text("取消多日行程")
+                        Text("event_create.cancel_multi_day".localized())
                             .foregroundColor(.red)
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -557,9 +614,9 @@ struct EventCreateView: View {
             }
             
             // 其他设置卡片（包含邀请、公开等）
-            EventFormCard(icon: "gearshape.fill", title: "其他设置", iconColor: .gray) {
+            EventFormCard(icon: "gearshape.fill", title: "event_create.other_settings".localized(), iconColor: .gray) {
                 VStack(spacing: 16) {
-                    Toggle("同步到 Apple 日曆", isOn: $syncToAppleCalendar)
+                    Toggle("event_create.sync_to_calendar".localized(), isOn: $syncToAppleCalendar)
                         .tint(.blue)
                         .onChange(of: syncToAppleCalendar) { oldValue, newValue in
                             guard newValue && !hasLoadedDefaultSyncPreference else { return }
@@ -573,7 +630,7 @@ struct EventCreateView: View {
                         HStack {
                             Image(systemName: "circle.fill")
                                 .foregroundColor(formState.calendarColor)
-                            Text("行事曆")
+                            Text("event_create.calendar".localized())
                                 .foregroundColor(.primary)
                             Spacer()
                             Button(action: {
@@ -595,7 +652,7 @@ struct EventCreateView: View {
                 VStack(spacing: 24) {
                     // 主标题区域
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("新增行程")
+                        Text("event_create.new_trip".localized())
                             .font(.system(size: 34, weight: .bold))
                             .foregroundColor(.primary)
                         
@@ -642,14 +699,14 @@ struct EventCreateView: View {
                     Button(action: {
                         dismiss()
                     }) {
-                        Text("取消")
+                        Text("event_create.cancel".localized())
                             .foregroundColor(.blue)
                             .font(.system(size: 17))
                     }
                 }
                 
                 ToolbarItem(placement: .principal) {
-                    Text("建立行程")
+                    Text("event_create.create_trip".localized())
                         .font(.system(size: 17, weight: .semibold))
                 }
                 
@@ -657,7 +714,7 @@ struct EventCreateView: View {
                     Button(action: {
                         saveEvent()
                     }) {
-                        Text("儲存")
+                        Text("event_create.save".localized())
                             .foregroundColor(.blue)
                             .font(.system(size: 17))
                     }
@@ -666,6 +723,14 @@ struct EventCreateView: View {
             // 优化：合并多个 sheet 为一个，减少视图层级
             .sheet(item: $activeSheet) { sheetType in
                 switch sheetType {
+                case .friendSelector:
+                    NavigationView {
+                        FriendSelectionView(
+                            selectedFriends: $formState.selectedFriendsToInvite,
+                            onComplete: { activeSheet = nil }
+                        )
+                        .environmentObject(userManager)
+                    }
                 case .groupSelector:
                     GroupSelectorView(
                         groups: formState.availableGroups,
@@ -1021,11 +1086,10 @@ struct EventCreateView: View {
                 formState.selectedEndTime = endDateTime
             }
             
-            // 初始化 isHasEnd：根据是否有结束时间来判断
             if !formState.isAllDay {
                 formState.isHasEnd = (viewModel.event.endTime != nil) || (viewModel.event.endDate != nil)
             } else {
-                formState.isHasEnd = false
+                formState.isHasEnd = viewModel.event.endDate != nil && viewModel.event.endDate != viewModel.event.date
             }
             return
         }
@@ -1093,7 +1157,11 @@ struct EventCreateView: View {
         } else {
             viewModel.event.startTime = "00:00:00"
             viewModel.event.endTime = "23:59:59"
-            viewModel.event.endDate = nil
+            if formState.isHasEnd && formState.selectedEndDate != formState.selectedStartDate {
+                viewModel.event.endDate = dateToString(formState.selectedEndDate, format: "yyyy-MM-dd")
+            } else {
+                viewModel.event.endDate = nil
+            }
         }
         
         // 验证时间（只有在有结束时间时才验证）
@@ -1144,11 +1212,21 @@ struct EventCreateView: View {
         // 优化：先捕获值，避免在 Task 中捕获非 Sendable 的 userManager
         let userId = userManager.userOpenId
         let shouldSync = syncToAppleCalendar
+        let friendsToInvite = formState.selectedFriendsToInvite
         
         // 后台异步保存到 Firebase（使用 Task {} 而不是 Task.detached，保持在主 Actor 上下文）
         Task { @MainActor in
             do {
                 try await viewModel.saveEvent(currentUserOpenId: userId)
+                
+                // 创建时邀请好友（行程创建完成後自動發送邀請）
+                if !friendsToInvite.isEmpty, let eventId = viewModel.event.id {
+                    try? await EventManager.shared.inviteFriendsToEvent(
+                        eventId: eventId,
+                        friendIds: friendsToInvite,
+                        senderId: userId
+                    )
+                }
                 
                 // 等待一小段时间确保 Firebase 写入完成
                 try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 秒
@@ -1282,14 +1360,28 @@ struct EventCreateView: View {
         // 优化：先捕获值，避免在 Task 中捕获非 Sendable 的 userManager
         let userId = userManager.userOpenId
         let shouldSync = syncToAppleCalendar
+        let friendsToInvite = formState.selectedFriendsToInvite
         
         // 后台异步保存到 Firebase（使用 Task {} 而不是 Task.detached，保持在主 Actor 上下文）
         Task { @MainActor in
             do {
                 // 为每个事件保存到 Firebase
+                var firstEventId: Int?
                 for event in eventsToSave {
-                    let viewModel = EventDetailViewModel(event: event)
-                    try await viewModel.saveEvent(currentUserOpenId: userId)
+                    let detailViewModel = EventDetailViewModel(event: event)
+                    try await detailViewModel.saveEvent(currentUserOpenId: userId)
+                    if firstEventId == nil, let id = detailViewModel.event.id {
+                        firstEventId = id
+                    }
+                }
+                
+                // 多日行程：邀請好友到首個行程（代表整趟行程）
+                if !friendsToInvite.isEmpty, let eventId = firstEventId {
+                    try? await EventManager.shared.inviteFriendsToEvent(
+                        eventId: eventId,
+                        friendIds: friendsToInvite,
+                        senderId: userId
+                    )
                 }
                 
                 // 等待一小段时间确保 Firebase 写入完成
@@ -1317,21 +1409,26 @@ struct EventCreateView: View {
     }
     
     private func getRepeatDisplayText() -> String {
-        return repeatOptions.first { $0.0 == formState.repeatType }?.1 ?? "永不"
+        return repeatOptions.first { $0.0 == formState.repeatType }?.1 ?? "event_create.repeat_options.never".localized()
     }
     
     /// 更新日历显示文本和颜色（只在需要时调用，避免频繁计算）
     private func updateCalendarDisplay() {
         // 检查用户信息是否准备好
         guard !userManager.userOpenId.isEmpty else {
-            // 如果用户信息未准备好，使用默认值
-            formState.calendarDisplayText = calendarOptions.first { $0.0 == formState.calendarComponent }?.1 ?? "活動安排"
-            switch formState.calendarComponent {
-            case "work": formState.calendarColor = .blue
-            case "personal": formState.calendarColor = .green
-            case "family": formState.calendarColor = .orange
-            case "study": formState.calendarColor = .purple
-            default: formState.calendarColor = .red
+            // 如果用户信息未准备好，尝试从系统获取日历
+            let ekCalendars = AppleCalendarManager.shared.getUserCalendars()
+            if let firstCalendar = ekCalendars.first {
+                formState.calendarDisplayText = firstCalendar.title
+                if let cgColor = firstCalendar.cgColor {
+                    formState.calendarColor = Color(uiColor: UIColor(cgColor: cgColor))
+                } else {
+                    formState.calendarColor = .red
+                }
+            } else {
+                // 如果系统也没有日历，使用第一个可用选项
+                formState.calendarDisplayText = calendarOptions.first?.1 ?? "event_create.calendar".localized()
+                formState.calendarColor = .red
             }
             return
         }
@@ -1339,18 +1436,44 @@ struct EventCreateView: View {
         // 从UserPreferencesManager加载用户日历列表
         let userCalendars = UserPreferencesManager.shared.loadUserCalendarsFromCache(for: userManager.userOpenId)
         if let calendar = userCalendars.first(where: { $0.id == formState.calendarComponent }) {
+            // 找到匹配的日历，使用系统日历的真实名称
             formState.calendarDisplayText = calendar.title
             formState.calendarColor = calendar.color
         } else {
-            // 如果没有找到，使用默认值
-            formState.calendarDisplayText = calendarOptions.first { $0.0 == formState.calendarComponent }?.1 ?? "活動安排"
-            // 设置默认颜色
-            switch formState.calendarComponent {
-            case "work": formState.calendarColor = .blue
-            case "personal": formState.calendarColor = .green
-            case "family": formState.calendarColor = .orange
-            case "study": formState.calendarColor = .purple
-            default: formState.calendarColor = .red
+            // 如果没有找到匹配的日历，尝试从系统获取
+            let ekCalendars = AppleCalendarManager.shared.getUserCalendars()
+            if let matchingCalendar = ekCalendars.first(where: { $0.calendarIdentifier == formState.calendarComponent }) {
+                // 找到匹配的系统日历，使用其真实名称
+                formState.calendarDisplayText = matchingCalendar.title
+                if let cgColor = matchingCalendar.cgColor {
+                    formState.calendarColor = Color(uiColor: UIColor(cgColor: cgColor))
+                } else {
+                    formState.calendarColor = .red
+                }
+            } else if let firstCalendar = ekCalendars.first {
+                // 如果还是找不到，使用系统第一个日历（特别是对于"default"的情况）
+                formState.calendarDisplayText = firstCalendar.title
+                if let cgColor = firstCalendar.cgColor {
+                    formState.calendarColor = Color(uiColor: UIColor(cgColor: cgColor))
+                } else {
+                    formState.calendarColor = .red
+                }
+            } else {
+                // 如果系统也没有日历，使用回退选项（仅限非default的情况）
+                if let fallbackOption = calendarOptions.first(where: { $0.0 == formState.calendarComponent }) {
+                    formState.calendarDisplayText = fallbackOption.1
+                } else {
+                    // 对于default或其他未知值，显示通用日历标签
+                    formState.calendarDisplayText = "event_create.calendar".localized()
+                }
+                // 设置默认颜色
+                switch formState.calendarComponent {
+                case "work": formState.calendarColor = .blue
+                case "personal": formState.calendarColor = .green
+                case "family": formState.calendarColor = .orange
+                case "study": formState.calendarColor = .purple
+                default: formState.calendarColor = .red
+                }
             }
         }
     }
@@ -1524,7 +1647,7 @@ struct MultiDayEventItemView: View {
                 // 行程標題（行程1显示主标题输入框，行程2及之后显示各自的标题输入框）
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text("行程標題")
+                        Text("event_create.title".localized())
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
                         
@@ -1547,7 +1670,7 @@ struct MultiDayEventItemView: View {
                     
                 if index == 0 {
                     // 行程1：显示主标题输入框
-                        TextField("例如:抵達東京成田機場", text: $mainTitle)
+                        TextField("event_create.title_placeholder".localized(), text: $mainTitle)
                             .lineLimit(1)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 12)
@@ -1563,7 +1686,7 @@ struct MultiDayEventItemView: View {
                     }
                 } else {
                     // 行程2及之后：显示各自的标题输入框
-                        TextField("例如:抵達東京成田機場", text: Binding(
+                        TextField("event_create.title_placeholder".localized(), text: Binding(
                             get: { 
                                 guard let idx = itemIndex, idx < items.count else { return "" }
                                 return items[idx].title
@@ -1588,12 +1711,12 @@ struct MultiDayEventItemView: View {
                 
                 // 活動內容
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("活動內容")
+                    Text("event_create.content".localized())
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
                     
                 GlassTextEditor(
-                        placeholder: "輸入活動備註或細節...",
+                        placeholder: "event_create.content_placeholder".localized(),
                     text: Binding(
                         get: { 
                             guard let idx = itemIndex, idx < items.count else { return "" }
@@ -1625,12 +1748,12 @@ struct MultiDayEventItemView: View {
                                 .font(.system(size: 20))
                             
                         if let idx = itemIndex, idx < items.count {
-                            Text(items[idx].destination.isEmpty ? "選擇地點" : items[idx].destination)
+                            Text(items[idx].destination.isEmpty ? "event_create.select_location".localized() : items[idx].destination.formattedForDisplay)
                                     .foregroundColor(items[idx].destination.isEmpty ? .gray : .primary)
                                     .multilineTextAlignment(.center)
                                 .lineLimit(2)
                         } else {
-                            Text("選擇地點")
+                            Text("event_create.select_location".localized())
                                 .foregroundColor(.gray)
                         }
                         Image(systemName: "chevron.right")

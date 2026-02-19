@@ -24,12 +24,16 @@ struct AIPlanningWelcomeView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
     @State private var showWeekendFlash = false
     @State private var showDeepCulture = false
+    @State private var showEnrichTrip = false
     
     // 快速主题列表
-    private let quickThemes: [QuickTheme] = [
-        QuickTheme(icon: "bolt.fill", iconColor: .orange, title: "週末快閃"),
-        QuickTheme(icon: "building.columns.fill", iconColor: .purple, title: "深度文化")
-    ]
+    private var quickThemes: [QuickTheme] {
+        [
+            QuickTheme(icon: "bolt.fill", iconColor: .orange, title: "weekend_flash.template_name".localized()),
+            QuickTheme(icon: "building.columns.fill", iconColor: .purple, title: "deep_culture.template_name".localized()),
+            QuickTheme(icon: "plus.circle.fill", iconColor: .green, title: "enrich_trip.template_name".localized())
+        ]
+    }
     
     var body: some View {
         ScrollView {
@@ -48,12 +52,12 @@ struct AIPlanningWelcomeView: View {
                     }
                     
                     // 主标题
-                    Text("想去哪裡旅行?")
+                    Text("welcome.where_to_travel".localized())
                         .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.primary)
                     
                     // 副标题
-                    Text("讓我為您打造完美的個人化行程")
+                    Text("welcome.create_perfect_itinerary".localized())
                         .font(.system(size: 15))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -77,12 +81,12 @@ struct AIPlanningWelcomeView: View {
                                         endPoint: .init(x: 1.2, y: 1.2)
                                     )
                                 )
-                                .frame(width: 200, height: 200)
-                                .blur(radius: 10)
+                                .frame(width: 220, height: 220)
+                                .blur(radius: 15)
                             
                             // 白色背景圆圈
                             Circle()
-                                .fill(Color.white)
+                                .fill(Color(.systemBackground))
                                 .frame(width: 180, height: 180)
                                 .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
                             
@@ -95,7 +99,7 @@ struct AIPlanningWelcomeView: View {
                                     .rotationEffect(.degrees(-45))
                                 
                                 // 文字
-                                Text("開始 AI 規劃")
+                                Text("welcome.start_ai_planning".localized())
                                     .font(.system(size: 16, weight: .semibold))
                                     .foregroundColor(.primary)
                             }
@@ -107,7 +111,7 @@ struct AIPlanningWelcomeView: View {
                 // 快速主题区域
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
-                        Text("快速主題")
+                        Text("welcome.quick_themes".localized())
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(.primary)
                         
@@ -123,23 +127,25 @@ struct AIPlanningWelcomeView: View {
                     }
                     .padding(.horizontal)
                     
-                    // 主题卡片 - 并排显示，每个占1/2宽度
-                    HStack(spacing: 16) {
+                    // 主题卡片 - 并排显示，每个占1/3宽度（现在有3个卡片）
+                    HStack(spacing: 12) {
                         ForEach(quickThemes, id: \.id) { theme in
                             QuickThemeCard(theme: theme) {
                                 // 点击主题卡片时打开对应的视图
-                                if theme.title == "週末快閃" {
+                                if theme.title == "weekend_flash.template_name".localized() {
                                     showWeekendFlash = true
-                                } else if theme.title == "深度文化" {
+                                } else if theme.title == "deep_culture.template_name".localized() {
                                     showDeepCulture = true
+                                } else if theme.title == "enrich_trip.template_name".localized() {
+                                    showEnrichTrip = true
                                 }
                             }
-                            .frame(maxWidth: .infinity) // 每个卡片占据可用空间的一半
+                            .frame(maxWidth: .infinity) // 每个卡片占据可用空间的三分之一
                         }
                     }
                     .padding(.horizontal)
                 }
-                .padding(.top, 20)
+
                 
                 Spacer()
                     .frame(height: 100) // 为TabBar预留空间
@@ -152,6 +158,10 @@ struct AIPlanningWelcomeView: View {
         }
         .sheet(isPresented: $showDeepCulture) {
             DeepCultureView()
+                .environmentObject(userManager)
+        }
+        .sheet(isPresented: $showEnrichTrip) {
+            EnrichTripView()
                 .environmentObject(userManager)
         }
     }
@@ -181,7 +191,7 @@ struct QuickThemeCard: View {
             .padding(.vertical, 16)
             .frame(maxWidth: .infinity) // 允许卡片填充可用宽度
             .frame(height: 110)
-            .background(Color.white)
+            .background(Color(.systemBackground))
             .cornerRadius(16)
             .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
         }

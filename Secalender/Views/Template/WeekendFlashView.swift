@@ -39,6 +39,7 @@ struct WeekendFlashView: View {
     @State private var selectedCity: String? = nil
     @State private var showLocationPicker = false
     @State private var availableCities: [String] = []  // 当前国家的城市列表
+    @State private var userCountryName: String? = nil  // 用户所在国家（中文）
     
     // 周边特色
     @State private var surroundingAttractions: [SurroundingAttraction] = []
@@ -57,6 +58,11 @@ struct WeekendFlashView: View {
     @State private var showPlanDetailView = false
     @State private var showPlanEditView = false
     @State private var planToEdit: PlanResult? = nil
+    
+    // 多行程检视相关状态
+    @State private var showMultiEventView = false
+    @State private var savedEventIds: [Int] = []
+    @State private var allEvents: [Event] = []  // 用于 MultiEventView 的事件列表
     
     // 错误处理
     @State private var showErrorAlert = false
@@ -111,18 +117,18 @@ struct WeekendFlashView: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if currentStep == .step1 {
-                        Button("取消") {
+                        Button("common.cancel".localized()) {
                             dismiss()
                         }
                         .foregroundColor(.blue)
                     }
                 }
             }
-            .sheet(item: $generatedPlan) { plan in
+            .fullScreenCover(item: $generatedPlan) { plan in
                 NavigationView {
                     PlanDetailView(
                         plan: plan,
-                        customTitle: "週末快閃行程",
+                        customTitle: "weekend_flash.trip_title".localized(),
                         onEdit: { planToEdit in
                             self.planToEdit = planToEdit
                             generatedPlan = nil
@@ -143,14 +149,21 @@ struct WeekendFlashView: View {
                 if let plan = planToEdit ?? generatedPlan {
                     PlanEditView(
                         plan: plan,
-                        customTitle: "週末快閃行程",
-                        onSaveToCalendar: {
+                        customTitle: "weekend_flash.trip_title".localized(),
+                        onSaveToCalendar: { eventIds in
+                            // 保存到日历后，导航到多行程检视页面
+                            savedEventIds = eventIds
                             showPlanEditView = false
-                            generatedPlan = nil
-                            dismiss()
+                            // 加载事件列表
+                            Task {
+                                await loadEventsForMultiView()
+                                await MainActor.run {
+                                    showMultiEventView = true
+                                }
+                            }
                         },
                         onSaveToTemplate: { editedPlan, title in
-                            savePlanToTemplate(editedPlan, title: title ?? "週末快閃行程")
+                            savePlanToTemplate(editedPlan, title: title ?? "weekend_flash.trip_title".localized())
                             generatedPlan = editedPlan
                             showPlanEditView = false
                         },
@@ -164,17 +177,52 @@ struct WeekendFlashView: View {
                     .environmentObject(userManager)
                 }
             }
-            .alert("錯誤", isPresented: $showErrorAlert) {
-                Button("好") {}
+            .sheet(isPresented: $showMultiEventView) {
+                NavigationView {
+                    MultiEventView(
+                        eventIds: savedEventIds,
+                        allEvents: $allEvents,
+                        source: .template,  // 标识从行程模版打开
+                        onComplete: {
+                            // 完成操作后不关闭页面，保持在多行程检视页面
+                        },
+                        onRefreshEvents: {
+                            // 刷新事件列表
+                            await loadEventsForMultiView()
+                        },
+                        onDismiss: nil,  // 从模版打开时不使用 onDismiss
+                        onBackToTemplate: {
+                            // 返回到行程模版（PlanDetailView）
+                            showMultiEventView = false
+                            // 重新打开详情页
+                            if let plan = generatedPlan {
+                                generatedPlan = nil
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    generatedPlan = plan
+                                }
+                            }
+                        }
+                    )
+                    .environmentObject(userManager)
+                }
+            }
+            .alert("settings.error".localized(), isPresented: $showErrorAlert) {
+                Button("common.ok".localized()) {}
             } message: {
                 Text(errorMessage)
+            }
+            .task {
+                // 从缓存加载用户所在国家（如果已有）
+                if let cachedCountry = LocationCacheManager.shared.loadUserCountry() {
+                    userCountryName = cachedCountry
+                }
             }
             .sheet(isPresented: $showLocationPicker) {
                 NavigationView {
                     CountryCityPickerView(
                         selectedCountry: $selectedCountry,
                         selectedCity: $selectedCity,
-                        restrictedCountry: locationCountryName.isEmpty ? nil : locationCountryName,  // 限制只显示定位到的国家
+                        userCountry: userCountryName,
                         onSelect: { country, city in
                             selectedCountry = country
                             selectedCity = city
@@ -183,7 +231,7 @@ struct WeekendFlashView: View {
                             showLocationPicker = false
                         }
                     )
-                    .navigationTitle("選擇地點")
+                    .navigationTitle("weekend_flash.select_location_title".localized())
                     .navigationBarTitleDisplayMode(.inline)
                 }
             }
@@ -238,15 +286,15 @@ struct WeekendFlashView: View {
     
     private var stepDisplayText: String {
         switch currentStep {
-        case .step1: return "步驟 1/2"
-        case .step2: return "步驟 2/2"
+        case .step1: return "weekend_flash.step_1_2".localized()
+        case .step2: return "weekend_flash.step_2_2".localized()
         }
     }
     
     private var navigationTitle: String {
         switch currentStep {
-        case .step1: return "週末快閃"
-        case .step2: return "智能規劃"
+        case .step1: return "weekend_flash.title".localized()
+        case .step2: return "weekend_flash.smart_planning".localized()
         }
     }
     
@@ -255,10 +303,10 @@ struct WeekendFlashView: View {
         VStack(alignment: .leading, spacing: 24) {
             // 标题和副标题
             VStack(alignment: .leading, spacing: 8) {
-                Text("選擇地點")
+                Text("weekend_flash.select_location".localized())
                     .font(.system(size: 28, weight: .bold))
                 
-                Text("基於您所在國家，選擇一個地點，我們為您推薦6個周邊特色景點。")
+                Text("weekend_flash.location_description".localized())
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -268,7 +316,7 @@ struct WeekendFlashView: View {
                 HStack {
                     ProgressView()
                         .padding(.trailing, 8)
-                    Text("正在定位...")
+                    Text("weekend_flash.locating".localized())
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -292,12 +340,8 @@ struct WeekendFlashView: View {
                                 .font(.subheadline)
                                 .foregroundColor(.primary)
                                 .lineLimit(2)
-                        } else if !locationCountryName.isEmpty {
-                            Text("點擊選擇 \(locationCountryName) 的地點")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
                         } else {
-                            Text("選擇地點")
+                            Text("weekend_flash.click_to_select".localized())
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -319,21 +363,21 @@ struct WeekendFlashView: View {
             // 周边特色选择（仅在选择地点后显示）
             if selectedCity != nil {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("周邊特色")
+                    Text("weekend_flash.nearby_features".localized())
                         .font(.headline)
                     
                     if isLoadingSurroundingFeatures {
                         HStack {
                             ProgressView()
                                 .padding(.trailing, 8)
-                            Text("正在搜尋周邊特色...")
+                            Text("weekend_flash.searching_features".localized())
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
                     } else if surroundingAttractions.isEmpty {
-                        Text("暫無周邊特色推薦")
+                        Text("weekend_flash.no_features".localized())
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .padding()
@@ -341,7 +385,7 @@ struct WeekendFlashView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             let currentSelectionCount = selectedSurroundingAttractions.count
                             if currentSelectionCount > 0 {
-                                Text("已選擇 \(currentSelectionCount) 個景點")
+                                Text("weekend_flash.selected_attractions".localized(with: currentSelectionCount))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -374,7 +418,7 @@ struct WeekendFlashView: View {
         VStack(spacing: 32) {
             ZStack {
                 Circle()
-                    .fill(Color.white)
+                    .fill(Color(.systemBackground))
                     .frame(width: 120, height: 120)
                     .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
                 
@@ -384,10 +428,10 @@ struct WeekendFlashView: View {
             }
             
             VStack(spacing: 8) {
-                Text("AI正在為您打造完美行程...")
+                Text("weekend_flash.ai_creating".localized())
                     .font(.system(size: 20, weight: .semibold))
                 
-                Text("這個過程可能需要一些時間，請稍候")
+                Text("weekend_flash.takes_time".localized())
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -414,7 +458,7 @@ struct WeekendFlashView: View {
             // 进度条
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("正在完成您的行程")
+                    Text("weekend_flash.completing".localized())
                         .font(.subheadline)
                     Spacer()
                     Text("\(completedTasks.count + (currentTask.isEmpty ? 0 : 1))/\(pendingTasks.count + completedTasks.count + (currentTask.isEmpty ? 0 : 1))")
@@ -446,7 +490,7 @@ struct WeekendFlashView: View {
                     goToNextStep()
                 }) {
                     HStack {
-                        Text("開始規劃一日遊")
+                        Text("weekend_flash.start_planning".localized())
                         Spacer()
                         Image(systemName: "arrow.right")
                     }
@@ -518,7 +562,7 @@ struct WeekendFlashView: View {
                     reverseGeocodeLocation(location)
                 } else {
                     isLocatingGPS = false
-                    gpsLocationAddress = "定位失败，请检查位置权限设置"
+                    gpsLocationAddress = "weekend_flash.location_failed".localized()
                 }
             }
         }
@@ -621,14 +665,8 @@ struct WeekendFlashView: View {
     private func loadCitiesForCountry() {
         guard let country = selectedCountry else { return }
         let dataManager = DestinationDataManager.shared
-        
-        // 如果国家是"中國"，需要特殊处理（包含旅游景点）
-        if country == "中國" {
-            let (cities, attractions) = dataManager.getCitiesGrouped(for: country)
-            availableCities = cities + attractions
-        } else {
-            availableCities = dataManager.getCities(for: country)
-        }
+        // 简化：不做特殊处理
+        availableCities = dataManager.getCities(for: country)
     }
     
     // MARK: - 加载周边特色（基于选择的地点）
@@ -674,7 +712,7 @@ struct WeekendFlashView: View {
         
         let response = try await OpenAIManager.shared.generateSurroundingAttractions(
             prompt: prompt,
-            timeout: 20.0
+            timeout: 30.0
         )
         
         return parseSurroundingAttractions(response)
@@ -767,19 +805,19 @@ struct WeekendFlashView: View {
     
     private func getDefaultAttractions() -> [SurroundingAttraction] {
         return [
-            SurroundingAttraction(id: "default_1", name: "知名地标", category: "地标", icon: "building.2"),
-            SurroundingAttraction(id: "default_2", name: "文化景点", category: "景点", icon: "building.columns"),
-            SurroundingAttraction(id: "default_3", name: "自然景观", category: "景点", icon: "tree"),
-            SurroundingAttraction(id: "default_4", name: "美食街区", category: "美食", icon: "fork.knife"),
-            SurroundingAttraction(id: "default_5", name: "购物中心", category: "购物", icon: "bag"),
-            SurroundingAttraction(id: "default_6", name: "艺术空间", category: "文化", icon: "paintpalette"),
+            SurroundingAttraction(id: "default_1", name: "weekend_flash.default_attraction_landmark".localized(), category: "地标", icon: "building.2"),
+            SurroundingAttraction(id: "default_2", name: "weekend_flash.default_attraction_culture".localized(), category: "景点", icon: "building.columns"),
+            SurroundingAttraction(id: "default_3", name: "weekend_flash.default_attraction_nature".localized(), category: "景点", icon: "tree"),
+            SurroundingAttraction(id: "default_4", name: "weekend_flash.default_attraction_food".localized(), category: "美食", icon: "fork.knife"),
+            SurroundingAttraction(id: "default_5", name: "weekend_flash.default_attraction_shopping".localized(), category: "购物", icon: "bag"),
+            SurroundingAttraction(id: "default_6", name: "weekend_flash.default_attraction_art".localized(), category: "文化", icon: "paintpalette"),
         ]
     }
     
     // MARK: - AI生成
     private func startGeneration() {
         guard currentGPSLocation != nil, !selectedSurroundingAttractions.isEmpty else {
-            errorMessage = "缺少必要信息"
+            errorMessage = "weekend_flash.missing_required_info".localized()
             showErrorAlert = true
             return
         }
@@ -791,10 +829,10 @@ struct WeekendFlashView: View {
         currentTask = ""
         
         pendingTasks = [
-            "正在分析目的地資訊",
-            "正在規劃活動安排",
-            "正在優化路線",
-            "正在生成完整行程"
+            "weekend_flash.task_analyzing".localized(),
+            "weekend_flash.task_planning".localized(),
+            "weekend_flash.task_optimizing".localized(),
+            "weekend_flash.task_generating".localized()
         ]
         
         Task {
@@ -805,7 +843,7 @@ struct WeekendFlashView: View {
     private func generatePlan() async {
         guard let city = selectedCity else {
             await MainActor.run {
-                errorMessage = "缺少地点信息"
+                errorMessage = "weekend_flash.missing_location_info".localized()
                 showErrorAlert = true
                 isGenerating = false
             }
@@ -901,7 +939,7 @@ struct WeekendFlashView: View {
                 if !currentTask.isEmpty {
                     currentTask = ""
                 }
-                errorMessage = "生成行程失败：\(error.localizedDescription)"
+                errorMessage = "weekend_flash.generation_failed".localized(with: error.localizedDescription)
                 showErrorAlert = true
                 isGenerating = false
             }
@@ -944,13 +982,13 @@ struct WeekendFlashView: View {
     @MainActor
     private func convertAndSavePlan(_ plan: PlanResult) async {
         isGenerating = false
-        savePlanToTemplate(plan, title: "週末快閃行程")
+        savePlanToTemplate(plan, title: "weekend_flash.trip_title".localized())
         generatedPlan = plan
         
         if !plan.days.isEmpty {
             showPlanDetailView = true
         } else {
-            errorMessage = "生成的行程数据无效"
+            errorMessage = "weekend_flash.invalid_plan_data".localized()
             showErrorAlert = true
         }
     }
@@ -969,9 +1007,34 @@ struct WeekendFlashView: View {
             destination: destination
         )
         
-        TripTemplateManager.shared.saveTemplate(template, for: userId)
+        // 保存模板（不自动同步到行事历，用户需要在 PlanDetailView 中选择"加入行程"）
+        TripTemplateManager.shared.saveTemplate(template, for: userId, syncToAppleCalendar: false)
         
         print("✅ 行程已保存到模板：\(templateTitle)")
+    }
+    
+    // MARK: - 加载事件列表（用于 MultiEventView）
+    private func loadEventsForMultiView() async {
+        guard !userManager.userOpenId.isEmpty else { return }
+        
+        // 从本地缓存加载事件
+        let cachedEvents = EventCacheManager.shared.loadEvents(for: userManager.userOpenId)
+        await MainActor.run {
+            allEvents = cachedEvents.filter { $0.deleted != 1 }
+        }
+        
+        // 后台同步 Firebase
+        Task {
+            do {
+                try await EventManager.shared.fetchEvents()
+                let updatedEvents = EventCacheManager.shared.loadEvents(for: userManager.userOpenId)
+                await MainActor.run {
+                    allEvents = updatedEvents.filter { $0.deleted != 1 }
+                }
+            } catch {
+                print("⚠️ 加载事件失败: \(error.localizedDescription)")
+            }
+        }
     }
 }
 
@@ -996,7 +1059,7 @@ extension WeekendFlashView {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(isSelected ? Color.blue : Color.white)
+                .background(isSelected ? Color.blue : Color(.systemBackground))
                 .cornerRadius(20)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)

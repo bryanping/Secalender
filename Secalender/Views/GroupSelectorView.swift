@@ -35,7 +35,7 @@ struct GroupSelectorView: View {
                                         .lineLimit(2)
                                 }
                                 
-                                Text("成員: \(group.members.count)")
+                                Text("group_selector.members".localized(with: group.members.count))
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
                             }

@@ -19,7 +19,7 @@ enum TimeBlockType: String, Codable {
 
 /// TimeBlock 结构
 struct TimeBlock: Identifiable, Codable {
-    let id = UUID()
+    var id: UUID
     var type: TimeBlockType
     var startTime: Date
     var endTime: Date
@@ -29,6 +29,18 @@ struct TimeBlock: Identifiable, Codable {
     var priority: Int = 5       // 优先级 1-10，数字越大优先级越高
     var description: String?
     
+    init(id: UUID = UUID(), type: TimeBlockType, startTime: Date, endTime: Date, title: String, location: String? = nil, isAnchor: Bool = false, priority: Int = 5, description: String? = nil) {
+        self.id = id
+        self.type = type
+        self.startTime = startTime
+        self.endTime = endTime
+        self.title = title
+        self.location = location
+        self.isAnchor = isAnchor
+        self.priority = priority
+        self.description = description
+    }
+    
     var duration: TimeInterval {
         return endTime.timeIntervalSince(startTime)
     }
@@ -36,9 +48,15 @@ struct TimeBlock: Identifiable, Codable {
 
 /// 一天的行程
 struct DayPlan: Identifiable, Codable {
-    let id = UUID()
+    var id: UUID
     var date: Date
     var blocks: [TimeBlock]
+    
+    init(id: UUID = UUID(), date: Date, blocks: [TimeBlock]) {
+        self.id = id
+        self.date = date
+        self.blocks = blocks
+    }
     
     var hasFlex: Bool {
         return blocks.contains { $0.type == .flex }
@@ -51,13 +69,15 @@ struct DayPlan: Identifiable, Codable {
 
 /// 完整行程计划
 struct PlanResult: Codable, Identifiable, Equatable {
-    let id = UUID()
-    let planVersion: String = "1.0"
+    var id: UUID
+    var planVersion: String
     var days: [DayPlan]
     var assumptions: [String]      // 默认假设列表
     var riskFlags: [String]        // 风险提示
     
-    init(days: [DayPlan] = [], assumptions: [String] = [], riskFlags: [String] = []) {
+    init(id: UUID = UUID(), planVersion: String = "1.0", days: [DayPlan] = [], assumptions: [String] = [], riskFlags: [String] = []) {
+        self.id = id
+        self.planVersion = planVersion
         self.days = days
         self.assumptions = assumptions
         self.riskFlags = riskFlags

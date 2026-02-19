@@ -57,46 +57,50 @@ struct MemberView: View {
             List {
                 // MARK: - 用户信息
                 Section {
-                    HStack {
-                        if let photoUrl = userManager.photoUrl, let url = URL(string: photoUrl) {
-                            AsyncImage(url: url) { image in
-                                image.resizable()
-                                     .scaledToFill()
-                            } placeholder: {
-                                Circle().fill(Color.gray.opacity(0.3))
-                            }
-                            .frame(width: 50, height: 50)
-                            .clipShape(Circle())
-                        } else {
-                            Circle()
-                                .fill(Color.gray.opacity(0.3))
+                    NavigationLink(destination: EditProfileView().environmentObject(userManager)) {
+                        HStack {
+                            if let photoUrl = userManager.photoUrl, let url = URL(string: photoUrl) {
+                                AsyncImage(url: url) { image in
+                                    image.resizable()
+                                         .scaledToFill()
+                                } placeholder: {
+                                    Circle().fill(Color.gray.opacity(0.3))
+                                }
                                 .frame(width: 50, height: 50)
-                        }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(userManager.displayName ?? userManager.alias ?? "用户")
-                                .font(.headline)
-                            if let alias = userManager.alias { //修改内容：变量命名修正
-                                Text(alias)
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
+                                .clipShape(Circle())
+                            } else {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(width: 50, height: 50)
                             }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(userManager.displayName ?? "member.default_user".localized())
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                if let userCode = userManager.userCode {
+                                    Text("member.user_id".localized() + ": \(userCode)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            Spacer()
                         }
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
                 }
 
                 // MARK: - 好友功能
-                Section(header: Text("好友")) {
+                Section(header: Text("member.friends".localized())) {
                     NavigationLink(destination: AddFriendView()) {
-                        Label("添加好友", systemImage: "person.badge.plus")
+                        Label("member.add_friend".localized(), systemImage: "person.badge.plus")
                     }
                     NavigationLink(destination: MyFriendListView()) {
-                        Label("好友清单", systemImage: "person.3.fill")
+                        Label("member.friend_list".localized(), systemImage: "person.3.fill")
                     }
                     NavigationLink(destination: ReceivedFriendRequestsView()) {
                         HStack {
-                            Label("收到的请求", systemImage: "envelope")
+                            Label("member.received_requests".localized(), systemImage: "envelope")
                             Spacer()
                             if pendingRequestCount > 0 {
                                 Text("\(pendingRequestCount)")
@@ -112,33 +116,33 @@ struct MemberView: View {
                 }
 
                 // MARK: - 分享功能
-                Section(header: Text("分享")) {
+                Section(header: Text("member.share".localized())) {
                     NavigationLink(destination: ShareHistoryView()) {
-                        Label("分享历史", systemImage: "square.and.arrow.up")
+                        Label("member.share_history".localized(), systemImage: "square.and.arrow.up")
                     }
                     NavigationLink(destination: ShareNotificationsView()) {
-                        Label("分享通知", systemImage: "bell")
+                        Label("member.share_notifications".localized(), systemImage: "bell")
                     }
                     NavigationLink(destination: EventInvitationsView()) {
-                        Label("活动邀请", systemImage: "calendar.badge.plus")
+                        Label("member.event_invitations".localized(), systemImage: "calendar.badge.plus")
                     }
                 }
 
                 // MARK: - 任务成就
-                Section(header: Text("任务成就")) {
+                Section(header: Text("member.achievements".localized())) {
                     NavigationLink(destination: AchievementsContentView()) {
-                        Label("成就与任务", systemImage: "star.fill")
+                        Label("member.achievements_tasks".localized(), systemImage: "star.fill")
                     }
                 }
 
                 // MARK: - 设定
-                Section(header: Text("设定")) {
+                Section(header: Text("member.settings".localized())) {
                     NavigationLink(destination: SettingsView(showSignInView: $showSignInView)) {
-                        Label("设定", systemImage: "gearshape.fill")
+                        Label("settings.title".localized(), systemImage: "gearshape.fill")
                     }
                 }
             }
-            .navigationTitle("功能")
+            .navigationTitle("member.title".localized())
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: 80)
             }
@@ -169,14 +173,14 @@ struct MemberView: View {
 // MARK: - 成就内容视图（从AchievementsView整合）
 struct AchievementsContentView: View {
     @State private var achievements: [Achievement] = [
-        Achievement(title: "連續早起七天",
-                    description: "培養早睡早起的好習慣",
+        Achievement(title: "achievements.early_bird.title".localized(),
+                    description: "achievements.early_bird.description".localized(),
                     progress: 0.5),
-        Achievement(title: "完成五套親子行程",
-                    description: "與孩子共享愉快時光",
+        Achievement(title: "achievements.family_trips.title".localized(),
+                    description: "achievements.family_trips.description".localized(),
                     progress: 0.2),
-        Achievement(title: "低碳出行十次",
-                    description: "乘坐公共交通或騎乘自行車",
+        Achievement(title: "achievements.low_carbon.title".localized(),
+                    description: "achievements.low_carbon.description".localized(),
                     progress: 0.7)
     ]
 
@@ -201,7 +205,7 @@ struct AchievementsContentView: View {
             }
         }
         .listStyle(InsetGroupedListStyle())
-        .navigationTitle("成就與任務")
+        .navigationTitle("member.achievements_tasks".localized())
         .navigationBarTitleDisplayMode(.inline)
     }
 }

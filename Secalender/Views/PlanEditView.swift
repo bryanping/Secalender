@@ -29,7 +29,8 @@ struct PlanEditView: View {
     
     let plan: PlanResult
     var customTitle: String? = nil  // 用户自定义标题（来自"此行的主題"）
-    var onSaveToCalendar: (() -> Void)? = nil
+    var originalEventIds: [Int]? = nil  // 原始事件ID列表（用于更新现有事件）
+    var onSaveToCalendar: (([Int]) -> Void)? = nil  // 修改：传递保存后的事件ID列表
     var onSaveToTemplate: ((PlanResult, String?) -> Void)? = nil  // 修改：传回编辑后的 PlanResult 和标题
     var onDismiss: (() -> Void)? = nil
     
@@ -63,7 +64,7 @@ struct PlanEditView: View {
                         // 行程日期选择器
                         EventFormCard(icon: "calendar", title: "行程日期", iconColor: .green) {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("開始日期")
+                                Text("plan_edit.start_date".localized())
                                     .font(.system(size: 13))
                                     .foregroundColor(.secondary)
                                 
@@ -123,7 +124,7 @@ struct PlanEditView: View {
                                     Image(systemName: "plus.circle.fill")
                                         .foregroundColor(.blue)
                                         .font(.system(size: 18))
-                                    Text("添加行程")
+                                    Text("plan_edit.add_trip".localized())
                                         .foregroundColor(.blue)
                                         .font(.system(size: 16, weight: .semibold))
                                 }
@@ -131,7 +132,7 @@ struct PlanEditView: View {
                                 .padding(.vertical, 16)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white)
+                                        .fill(Color(.systemBackground))
                                 )
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
@@ -151,7 +152,7 @@ struct PlanEditView: View {
                             }) {
                                 HStack {
                                     Image(systemName: "bookmark.fill")
-                                    Text("儲存模版")
+                                    Text("plan_edit.save_template".localized())
                                 }
                                 .font(.headline)
                                 .foregroundColor(.white)
@@ -167,7 +168,7 @@ struct PlanEditView: View {
                             }) {
                                 HStack {
                                     Image(systemName: "calendar.badge.plus")
-                                    Text("發布行程")
+                                    Text("plan_edit.publish_trip".localized())
                                 }
                                 .font(.headline)
                                 .foregroundColor(.white)
@@ -454,10 +455,13 @@ struct PlanEditView: View {
             return
         }
         
-        // 保存到日历（类似 EventCreateView 的 saveMultiDayEvents）
+        // 保存到日历（类似 EventCreateView 的 saveMultiDayItems）
         let saveStartTime = dateToString(Date(), format: "yyyy-MM-dd HH:mm:ss")
         
         Task {
+            var savedEventIds: [Int] = []
+            let originalIds = originalEventIds ?? []
+            
             for (index, item) in formState.multiDayItems.enumerated() {
                 let eventTitle: String
                 if index == 0 {
@@ -498,19 +502,63 @@ struct PlanEditView: View {
                     event.endDate = nil
                 }
                 
-                // 保存到本地缓存
-                EventCacheManager.shared.addEventToCache(event, for: userManager.userOpenId)
-                
-                // 保存到 Firebase
-                do {
-                    try await EventManager.shared.addEvent(event: event)
-                } catch {
-                    print("保存事件失敗：\(error)")
+                // 如果有原始事件ID，更新现有事件；否则创建新事件
+                if index < originalIds.count {
+                    // 更新现有事件
+                    event.id = originalIds[index]
+                    event.createTime = saveStartTime  // 保持原始创建时间
+                    
+                    // 更新本地缓存
+                    EventCacheManager.shared.updateEventInCache(event, for: userManager.userOpenId)
+                    
+                    // 更新到 Firebase
+                    do {
+                        try await EventManager.shared.updateEvent(event: event)
+                        if let eventId = event.id {
+                            savedEventIds.append(eventId)
+                        }
+                    } catch {
+                        print("更新事件失敗：\(error)")
+                    }
+                } else {
+                    // 创建新事件
+                    // 保存到本地缓存
+                    EventCacheManager.shared.addEventToCache(event, for: userManager.userOpenId)
+                    
+                    // 保存到 Firebase
+                    do {
+                        try await EventManager.shared.addEvent(event: event)
+                        // 收集保存后的事件ID
+                        if let eventId = event.id {
+                            savedEventIds.append(eventId)
+                        }
+                    } catch {
+                        print("保存事件失敗：\(error)")
+                    }
                 }
             }
             
+            // 如果原始事件数量多于当前事件数量，删除多余的事件
+            if originalIds.count > formState.multiDayItems.count {
+                for i in formState.multiDayItems.count..<originalIds.count {
+                    let eventIdToDelete = originalIds[i]
+                    // 软删除
+                    EventManager.shared.softDeleteEvent(eventId: eventIdToDelete)
+                }
+            }
+            
+            // 等待一小段时间确保 Firebase 写入完成
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 秒
+            
+            // 从 Firebase 重新加载，更新本地缓存
+            try? await EventManager.shared.fetchEvents()
+            
+            // 通知 CalendarView 刷新
+            NotificationCenter.default.post(name: NSNotification.Name("EventSaved"), object: nil)
+            
             await MainActor.run {
-                onSaveToCalendar?()
+                // 传递保存后的事件ID列表
+                onSaveToCalendar?(savedEventIds)
                 dismiss()
             }
         }

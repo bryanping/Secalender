@@ -17,6 +17,7 @@ final class LocationCacheManager {
     private let lastLocationLatitudeKey = "last_location_latitude"
     private let lastLocationLongitudeKey = "last_location_longitude"
     private let lastLocationTimestampKey = "last_location_timestamp"
+    private let lastLocationCountryKey = "last_location_country"  // 用户所在国家（中文）
     
     /// 保存最后一次GPS定位位置
     func saveLastLocation(_ location: CLLocation) {
@@ -24,6 +25,22 @@ final class LocationCacheManager {
         userDefaults.set(location.coordinate.longitude, forKey: lastLocationLongitudeKey)
         userDefaults.set(Date(), forKey: lastLocationTimestampKey)
         print("✅ 已保存最后一次GPS位置: (\(location.coordinate.latitude), \(location.coordinate.longitude))")
+    }
+    
+    /// 保存用户所在国家（中文）
+    func saveUserCountry(_ country: String) {
+        userDefaults.set(country, forKey: lastLocationCountryKey)
+        print("✅ 已保存用户所在国家: \(country)")
+    }
+    
+    /// 加载用户所在国家（中文）
+    func loadUserCountry() -> String? {
+        return userDefaults.string(forKey: lastLocationCountryKey)
+    }
+    
+    /// 清除用户所在国家
+    func clearUserCountry() {
+        userDefaults.removeObject(forKey: lastLocationCountryKey)
     }
     
     /// 加载最后一次GPS定位位置
@@ -56,5 +73,11 @@ final class LocationCacheManager {
         userDefaults.removeObject(forKey: lastLocationLongitudeKey)
         userDefaults.removeObject(forKey: lastLocationTimestampKey)
         print("✅ 已清除GPS位置缓存")
+    }
+    
+    /// 清除所有位置相关缓存（包括国家）
+    func clearAllLocationCache() {
+        clearLastLocation()
+        clearUserCountry()
     }
 }

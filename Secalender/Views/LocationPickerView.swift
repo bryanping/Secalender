@@ -6,9 +6,10 @@
 //
 
 import SwiftUI
-import MapKit
 import CoreLocation
 import Contacts
+import GoogleMaps
+import GooglePlaces
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -18,38 +19,29 @@ struct LocationPickerView: View {
     @Binding var selectedCoordinate: CLLocationCoordinate2D?
     @Environment(\.dismiss) var dismiss
     
-    @State private var region: MKCoordinateRegion = {
+    @State private var region: CLLocationCoordinate2D = {
         // 从本地缓存加载最后一次GPS位置作为初始值
         if let lastCoordinate = LocationCacheManager.shared.loadLastLocation() {
-            return MKCoordinateRegion(
-                center: lastCoordinate,
-                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-            )
+            return lastCoordinate
         }
         // 如果没有缓存，使用默认值（稍后会被GPS更新）
-        return MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 0, longitude: 0),
-            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-        )
+        return CLLocationCoordinate2D(latitude: 0, longitude: 0)
     }()
+    @State private var cameraPosition: GMSCameraPosition?
     @State private var isLocating = true
     @State private var locationError: String?
     @State private var searchText = ""
-    @State private var searchResults: [MKMapItem] = []
+    @State private var searchResults: [GooglePlaceResult] = []
     @State private var isSearching = false
     @State private var selectedLocation: CLLocationCoordinate2D?
     @State private var locationName = ""
     @State private var locationAddress = ""
     @StateObject private var locationManager = LocationPickerManager()
     
-    // MKLocalSearchCompleter 相关状态
-    @StateObject private var searchCompleter = SearchCompleterManager()
+    // Google Places Autocomplete 相关状态
+    @StateObject private var searchCompleter = GooglePlacesAutocompleteManager()
     @State private var showSearchResults = false // 是否显示正式搜索结果（而非建议）
     
-    // 附近推荐地点（拖动地图后显示）
-    @State private var nearbyPOIs: [MKMapItem] = []
-    @State private var isLoadingNearbyPOIs = false
-    @State private var nearbyPOITask: Task<Void, Never>?
     
     // 重构后的状态管理：简化状态变量
     @State private var reverseGeocodeTask: Task<Void, Never>?
@@ -62,10 +54,15 @@ struct LocationPickerView: View {
     // 记录上一次的坐标，用于比较变化
     @State private var lastRegionCenter: CLLocationCoordinate2D?
     
-    // 统一的地理编码器实例（用于 cancel）
-    @State private var geocoder = CLGeocoder()
+    // Google Places Manager
+    private let placesManager = GooglePlacesManager.shared
     
     @FocusState private var isSearchFieldFocused: Bool
+    
+    // 计算属性：是否应该隐藏地图（当搜索栏有焦点或有搜索信息时隐藏）
+    private var shouldHideMap: Bool {
+        isSearchFieldFocused || (!searchText.isEmpty && (showSearchResults ? (!searchResults.isEmpty || isSearching) : !searchCompleter.completions.isEmpty))
+    }
     
     var body: some View {
         NavigationView {
@@ -129,26 +126,26 @@ struct LocationPickerView: View {
                     List {
                         if showSearchResults {
                             // 显示正式搜索结果
-                            if isSearching {
-                                HStack {
-                                    ProgressView()
-                                        .padding(.trailing, 8)
-                                    Text("搜索中...")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
+                        if isSearching {
+                            HStack {
+                                ProgressView()
+                                    .padding(.trailing, 8)
+                                Text("location_picker.searching".localized())
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
                             } else if !searchResults.isEmpty {
                                 ForEach(Array(searchResults.enumerated()), id: \.offset) { index, item in
-                                    Button(action: {
-                                        selectLocation(item: item)
-                                    }) {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(item.name ?? "未知地点")
-                                                .font(.headline)
-                                                .foregroundColor(.primary)
-                                            if let address = formatAddress(from: item.placemark) {
-                                                Text(address)
-                                                    .font(.caption)
+                            Button(action: {
+                                selectLocation(item: item)
+                            }) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                            Text(item.name)
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+                                            if !item.address.isEmpty {
+                                                Text(item.address.formattedForDisplay)
+                                            .font(.caption)
                                                     .foregroundColor(.secondary)
                                             }
                                         }
@@ -158,14 +155,14 @@ struct LocationPickerView: View {
                                 HStack {
                                     Image(systemName: "magnifyingglass")
                                         .foregroundColor(.secondary)
-                                    Text("未找到相关地点")
+                                    Text("location_picker.no_results".localized())
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                 }
                             }
                         } else {
                             // 显示搜索建议
-                            ForEach(Array(searchCompleter.completions.enumerated()), id: \.offset) { index, completion in
+                            ForEach(searchCompleter.completions) { completion in
                                 Button(action: {
                                     selectCompletion(completion)
                                 }) {
@@ -174,11 +171,11 @@ struct LocationPickerView: View {
                                             .foregroundColor(.secondary)
                                             .font(.caption)
                                         VStack(alignment: .leading, spacing: 2) {
-                                            Text(completion.title)
+                                            Text(completion.primaryText)
                                                 .font(.headline)
                                                 .foregroundColor(.primary)
-                                            if !completion.subtitle.isEmpty {
-                                                Text(completion.subtitle)
+                                            if !completion.secondaryText.isEmpty {
+                                                Text(completion.secondaryText.formattedForDisplay)
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
                                             }
@@ -195,54 +192,60 @@ struct LocationPickerView: View {
                 }
                 
                 // 地图视图（搜索时隐藏）
-                if !isSearchFieldFocused {
-                    ZStack {
-                        // 地图视图（始终显示）
-                        Map(coordinateRegion: $region,
-                            interactionModes: [.pan, .zoom],
-                            showsUserLocation: true,
-                            userTrackingMode: .none)
-                        .onChange(of: EquatableCoordinate(region.center)) { _, _ in
-                            handleRegionChange()
-                            // 滑动地图时收起键盘
-                            if isSearchFieldFocused {
-                                isSearchFieldFocused = false
-                                hideKeyboard()
-                            }
-                        }
-                        
-                        // 中心标记
-                        Image(systemName: "mappin.circle.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(.red)
-                            .offset(y: -20)
-                            .allowsHitTesting(false)
-                        
-                        // 定位状态覆盖层
-                        if isLocating {
-                            ProgressView("正在定位...")
-                                .padding()
-                                .background(Color.white.opacity(0.8))
-                                .cornerRadius(10)
-                        } else if let error = locationError {
-                            VStack(spacing: 8) {
-                                Image(systemName: "location.slash")
-                                    .font(.title2)
-                                    .foregroundColor(.orange)
-                                Text(error)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Button("重试") {
-                                    locationTask = Task {
-                                        await requestLocationAndUpdate()
-                                    }
+                if !shouldHideMap {
+                ZStack {
+                        // Google Maps 视图
+                        GoogleMapView(
+                            region: $region,
+                            cameraPosition: $cameraPosition,
+                            onCameraChange: { coordinate in
+                                // 用户拖动地图后，清除 cameraPosition，让地图跟随用户操作
+                                // 这样可以避免地图被持续重置到之前设置的位置
+                                if cameraPosition != nil {
+                                    cameraPosition = nil
                                 }
-                                .buttonStyle(.bordered)
+                                
+                                handleRegionChange()
+                                // 滑动地图时收起键盘
+                                if isSearchFieldFocused {
+                                    isSearchFieldFocused = false
+                                    hideKeyboard()
+                                }
                             }
+                        )
+                    
+                    // 中心标记
+                    Image(systemName: "mappin.circle.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.red)
+                        .offset(y: -20)
+                        .allowsHitTesting(false)
+                    
+                    // 定位状态覆盖层
+                    if isLocating {
+                        ProgressView("正在定位...")
                             .padding()
-                            .background(Color.white.opacity(0.8))
+                                .background(Color(.systemBackground).opacity(0.9))
                             .cornerRadius(10)
+                    } else if let error = locationError {
+                        VStack(spacing: 8) {
+                            Image(systemName: "location.slash")
+                                .font(.title2)
+                                .foregroundColor(.orange)
+                            Text(error)
+                                .font(.caption)
+                                    .foregroundColor(.primary)
+                            Button("重试") {
+                                locationTask = Task {
+                                    await requestLocationAndUpdate()
+                                }
+                            }
+                            .buttonStyle(.bordered)
                         }
+                        .padding()
+                            .background(Color(.systemBackground).opacity(0.9))
+                        .cornerRadius(10)
+                    }
                     }
                     .simultaneousGesture(
                         TapGesture().onEnded {
@@ -254,71 +257,21 @@ struct LocationPickerView: View {
                 }
                 
                 // 底部按钮（搜索时隐藏）
-                if !isSearchFieldFocused {
-                    VStack(spacing: 12) {
-                    if !locationName.isEmpty {
+                // 与地图使用相同的隐藏条件
+                if !shouldHideMap {
+                VStack(spacing: 12) {
+                    // 统一显示格式：地点名称 + 地点地址
+                    if !locationName.isEmpty || !locationAddress.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(locationName)
+                            // 显示组合后的地址（名称 + 地址）
+                            Text(formatAddressForDisplay(name: locationName, address: locationAddress))
                                 .font(.headline)
-                            if !locationAddress.isEmpty {
-                                Text(locationAddress)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                                .foregroundColor(.primary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
                         .background(Color.gray.opacity(0.1))
                         .cornerRadius(8)
-                    }
-                    
-                    // 附近推荐地址列表（类似高德地图）
-                    if !showSearchResults && !nearbyPOIs.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("附近推荐")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal)
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(Array(nearbyPOIs.enumerated()), id: \.offset) { index, item in
-                                        Button(action: {
-                                            selectLocation(item: item)
-                                        }) {
-                                            VStack(alignment: .leading, spacing: 4) {
-                                                Text(item.name ?? "未知地点")
-                                                    .font(.subheadline)
-                                                    .fontWeight(.medium)
-                                                    .foregroundColor(.primary)
-                                                if let address = formatAddress(from: item.placemark) {
-                                                    Text(address)
-                                                        .font(.caption2)
-                                                        .foregroundColor(.secondary)
-                                                        .lineLimit(1)
-                                                }
-                                            }
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 8)
-                                            .background(Color.gray.opacity(0.1))
-                                            .cornerRadius(8)
-                                        }
-                                    }
-                                }
-                                .padding(.horizontal)
-                            }
-                        }
-                    } else if isLoadingNearbyPOIs && !showSearchResults {
-                        HStack {
-                            ProgressView()
-                                .padding(.trailing, 8)
-                            Text("正在加载附近地点...")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal)
                     }
                     
                     HStack(spacing: 16) {
@@ -328,12 +281,12 @@ struct LocationPickerView: View {
                         .foregroundColor(.secondary)
                         
                         Button("确认") {
-                            // 如果有地址，使用地址；否则使用坐标
-                            if !locationAddress.isEmpty {
-                                selectedAddress = locationAddress
+                            // 格式化地址显示：名字＋地址（移除邮政编码）
+                            if !locationName.isEmpty || !locationAddress.isEmpty {
+                                selectedAddress = formatAddressForDisplay(name: locationName, address: locationAddress)
                             } else if let coordinate = selectedLocation {
-                                // 使用坐标作为地址（格式：纬度,经度）
-                                selectedAddress = "\(coordinate.latitude), \(coordinate.longitude)"
+                                // 使用指示地址替代经纬度
+                                selectedAddress = getIndicativeAddress(for: coordinate)
                             }
                             selectedCoordinate = selectedLocation
                             cleanupAndDismiss()
@@ -380,7 +333,12 @@ struct LocationPickerView: View {
         if let coordinate = selectedCoordinate {
             // 设置短暂的冻结期，避免与 onChange 冲突
             freezeReverseGeocodeUntil = Date().addingTimeInterval(0.5)
-            region.center = coordinate
+            region = coordinate
+            cameraPosition = GMSCameraPosition.camera(
+                withLatitude: coordinate.latitude,
+                longitude: coordinate.longitude,
+                zoom: 15.0
+            )
             selectedLocation = coordinate
             lastRegionCenter = coordinate // 设置初始值，避免第一次拖动时立即触发
             await reverseGeocode(coordinate: coordinate)
@@ -404,7 +362,12 @@ struct LocationPickerView: View {
             
             // 设置短暂的冻结期，避免与 onChange 冲突
             freezeReverseGeocodeUntil = Date().addingTimeInterval(0.5)
-            region.center = coordinate
+            region = coordinate
+            cameraPosition = GMSCameraPosition.camera(
+                withLatitude: coordinate.latitude,
+                longitude: coordinate.longitude,
+                zoom: 15.0
+            )
             selectedLocation = coordinate
             lastRegionCenter = coordinate // 设置初始值，避免第一次拖动时立即触发
             await reverseGeocode(coordinate: coordinate)
@@ -415,7 +378,12 @@ struct LocationPickerView: View {
                 print("📍 使用缓存的GPS位置")
                 // 设置短暂的冻结期，避免与 onChange 冲突
                 freezeReverseGeocodeUntil = Date().addingTimeInterval(0.5)
-                region.center = cachedCoordinate
+                region = cachedCoordinate
+                cameraPosition = GMSCameraPosition.camera(
+                    withLatitude: cachedCoordinate.latitude,
+                    longitude: cachedCoordinate.longitude,
+                    zoom: 15.0
+                )
                 selectedLocation = cachedCoordinate
                 lastRegionCenter = cachedCoordinate // 设置初始值，避免第一次拖动时立即触发
                 await reverseGeocode(coordinate: cachedCoordinate)
@@ -432,11 +400,11 @@ struct LocationPickerView: View {
     /// 处理地图区域变化（统一入口）
     @MainActor
     private func handleRegionChange() {
-        let newValue = region.center
+        let newValue = region
         
         // ⛳️ 若還在冷卻期，直接跳過，避免建立 Task 再被取消
         if let freezeUntil = freezeReverseGeocodeUntil, Date() < freezeUntil {
-        return
+            return
         }
         // 清除错误状态（用户拖动地图时）
         locationError = nil
@@ -453,7 +421,7 @@ struct LocationPickerView: View {
                 if Task.isCancelled { return }
                 searchResults = []
                 // 检查地图是否在冻结期间移动了
-                let currentCenter = region.center
+                let currentCenter = region
                 let distance = CLLocation(latitude: newValue.latitude, longitude: newValue.longitude)
                     .distance(from: CLLocation(latitude: currentCenter.latitude, longitude: currentCenter.longitude))
                 
@@ -462,7 +430,6 @@ struct LocationPickerView: View {
                     selectedLocation = currentCenter
                     lastRegionCenter = currentCenter
                     reverseGeocodeTask?.cancel()
-                    geocoder.cancelGeocode()
                     reverseGeocodeTask = Task { @MainActor in
                         await reverseGeocode(coordinate: currentCenter)
                     }
@@ -482,9 +449,8 @@ struct LocationPickerView: View {
         lastRegionCenter = newValue
         selectedLocation = newValue
         
-        // 取消之前的反查任务和 geocoder（立即终止旧请求，避免乱序回写）
+        // 取消之前的反查任务（立即终止旧请求，避免乱序回写）
         reverseGeocodeTask?.cancel()
-        geocoder.cancelGeocode()
         
         // 创建新的防抖任务（确保在 MainActor 上）
         reverseGeocodeTask = Task { @MainActor in
@@ -496,6 +462,62 @@ struct LocationPickerView: View {
             
             await reverseGeocode(coordinate: newValue)
         }
+    }
+    
+    /// 生成指示地址（当无法获取详细地址时使用，替代经纬度显示）
+    private func getIndicativeAddress(for coordinate: CLLocationCoordinate2D) -> String {
+        return "未知位置"
+    }
+    
+    /// 格式化地址显示（名字＋地址，移除邮政编码和国家字样）
+    /// 参考：https://developers.google.com/maps/documentation/ios-sdk
+    private func formatAddressForDisplay(name: String, address: String) -> String {
+        // 清理和验证输入
+        let cleanedName = name.formattedForDisplay.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedAddress = address.formattedForDisplay.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // 验证地址有效性
+        let isValidName = AddressFormatter.isValidAddress(cleanedName)
+        let isValidAddress = AddressFormatter.isValidAddress(cleanedAddress)
+        
+        // 如果名称和地址都无效，返回默认值
+        if !isValidName && !isValidAddress {
+            return "未知位置"
+        }
+        
+        // 如果只有名称有效
+        if isValidName && !isValidAddress {
+            return cleanedName
+        }
+        
+        // 如果只有地址有效
+        if !isValidName && isValidAddress {
+            return cleanedAddress
+        }
+        
+        // 如果名称和地址都有效，智能组合
+        // 检查名称是否已经包含在地址中（避免重复）
+        if cleanedAddress.localizedCaseInsensitiveContains(cleanedName) {
+            return cleanedAddress
+        }
+        
+        // 检查地址是否已经包含在名称中
+        if cleanedName.localizedCaseInsensitiveContains(cleanedAddress) {
+            return cleanedName
+        }
+        
+        // 根据地址格式决定分隔符
+        // 中文地址通常不需要分隔符，英文地址用空格或逗号
+        let separator: String
+        if cleanedAddress.range(of: #"[\u4e00-\u9fff]"#, options: .regularExpression) != nil {
+            // 包含中文字符，使用空字符串或空格
+            separator = cleanedName.isEmpty ? "" : " "
+        } else {
+            // 英文地址，使用空格
+            separator = " "
+        }
+        
+        return "\(cleanedName)\(separator)\(cleanedAddress)".trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
     /// 更新搜索建议（使用 MKLocalSearchCompleter）
@@ -515,13 +537,13 @@ struct LocationPickerView: View {
     
     /// 选择搜索建议，进行正式搜索
     @MainActor
-    private func selectCompletion(_ completion: MKLocalSearchCompletion) {
+    private func selectCompletion(_ completion: GooglePlaceAutocomplete) {
         // 收起键盘
         isSearchFieldFocused = false
         hideKeyboard()
         
         // 更新搜索文本为建议的标题
-        searchText = completion.title
+        searchText = completion.primaryText
         
         // 切换到显示搜索结果模式
         showSearchResults = true
@@ -537,36 +559,32 @@ struct LocationPickerView: View {
     
     /// 使用搜索建议进行正式搜索
     @MainActor
-    private func searchLocationWithCompletion(_ completion: MKLocalSearchCompletion) async {
+    private func searchLocationWithCompletion(_ completion: GooglePlaceAutocomplete) async {
         isSearching = true
         defer { isSearching = false }
         
-        let request = MKLocalSearch.Request(completion: completion)
-        request.region = region
-        
-        let search = MKLocalSearch(request: request)
-        
-        do {
-            let response = try await search.start()
-            // 检查是否已取消
-            if Task.isCancelled {
-                searchResults = []
-                return
+        // 使用 Google Places API 获取地点详细信息
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            searchCompleter.fetchPlaceDetails(placeID: completion.placeID) { result in
+                Task { @MainActor in
+                    if Task.isCancelled {
+                        searchResults = []
+                        continuation.resume()
+                        return
+                    }
+                    
+                    switch result {
+                    case .success(let place):
+                        searchResults = [place]
+                        // 自动选择位置，恢复地图并聚焦到该位置
+                        selectLocation(item: place)
+                    case .failure(let error):
+                        print("搜索失败: \(error.localizedDescription)")
+                        searchResults = []
+                    }
+                    continuation.resume()
+                }
             }
-            searchResults = response.mapItems
-        } catch {
-            // 检查是否已取消
-            if Task.isCancelled {
-                searchResults = []
-                return
-            }
-            // 记录错误
-            if let mkError = error as? MKError {
-                print("搜索失败: \(mkError.localizedDescription)")
-            } else {
-                print("搜索失败: \(error.localizedDescription)")
-            }
-            searchResults = []
         }
     }
     
@@ -606,65 +624,145 @@ struct LocationPickerView: View {
         isSearching = true
         defer { isSearching = false } // 确保无论是否被 cancel 都会重置状态
         
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = query
-        request.region = region
-        
-        let search = MKLocalSearch(request: request)
-        
-        do {
-            let response = try await search.start()
-            // 检查是否已取消
-            if Task.isCancelled { 
-                searchResults = []
-                return 
+        // 使用 Google Places API 搜索（现在只返回 predictions，不获取详细信息）
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            placesManager.searchPlaces(query: query, coordinate: region) { result in
+                Task { @MainActor in
+                    if Task.isCancelled {
+                        searchResults = []
+                        continuation.resume()
+                        return
+                    }
+                    
+                    switch result {
+                    case .success(let places):
+                        // 现在 searchPlaces 只返回 predictions，需要获取详细信息
+                        let placeIDs = places.map { $0.placeID }
+                        placesManager.fetchPlaceDetails(placeIDs: placeIDs) { detailsResult in
+                            Task { @MainActor in
+                                if Task.isCancelled {
+                                    searchResults = []
+                                    continuation.resume()
+                                    return
+                                }
+                                
+                                switch detailsResult {
+                                case .success(let detailedPlaces):
+                                    searchResults = detailedPlaces
+                                case .failure(let error):
+                                    #if DEBUG
+                                    print("获取地点详情失败: \(error.localizedDescription)")
+                                    #endif
+                                    // 即使获取详情失败，也显示 predictions 结果
+                                    searchResults = places
+                                }
+                                continuation.resume()
+                            }
+                        }
+                    case .failure(let error):
+                        #if DEBUG
+                        print("搜索失败: \(error.localizedDescription)")
+                        #endif
+                        searchResults = []
+                        continuation.resume()
+                    }
+                }
             }
-            searchResults = response.mapItems
-        } catch {
-            // 检查是否已取消
-            if Task.isCancelled {
-                searchResults = []
-                return
-            }
-            // 忽略取消错误，但记录其他错误
-            if let mkError = error as? MKError {
-                print("搜索失败: \(mkError.localizedDescription)")
-            } else {
-                print("搜索失败: \(error.localizedDescription)")
-            }
-            // 搜索失败时清空结果
-            searchResults = []
         }
     }
     
     @MainActor
-    private func selectLocation(item: MKMapItem) {
-        let coordinate = item.placemark.coordinate
+    private func selectLocation(item: GooglePlaceResult) {
+        // 如果坐标无效（临时坐标），需要获取详细信息
+        let needsFetchDetails = item.coordinate.latitude == 0 && item.coordinate.longitude == 0
+        
+        if needsFetchDetails {
+            // 获取地点详细信息
+            placesManager.fetchPlaceDetails(placeIDs: [item.placeID]) { result in
+                Task { @MainActor in
+                    switch result {
+                    case .success(let places):
+                        if let place = places.first {
+                            self.applySelectedLocation(place)
+                        } else {
+                            // 如果获取失败，使用现有信息
+                            self.applySelectedLocation(item)
+                        }
+                    case .failure:
+                        // 如果获取失败，使用现有信息
+                        self.applySelectedLocation(item)
+                    }
+                }
+            }
+        } else {
+            // 已有完整信息，直接应用
+            applySelectedLocation(item)
+        }
+    }
+    
+    /// 应用选中的位置（内部辅助方法）
+    @MainActor
+    private func applySelectedLocation(_ item: GooglePlaceResult) {
+        let coordinate = item.coordinate
         
         // 取消正在进行的反查任务
         reverseGeocodeTask?.cancel()
-        geocoder.cancelGeocode()
         
         // 设置区域（这会触发 handleRegionChange，但会被冻结期阻止）
-        region.center = coordinate
+        region = coordinate
+        cameraPosition = GMSCameraPosition.camera(
+            withLatitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            zoom: 15.0
+        )
         selectedLocation = coordinate
         
-        // 直接设置地址信息（保持搜索结果的名称，确保地址不为空）
-        locationName = item.name ?? "未知地点"
-        locationAddress = formatAddress(from: item.placemark) ?? item.name ?? "\(coordinate.latitude), \(coordinate.longitude)"
+        // 智能处理地点名称和地址
+        let cleanedName = item.name.formattedForDisplay.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedAddress = item.address.formattedForDisplay.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // 清空搜索结果列表，但保留搜索框文字（类似高德地图行为）
+        // 验证并设置地点名称
+        if AddressFormatter.isValidAddress(cleanedName) && 
+           !cleanedName.localizedCaseInsensitiveContains("Dropped Pin") &&
+           !cleanedName.localizedCaseInsensitiveContains("未知") {
+            locationName = cleanedName
+        } else {
+            locationName = ""
+        }
+        
+        // 验证并设置地址
+        if AddressFormatter.isValidAddress(cleanedAddress) {
+            locationAddress = cleanedAddress
+        } else {
+            // 如果地址无效，尝试使用指示地址
+            let indicativeAddress = getIndicativeAddress(for: coordinate)
+            if AddressFormatter.isValidAddress(indicativeAddress) {
+                locationAddress = indicativeAddress.formattedForDisplay
+            } else {
+                locationAddress = ""
+            }
+        }
+        
+        // 如果名称和地址相同，清空名称避免重复显示
+        if locationName == locationAddress {
+            locationName = ""
+        }
+        
+        // 如果名称包含在地址中，从地址中移除名称部分
+        if !locationName.isEmpty && locationAddress.contains(locationName) {
+            locationAddress = locationAddress.replacingOccurrences(of: locationName, with: "")
+                .trimmingCharacters(in: CharacterSet(charactersIn: " ,"))
+        }
+        
+        // 清空搜索结果列表和搜索建议，恢复地图显示
         searchResults = []
         showSearchResults = false
+        searchCompleter.updateQueryFragment("") // 清空搜索建议
+        searchText = "" // 清空搜索文本，确保地图恢复显示
         
         // 收起键盘
         isSearchFieldFocused = false
         hideKeyboard()
-        
-        // 获取新位置附近的POI推荐
-        Task {
-            await loadNearbyPOIs(coordinate: coordinate)
-        }
         
         // 清除错误状态（如果用户通过搜索选择了位置，清除之前的定位错误）
         locationError = nil
@@ -673,7 +771,7 @@ struct LocationPickerView: View {
         freezeReverseGeocodeUntil = Date().addingTimeInterval(1.0)
     }
     
-    /// 反向地理编码（重构：使用统一的 geocoder 实例，支持 cancel）
+    /// 反向地理编码（使用 Google Places API）
     @MainActor
     private func reverseGeocode(coordinate: CLLocationCoordinate2D) async {
         // 检查是否在冻结期内
@@ -681,154 +779,108 @@ struct LocationPickerView: View {
             return
         }
         
-        // 取消之前的反查（但不清空地址，保持上一次地址显示）
-        geocoder.cancelGeocode()
+        // 取消之前的反查任务
+        reverseGeocodeTask?.cancel()
         
-        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        
-        do {
-            let placemarks = try await geocoder.reverseGeocodeLocation(location)
-            
-            // 检查是否已取消
-            if Task.isCancelled { return }
-            
-            // 只有成功拿到新 placemark 才更新地址（确保地址不为空）
-            if let placemark = placemarks.first {
-                // 使用统一的地址格式化方法
-                locationName = placemark.name ?? "Dropped Pin"
-                locationAddress = formatAddress(from: placemark) ?? placemark.name ?? "\(coordinate.latitude), \(coordinate.longitude)"
-            } else {
-                // 如果没有 placemark，使用坐标作为 fallback
-                locationName = "Dropped Pin"
-                locationAddress = "\(coordinate.latitude), \(coordinate.longitude)"
-            }
-        } catch {
-            // 检查是否已取消
-            if Task.isCancelled { return }
-            
-            // 对于取消和网络错误，使用坐标作为 fallback（确保地址不为空）
-            if let clError = error as? CLError {
-                switch clError.code {
-                case .geocodeCanceled:
-                    // 取消时保持上一次地址（不清空）
-                    break
-                case .network:
-                    // 网络错误时使用坐标作为 fallback
-                    locationName = "Dropped Pin"
-                    locationAddress = "\(coordinate.latitude), \(coordinate.longitude)"
-                default:
-                    // 其他错误也使用坐标作为 fallback
-                    locationName = "Dropped Pin"
-                    locationAddress = "\(coordinate.latitude), \(coordinate.longitude)"
-                    #if DEBUG
-                    print("反向地理编码失败: \(error.localizedDescription)")
-                    #endif
-                }
-            } else {
-                // 未知错误，使用坐标作为 fallback
-                locationName = "Dropped Pin"
-                locationAddress = "\(coordinate.latitude), \(coordinate.longitude)"
-                #if DEBUG
-                print("反向地理编码失败: \(error.localizedDescription)")
-                #endif
-            }
-        }
-        
-        // 反查成功后，获取附近POI推荐（类似高德地图）
-        Task {
-            await loadNearbyPOIs(coordinate: coordinate)
-        }
-    }
-    
-    /// 加载附近POI推荐（拖动地图后显示）
-    @MainActor
-    private func loadNearbyPOIs(coordinate: CLLocationCoordinate2D) async {
-        // 取消之前的任务
-        nearbyPOITask?.cancel()
-        
-        // 如果正在显示搜索结果，不显示附近推荐
-        if showSearchResults && !searchResults.isEmpty {
-            nearbyPOIs = []
-            return
-        }
-        
-        isLoadingNearbyPOIs = true
-        
-        nearbyPOITask = Task { @MainActor in
-            // 使用当前地址名称搜索附近POI（更准确）
-            var searchQuery = locationName
-            if searchQuery.isEmpty || searchQuery == "Dropped Pin" {
-                // 如果没有地址名称，使用地址
-                searchQuery = locationAddress
-            }
-            
-            // 如果仍然为空，使用通用搜索
-            if searchQuery.isEmpty || searchQuery.contains(",") {
-                searchQuery = "附近"
-            }
-            
-            let request = MKLocalSearch.Request()
-            request.naturalLanguageQuery = searchQuery
-            request.region = MKCoordinateRegion(
-                center: coordinate,
-                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01) // 约1公里范围
-            )
-            
-            let search = MKLocalSearch(request: request)
-            
-            do {
-                let response = try await search.start()
-                
-                // 检查是否已取消
-                if Task.isCancelled {
-                    isLoadingNearbyPOIs = false
-                    return
-                }
-                
-                // 过滤并排序结果（排除当前点，优先显示名称和地址都有的POI）
-                let currentLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-                let sortedItems = response.mapItems
-                    .filter { item in
-                        guard let name = item.name, !name.isEmpty else { return false }
-                        // 排除距离太近的点（可能是同一个地点）
-                        let itemLocation = CLLocation(
-                            latitude: item.placemark.coordinate.latitude,
-                            longitude: item.placemark.coordinate.longitude
-                        )
-                        let distance = currentLocation.distance(from: itemLocation)
-                        return distance > 50 // 至少50米外的点
+        // 使用 Google Places API 进行反向地理编码
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            placesManager.reverseGeocode(coordinate: coordinate) { result in
+                Task { @MainActor in
+                    if Task.isCancelled {
+                        continuation.resume()
+                        return
                     }
-                    .sorted { item1, item2 in
-                        // 按距离排序
-                        let loc1 = CLLocation(
-                            latitude: item1.placemark.coordinate.latitude,
-                            longitude: item1.placemark.coordinate.longitude
-                        )
-                        let loc2 = CLLocation(
-                            latitude: item2.placemark.coordinate.latitude,
-                            longitude: item2.placemark.coordinate.longitude
-                        )
-                        return currentLocation.distance(from: loc1) < currentLocation.distance(from: loc2)
-                    }
-                    .prefix(10) // 最多显示10个
-                
-                nearbyPOIs = Array(sortedItems)
-            } catch {
-                // 检查是否已取消
-                if Task.isCancelled {
-                    isLoadingNearbyPOIs = false
-                    return
-                }
-                #if DEBUG
-                print("加载附近POI失败: \(error.localizedDescription)")
-                #endif
-                nearbyPOIs = []
-            }
             
-            isLoadingNearbyPOIs = false
+                    switch result {
+                    case .success(let place):
+                        if let place = place {
+                            // 清理和验证地点名称
+                            let cleanedName = place.name.formattedForDisplay.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let cleanedAddress = place.address.formattedForDisplay.trimmingCharacters(in: .whitespacesAndNewlines)
+                            
+                            // 验证名称有效性
+                            let isValidName = AddressFormatter.isValidAddress(cleanedName) &&
+                                            !cleanedName.localizedCaseInsensitiveContains("Dropped Pin") &&
+                                            !cleanedName.localizedCaseInsensitiveContains("未知")
+                            
+                            // 验证地址有效性
+                            let isValidAddress = AddressFormatter.isValidAddress(cleanedAddress)
+                            
+                            if isValidName && isValidAddress {
+                                // 名称和地址都有效
+                                locationName = cleanedName
+                                locationAddress = cleanedAddress
+                                
+                                // 如果名称和地址相同，清空名称
+                                if locationName == locationAddress {
+                                    locationName = ""
+                                }
+                                
+                                // 如果名称包含在地址中，从地址中移除名称
+                                if !locationName.isEmpty && locationAddress.contains(locationName) {
+                                    locationAddress = locationAddress.replacingOccurrences(of: locationName, with: "")
+                                        .trimmingCharacters(in: CharacterSet(charactersIn: " ,"))
+                                }
+                            } else if isValidName && !isValidAddress {
+                                // 只有名称有效
+                                locationName = cleanedName
+                                locationAddress = ""
+                            } else if !isValidName && isValidAddress {
+                                // 只有地址有效，尝试从地址中提取名称
+                                // 根据地址格式智能分割
+                                let separators = CharacterSet(charactersIn: "，, ")
+                                let addressParts = cleanedAddress.components(separatedBy: separators).filter { !$0.isEmpty }
+                                
+                                if addressParts.count > 1 {
+                                    // 多个部分：第一部分作为名称，剩余作为地址
+                                    locationName = addressParts.first ?? ""
+                                    locationAddress = addressParts.dropFirst().joined(separator: " ")
+                                } else {
+                                    // 单个部分：全部作为名称
+                                    locationName = cleanedAddress
+                                    locationAddress = ""
+                                }
+                            } else {
+                                // 都无效，使用指示地址
+                                let indicativeAddress = getIndicativeAddress(for: coordinate)
+                                if AddressFormatter.isValidAddress(indicativeAddress) {
+                                    locationName = indicativeAddress.formattedForDisplay
+                                    locationAddress = ""
+                                } else {
+                                    locationName = ""
+                                    locationAddress = ""
+                                }
+                            }
+                        } else {
+                            // 如果没有结果，使用指示地址作为 fallback
+                            let indicativeAddress = getIndicativeAddress(for: coordinate)
+                            if AddressFormatter.isValidAddress(indicativeAddress) {
+                                locationName = indicativeAddress.formattedForDisplay
+                                locationAddress = ""
+                            } else {
+                                locationName = ""
+                                locationAddress = ""
+                            }
+                        }
+                    case .failure(let error):
+                        // 错误时使用指示地址作为 fallback
+                        let indicativeAddress = getIndicativeAddress(for: coordinate)
+                        if AddressFormatter.isValidAddress(indicativeAddress) {
+                            locationName = indicativeAddress.formattedForDisplay
+                            locationAddress = ""
+                        } else {
+                            locationName = ""
+                            locationAddress = ""
+                        }
+                        #if DEBUG
+                        print("反向地理编码失败: \(error.localizedDescription)")
+                        #endif
+                }
+                    
+                    continuation.resume()
+                }
+            }
         }
-        
-        await nearbyPOITask?.value
     }
     
     private func formatAddress(from placemark: CLPlacemark) -> String? {
@@ -868,35 +920,12 @@ struct LocationPickerView: View {
         locationTask?.cancel()
         locationTask = nil
         
-        nearbyPOITask?.cancel()
-        nearbyPOITask = nil
-        
-        // 取消地理编码
-        geocoder.cancelGeocode()
-        
         // 停止位置更新
         locationManager.stopUpdatingLocation()
         
         // 清空搜索相关状态
         searchResults = []
         searchText = ""
-        nearbyPOIs = []
-    }
-}
-
-// MARK: - EquatableCoordinate（用于统一监听 region.center）
-struct EquatableCoordinate: Equatable {
-    let latitude: Double
-    let longitude: Double
-    
-    init(_ coordinate: CLLocationCoordinate2D) {
-        self.latitude = coordinate.latitude
-        self.longitude = coordinate.longitude
-    }
-    
-    static func == (lhs: EquatableCoordinate, rhs: EquatableCoordinate) -> Bool {
-        // 使用约 5 米的精度进行比较（避免微小变化触发，但不要太严格）
-        abs(lhs.latitude - rhs.latitude) < 0.00005 && abs(lhs.longitude - rhs.longitude) < 0.00005
     }
 }
 
@@ -1067,44 +1096,3 @@ class LocationPickerManager: NSObject, ObservableObject, CLLocationManagerDelega
     }
 }
 
-// MARK: - 搜索建议管理器（使用 MKLocalSearchCompleter）
-class SearchCompleterManager: NSObject, ObservableObject, MKLocalSearchCompleterDelegate {
-    private let completer = MKLocalSearchCompleter()
-    
-    @Published var completions: [MKLocalSearchCompletion] = []
-    
-    var region: MKCoordinateRegion? {
-        didSet {
-            if let region = region {
-                completer.region = region
-            }
-        }
-    }
-    
-    override init() {
-        super.init()
-        completer.delegate = self
-        completer.resultTypes = [.address, .pointOfInterest, .query]
-        completer.filterType = .locationsAndQueries
-    }
-    
-    func updateQueryFragment(_ fragment: String) {
-        completer.queryFragment = fragment
-    }
-    
-    // MARK: - MKLocalSearchCompleterDelegate
-    func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
-        DispatchQueue.main.async {
-            self.completions = completer.results
-        }
-    }
-    
-    func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
-        #if DEBUG
-        print("搜索建议失败: \(error.localizedDescription)")
-        #endif
-        DispatchQueue.main.async {
-            self.completions = []
-        }
-    }
-}

@@ -28,7 +28,7 @@ struct GroupEventsView: View {
             } else if groupIds.isEmpty && groupId == nil {
                 VStack {
                     Spacer()
-                    Text("尚未加入任何社群")
+                    Text("group_events.no_groups".localized())
                         .foregroundColor(.gray)
                         .font(.body)
                     Spacer()
@@ -37,7 +37,7 @@ struct GroupEventsView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         if groupEvents.isEmpty {
-                            Text("尚未有社群活動")
+                            Text("group_events.no_activities".localized())
                                 .foregroundColor(.secondary)
                                 .padding()
                         } else {

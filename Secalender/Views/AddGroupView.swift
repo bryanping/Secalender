@@ -33,28 +33,28 @@ struct AddGroupView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     if userManager.userOpenId.isEmpty {
-                        ProgressView("加载中...").padding()
+                        ProgressView("friends.loading".localized()).padding()
                     } else {
                         // 社群名称（必须）
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text("社群名称")
+                                Text("add_group.name".localized())
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                 Text("*")
                                     .foregroundColor(.red)
                             }
-                            TextField("请输入社群名称", text: $groupName)
+                            TextField("add_group.name_placeholder".localized(), text: $groupName)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                         }
                         .padding(.horizontal)
                         
                         // 社群描述（可选）
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("社群简介（可选）")
+                            Text("add_group.description".localized())
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            TextField("请输入社群简介", text: $groupDescription, axis: .vertical)
+                            TextField("add_group.description_placeholder".localized(), text: $groupDescription, axis: .vertical)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                                 .lineLimit(3...6)
                         }
@@ -62,11 +62,11 @@ struct AddGroupView: View {
                         
                         // 社群分类
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("社群分类")
+                            Text("add_group.category".localized())
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            Picker("選擇分類", selection: $selectedCategory) {
-                                Text("請選擇分類").tag("")
+                            Picker("add_group.select_category".localized(), selection: $selectedCategory) {
+                                Text("add_group.select_category".localized()).tag("")
                                 ForEach(GROUP_CATEGORIES, id: \.self) { category in
                                     Text(category).tag(category)
                                 }
@@ -82,17 +82,17 @@ struct AddGroupView: View {
                         
                         // 地点（城市）
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("地點（城市）")
+                            Text("add_group.location".localized())
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            TextField("例如：台北、台中、高雄", text: $location)
+                            TextField("add_group.location_placeholder".localized(), text: $location)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
                         }
                         .padding(.horizontal)
                         
                         // 關注權限
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("關注權限")
+                            Text("add_group.privacy".localized())
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                             
@@ -123,7 +123,7 @@ struct AddGroupView: View {
                         .padding(.horizontal)
                         
                         // 建立按钮
-                        Button("建立社群") {
+                        Button("add_group.create".localized()) {
                             Task { await createGroup() }
                         }
                         .buttonStyle(.borderedProminent)
@@ -139,21 +139,21 @@ struct AddGroupView: View {
                 }
                 .padding(.vertical)
             }
-            .navigationTitle("建立社群")
+            .navigationTitle("add_group.title".localized())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") {
+                    Button("common.cancel".localized()) {
                         dismiss()
                     }
                 }
             }
-            .alert("建立成功", isPresented: $showSuccessAlert) {
-                Button("確定") {
+            .alert("add_group.create_success".localized(), isPresented: $showSuccessAlert) {
+                Button("settings.ok".localized()) {
                     dismiss()
                 }
             } message: {
-                Text("社群建立成功！")
+                Text("add_group.create_success".localized())
             }
         }
     }
@@ -164,19 +164,33 @@ struct AddGroupView: View {
         isLoading = true
 
         guard !userManager.userOpenId.isEmpty else {
-            errorMessage = "用户未登录，请稍后再试"
+            errorMessage = "add_friend.user_not_logged_in".localized()
             isLoading = false
             return
         }
         
         guard !groupName.isEmpty else {
-            errorMessage = "請輸入社群名稱"
+            errorMessage = "add_group.name_required".localized()
             isLoading = false
             return
         }
         
         guard !selectedCategory.isEmpty else {
-            errorMessage = "請選擇社群分類"
+            errorMessage = "add_group.category_required".localized()
+            isLoading = false
+            return
+        }
+        
+        // 檢查手機號是否已驗證
+        do {
+            let isVerified = try await UserManager.shared.isPhoneVerified(userId: userManager.userOpenId)
+            if !isVerified {
+                errorMessage = "創建社群需要先驗證手機號碼，請前往個人資料完成驗證"
+                isLoading = false
+                return
+            }
+        } catch {
+            errorMessage = "檢查驗證狀態失敗：\(error.localizedDescription)"
             isLoading = false
             return
         }
@@ -200,7 +214,7 @@ struct AddGroupView: View {
             // 顯示成功提示，然後自動返回
             showSuccessAlert = true
         } catch {
-            errorMessage = "建立失败：\(error.localizedDescription)"
+            errorMessage = "add_group.create_failed_prefix".localized(with: error.localizedDescription)
         }
         isLoading = false
     }

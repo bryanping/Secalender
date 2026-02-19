@@ -1,0 +1,718 @@
+/* 
+  Localizable.strings
+  Secalender
+
+  Created by 林平 on 2026/1/27.
+  
+*/
+
+// MARK: - Language Names
+"language.english" = "Anglais";
+"language.simplified_chinese" = "Chinois simplifié";
+"language.traditional_chinese" = "Chinois traditionnel";
+"language.german" = "Allemand";
+"language.french" = "Français";
+"language.spanish" = "Espagnol";
+"language.japanese" = "Japonais";
+
+// MARK: - Tab Bar
+"tab.calendar" = "Calendrier";
+"tab.ai_planning" = "Planification IA";
+"tab.my_templates" = "Mes modèles";
+"tab.template_store" = "Boutique de modèles";
+"tab.friends_community" = "Amis & Communauté";
+"tab.settings" = "Paramètres";
+
+// MARK: - AI Planner
+"ai_planner.tell_us_your_plan" = "Parlez-nous de votre voyage";
+"ai_planner.start_with_basics" = "Commençons par les bases pour créer votre itinéraire parfait.";
+"ai_planner.trip_theme" = "Quel est le thème de ce voyage?";
+"ai_planner.trip_theme_placeholder" = "ex: Été à Paris, Tour gastronomique de Lyon";
+"ai_planner.where_are_you_going" = "Où allez-vous?";
+"ai_planner.search_destination" = "Rechercher une destination...";
+"ai_planner.travel_days" = "Jours de voyage";
+"ai_planner.total_days" = "Total de jours";
+"ai_planner.days" = "%d jours";
+"ai_planner.travelers" = "Voyageurs";
+"ai_planner.adults" = "Adultes";
+"ai_planner.adults_description" = "13 ans et plus";
+"ai_planner.children" = "Enfants";
+"ai_planner.children_description" = "12 ans et moins";
+"ai_planner.transportation" = "Transport";
+"ai_planner.interests" = "Intérêts";
+"ai_planner.special_requirements" = "Exigences spéciales";
+"ai_planner.budget_level" = "Niveau de budget";
+"ai_planner.optimize_details" = "Optimiser les détails de l'itinéraire";
+"ai_planner.optimize_subtitle" = "Ajustez les détails pour que nous puissions vous recommander les endroits les plus précis.";
+"ai_planner.surrounding_features" = "Attractions à proximité";
+"ai_planner.searching_features" = "Recherche d'attractions à proximité...";
+"ai_planner.no_features" = "Aucune attraction à proximité disponible";
+"ai_planner.selected_attractions" = "%d/%d attractions sélectionnées";
+"ai_planner.pace" = "Rythme de voyage";
+"ai_planner.departure_location" = "Lieu de départ";
+"ai_planner.locating" = "Localisation...";
+"ai_planner.location_position" = "Position";
+"ai_planner.reposition" = "Repositionner";
+"ai_planner.accommodation" = "Hébergement";
+"ai_planner.select_accommodation" = "Sélectionner l'adresse de l'hébergement";
+"ai_planner.accommodation_hint" = "Vous pouvez rechercher des hôtels ou saisir une adresse personnalisée";
+"ai_planner.additional_requirements" = "Exigences supplémentaires";
+"ai_planner.additional_requirements_placeholder" = "Autre chose à dire à l'IA? ex: pas de nourriture crue, allergie au pollen...";
+"ai_planner.ai_generating" = "L'IA crée votre itinéraire parfait...";
+"ai_planner.generation_hint" = "Ce processus peut prendre un certain temps, veuillez patienter";
+"ai_planner.completing_itinerary" = "Finalisation de votre itinéraire";
+"ai_planner.next_preferences" = "Suivant: Préférences";
+"ai_planner.previous" = "Précédent";
+"ai_planner.next" = "Suivant";
+"ai_planner.complete_setup" = "Terminer la configuration";
+"ai_planner.start_date" = "Date de début";
+"ai_planner.end_date" = "Date de fin";
+"ai_planner.select_city" = "Sélectionner une ville - %@";
+"ai_planner.no_city_data" = "Aucune donnée de ville disponible";
+"ai_planner.no_matching_city" = "Aucune ville correspondante trouvée";
+
+// MARK: - Transportation Types
+"transport.public_transport" = "Transport public";
+"transport.public_transport_desc" = "Métro, Bus, Train";
+"transport.self_drive" = "Conduite autonome";
+"transport.self_drive_desc" = "Profitez de la liberté de contrôler votre voyage";
+"transport.chartered_car" = "Voiture avec chauffeur";
+"transport.chartered_car_desc" = "Chauffeur professionnel, service premium";
+
+// MARK: - Interest Tags
+"interest.food" = "Cuisine";
+"interest.history" = "Histoire";
+"interest.nature" = "Nature";
+"interest.shopping" = "Shopping";
+"interest.nightlife" = "Vie nocturne";
+"interest.art" = "Art";
+
+// MARK: - Special Restrictions
+"restriction.child_friendly" = "Adapté aux enfants";
+"restriction.wheelchair_access" = "Accès fauteuil roulant";
+"restriction.indoor_priority" = "Intérieur prioritaire";
+"restriction.early_rest" = "Repos tôt";
+
+// MARK: - Budget Levels
+"budget.economy" = "Économique";
+"budget.standard" = "Standard";
+"budget.luxury" = "Luxe";
+
+// MARK: - Pace Options
+"pace.relaxed" = "Détendu";
+"pace.moderate" = "Modéré";
+"pace.intensive" = "Intensif";
+
+// MARK: - Settings
+"settings.title" = "Paramètres";
+"settings.account" = "Paramètres du compte";
+"settings.login_method" = "Méthode de connexion: %@";
+"settings.login_account" = "Compte de connexion: %@";
+"settings.member_login" = "Connexion membre";
+"settings.logout" = "Déconnexion";
+"settings.preferences" = "Préférences";
+"settings.dark_mode" = "Mode sombre";
+"settings.cache_management" = "Gestion du cache";
+"settings.cache_size" = "Taille du cache";
+"settings.last_updated" = "Dernière mise à jour";
+"settings.clear_cache" = "Effacer le cache";
+"settings.no_cache" = "Aucune donnée de cache";
+"settings.about" = "À propos";
+"settings.app_version" = "Secalender v1.0";
+"settings.developed_by" = "Développé par LIFECONNECT";
+"settings.error" = "Erreur";
+"settings.ok" = "OK";
+"settings.confirm_logout" = "Êtes-vous sûr de vouloir vous déconnecter?";
+"settings.yes" = "Oui";
+"settings.no" = "Non";
+"settings.confirm_clear_cache" = "Êtes-vous sûr de vouloir effacer le cache?";
+"settings.logout_failed" = "Échec de la déconnexion: %@";
+"settings.language" = "Langue";
+"settings.language_system" = "Langue du système";
+"settings.language_footer" = "Sélectionnez votre langue préférée. L'application utilisera cette langue au lieu de la langue du système.";
+
+// MARK: - Login Providers
+"login.google" = "Connexion Google";
+"login.apple" = "Connexion Apple";
+"login.email" = "Connexion e-mail";
+"login.facebook" = "Connexion Facebook";
+"login.phone" = "Connexion téléphone";
+"login.anonymous" = "Anonyme";
+
+// MARK: - Common Actions
+"common.cancel" = "Annuler";
+"common.confirm" = "Confirmer";
+"common.ok" = "OK";
+"common.retry" = "Réessayer";
+"common.back" = "Retour";
+"common.add" = "Ajouter";
+"common.delete" = "Supprimer";
+"common.edit" = "Modifier";
+"common.save" = "Enregistrer";
+"common.search" = "Rechercher";
+"common.done" = "Terminé";
+"common.error" = "Erreur";
+
+// MARK: - AI Planning Welcome
+"welcome.where_to_travel" = "Voyager";
+"welcome.create_perfect_itinerary" = "Laissez-moi créer l'itinéraire personnalisé parfait pour vous";
+"welcome.start_ai_planning" = "Démarrer la planification IA";
+
+// MARK: - Events
+"event.create" = "Créer un événement";
+"event.edit" = "Modifier l'événement";
+"event.delete" = "Supprimer l'événement";
+"event.share" = "Partager l'événement";
+"event.add_friend" = "Ajouter le créateur comme ami";
+
+// MARK: - Friends & Groups
+"friends.title" = "Amis & Communauté";
+"friends.add_friend" = "Ajouter un ami";
+"friends.requests" = "Demandes d'amis";
+"friends.my_friends" = "Mes amis";
+
+// MARK: - Location
+"location.search" = "Rechercher un lieu...";
+"location.select" = "Sélectionner un lieu";
+"location.current" = "Emplacement actuel";
+
+// MARK: - Calendar
+"calendar.title" = "Calendrier";
+"calendar.today" = "Aujourd'hui";
+"calendar.month" = "Mois";
+"calendar.week" = "Semaine";
+"calendar.day" = "Jour";
+"calendar.filter.all" = "Tous";
+"calendar.filter.my_own" = "Mes voyages";
+"calendar.filter.friend_and_public" = "Amis & Communauté";
+"calendar.filter.nearby" = "Voyages à proximité";
+
+// MARK: - Plans
+"plan.edit" = "Modifier le plan";
+"plan.details" = "Détails du plan";
+"plan.day" = "Jour %d";
+
+// MARK: - Templates
+"template.my_templates" = "Mes modèles";
+"template.store" = "Boutique de modèles";
+"template.details" = "Détails du modèle";
+
+// MARK: - Friends & Groups
+"friends.management" = "Amis";
+"groups.management" = "Groupes";
+"friends.loading" = "Chargement...";
+"friends.no_friends" = "Aucun ami pour le moment";
+"friends.add_friend_hint" = "Appuyez sur + en haut à droite pour ajouter des amis";
+"groups.no_groups" = "Aucun groupe pour le moment";
+"groups.create_group_hint" = "Appuyez sur + en haut à droite pour créer un groupe";
+"friends.unknown" = "Ami inconnu";
+"friends.delete" = "Supprimer l'ami";
+"friends.delete_confirmation" = "Êtes-vous sûr de vouloir supprimer cet ami?";
+"groups.members_count" = "%d membres";
+"groups.owner" = "Propriétaire";
+"groups.admin" = "Administrateur";
+"groups.unknown_member" = "Membre inconnu";
+"groups.set_admin" = "Définir comme administrateur";
+"groups.remove_admin" = "Retirer l'administrateur";
+"groups.remove_member" = "Retirer le membre";
+"groups.admin_list" = "Liste des administrateurs";
+"groups.regular_members" = "Membres réguliers";
+"groups.admin_settings" = "Paramètres administrateur";
+"groups.load_members_failed" = "Échec du chargement des membres: %@";
+"groups.set_admin_failed" = "Échec de la définition de l'administrateur: %@";
+"groups.invite_members" = "Inviter des membres";
+"groups.loading_friends" = "Chargement des amis...";
+"groups.no_friends_to_invite" = "Aucun ami disponible à inviter";
+"groups.invite" = "Inviter";
+"groups.load_friends_failed" = "Échec du chargement des amis: %@";
+
+// MARK: - Add Friend
+"add_friend.title" = "Ajouter un ami";
+"add_friend.search_placeholder" = "Entrez l'alias, l'e-mail ou l'ID utilisateur";
+"add_friend.send_request" = "Envoyer une demande d'ami";
+"add_friend.request_sent" = "Demande d'ami envoyée ✅";
+"add_friend.user_not_logged_in" = "Utilisateur non connecté, veuillez réessayer plus tard";
+"add_friend.user_not_found" = "Utilisateur non trouvé";
+"add_friend.already_friends" = "Vous êtes déjà amis";
+"add_friend.request_already_sent" = "Demande d'ami déjà envoyée";
+"add_friend.failed" = "Échec de l'envoi de la demande d'ami: %@";
+"add_friend.cannot_add_self" = "Vous ne pouvez pas vous ajouter vous-même comme ami";
+
+// MARK: - Add Group
+"add_group.title" = "Créer un groupe";
+"add_group.name" = "Nom du groupe";
+"add_group.name_placeholder" = "Entrez le nom du groupe";
+"add_group.description" = "Description du groupe (Optionnel)";
+"add_group.description_placeholder" = "Entrez la description du groupe";
+"add_group.category" = "Catégorie du groupe";
+"add_group.select_category" = "Sélectionner une catégorie";
+"add_group.location" = "Lieu (Ville)";
+"add_group.location_placeholder" = "ex: Paris, Lyon, Marseille";
+"add_group.privacy" = "Confidentialité";
+"add_group.create" = "Créer un groupe";
+"add_group.create_success" = "Groupe créé avec succès!";
+"add_group.create_failed" = "Échec de la création du groupe: %@";
+"add_group.name_required" = "Veuillez entrer un nom de groupe";
+"add_group.category_required" = "Veuillez sélectionner une catégorie de groupe";
+"add_group.create_failed_prefix" = "Échec de la création: %@";
+
+// MARK: - Event Create
+"event_create.title" = "Titre du voyage";
+"event_create.content" = "Contenu de l'événement";
+"event_create.set_time" = "Définir l'heure";
+"event_create.add_multi_day" = "Ajouter un voyage de plusieurs jours";
+"event_create.no_manageable_groups" = "Vous n'avez aucun groupe gérable";
+"event_create.select_group" = "Sélectionner un groupe";
+"event_create.please_select_group" = "Veuillez sélectionner un groupe";
+"event_create.repeat" = "Répéter";
+"event_create.repeat_options.never" = "Jamais";
+"event_create.repeat_options.daily" = "Quotidien";
+"event_create.repeat_options.weekly" = "Hebdomadaire";
+"event_create.repeat_options.monthly" = "Mensuel";
+"event_create.repeat_options.yearly" = "Annuel";
+"event_create.calendar" = "Calendrier";
+"event_create.cancel_multi_day" = "Annuler le voyage de plusieurs jours";
+"event_create.create_trip" = "Créer un voyage";
+"event_create.save" = "Enregistrer";
+"event_create.cancel" = "Annuler";
+"event_create.selected_events" = "%d voyages sélectionnés";
+"event_create.title_placeholder" = "ex: Arrivée à l'aéroport de Paris Charles de Gaulle";
+"event_create.content_placeholder" = "Entrez les notes ou détails de l'événement...";
+"event_create.select_location" = "Sélectionner un lieu";
+"event_create.new_trip" = "Nouveau voyage";
+"event_create.no_groups_yet" = "Vous n'avez pas encore de groupes gérables";
+"event_create.public_to_friends" = "Public pour les amis";
+"event_create.other_settings" = "Autres paramètres";
+"event_create.sync_to_calendar" = "Synchroniser avec le calendrier Apple";
+
+// MARK: - Calendar
+"calendar.cancel" = "Annuler";
+"calendar.selected_events_count" = "%d voyages sélectionnés";
+
+// MARK: - Location Picker
+"location_picker.searching" = "Recherche...";
+"location_picker.no_results" = "Aucun lieu pertinent trouvé";
+
+// MARK: - Trip Plan Card
+"trip_plan.planning" = "Planification de voyage";
+"trip_plan.days" = "%d jours";
+"trip_plan.more_days" = "...et %d jours supplémentaires d'itinéraire";
+"trip_plan.assumptions" = "Contient %d hypothèses par défaut";
+"trip_plan.save" = "Enregistrer";
+"trip_plan.details" = "Détails";
+
+// MARK: - Event Share
+"event_share.title" = "Titre du voyage";
+"event_share.content" = "Contenu de l'événement";
+"event_share.select_location" = "Sélectionner un lieu";
+"event_share.estimated_time" = "Environ %d minutes";
+"event_share.calculating" = "Calcul du temps de trajet...";
+"event_share.calculate" = "Calculer le temps de trajet";
+"event_share.set_time" = "Définir l'heure";
+"event_share.share" = "Partager";
+"event_share.share_event" = "Partager l'événement";
+"event_share.permission_settings" = "Paramètres de permission";
+"event_share.no_permission" = "Aucune permission d'accès";
+
+// MARK: - Plan Edit
+"plan_edit.start_date" = "Date de début";
+"plan_edit.add_trip" = "Ajouter un voyage";
+"plan_edit.save_template" = "Enregistrer le modèle";
+"plan_edit.publish_trip" = "Publier le voyage";
+
+// MARK: - Plan Detail
+"plan_detail.invalid_data" = "Données de voyage invalides";
+"plan_detail.back" = "Retour";
+"plan_detail.edit_trip" = "Modifier le voyage";
+
+// MARK: - Group Events
+"group_events.no_groups" = "Pas encore rejoint de groupe";
+"group_events.no_activities" = "Pas encore d'activités de groupe";
+
+// MARK: - Event Edit
+"event_edit.delete_confirmation" = "Êtes-vous sûr de vouloir supprimer cet événement? Cette action ne peut pas être annulée.";
+"event_edit.title" = "Modifier l'événement";
+
+// MARK: - AI Conversation
+"ai_conversation.greeting" = "Bonjour! Je peux vous aider à planifier votre voyage, veuillez me dire vos besoins";
+"ai_conversation.generating" = "Génération de l'itinéraire...";
+"ai_conversation.or_manual_input" = "Ou saisir manuellement:";
+"ai_conversation.confirm" = "Confirmer";
+"ai_conversation.back" = "Retour";
+
+// MARK: - My Templates
+"my_templates.delete_confirmation" = "Êtes-vous sûr de vouloir supprimer \"%@\"? Cette action ne peut pas être annulée.";
+"my_templates.no_templates" = "Pas encore de modèles de voyage enregistrés";
+"my_templates.filter.my_creations" = "Mes créations";
+"my_templates.filter.purchased" = "Acheté";
+"my_templates.filter.friend_shares" = "Partages d'amis";
+"my_templates.days" = "%d jours";
+"my_templates.delete" = "Supprimer";
+"my_templates.share" = "Partager";
+
+// MARK: - Group Detail
+"group_detail.info" = "Informations du groupe";
+"group_detail.name" = "Nom";
+"group_detail.description" = "Description";
+"group_detail.owner" = "Propriétaire";
+"group_detail.members" = "Membres";
+"group_detail.members_count" = "Membres (%d)";
+"group_detail.no_member_info" = "Aucune information sur les membres disponible";
+"group_detail.management" = "Gestion";
+"group_detail.delete_group" = "Supprimer le groupe";
+"group_detail.leave_group" = "Quitter le groupe";
+"group_detail.delete_confirmation" = "Êtes-vous sûr de vouloir supprimer ce groupe? Cette action ne peut pas être annulée.";
+"group_detail.set_admin" = "Définir comme administrateur";
+"group_detail.group_activities" = "Activités du groupe";
+"group_detail.you" = "Vous";
+"group_detail.error" = "Erreur";
+"group_detail.confirm_delete" = "Confirmer la suppression";
+
+// MARK: - Friend Requests
+"friend_requests.no_requests" = "Aucune demande d'ami pour le moment";
+"friend_requests.alias" = "Alias: %@";
+
+// MARK: - Edit Profile
+"profile.basic_info" = "Informations de base";
+"profile.user_id" = "ID utilisateur";
+"profile.checking" = "Vérification...";
+"profile.male" = "Homme";
+"profile.female" = "Femme";
+"profile.unknown" = "Inconnu";
+"profile.preferences" = "Préférences";
+"profile.selected_tags" = "%d/6 sélectionnés";
+"profile.id_taken" = "⚠️ Cet ID est déjà utilisé";
+"profile.id_available" = "✓ ID disponible";
+"profile.alias_taken" = "⚠️ Cet alias est déjà utilisé";
+"profile.alias_placeholder" = "Alias (unique)";
+"profile.display_name" = "Nom d'affichage";
+"profile.gender" = "Genre";
+"profile.phone" = "Téléphone";
+"profile.region" = "Région";
+"profile.signature" = "Signature personnelle";
+"profile.modified" = "(Modifié)";
+"profile.modified_hint" = "L'ID utilisateur ne peut être modifié qu'une seule fois, déjà modifié";
+"profile.not_set" = "Non défini";
+"profile.user_code_placeholder" = "8 chiffres + lettres majuscules";
+"profile.user_code_hint" = "8 chiffres ou lettres majuscules, ne peut être modifié qu'une fois";
+"profile.alias_hint" = "L'alias est utilisé pour la recherche d'amis, doit être unique";
+"profile.display_name_placeholder" = "Entrez le nom d'affichage";
+"profile.phone_placeholder" = "Entrez le numéro de téléphone";
+"profile.region_placeholder" = "Entrez la région";
+"profile.signature_placeholder" = "Entrez la signature personnelle";
+"profile.signature_hint" = "Montrez votre personnalité, jusqu'à 6 lignes";
+"profile.max_tags_exceeded" = "Maximum 6 tags autorisés";
+"profile.id_invalid" = "L'ID utilisateur n'est pas valide ou le format est incorrect";
+
+// MARK: - Member View
+"member.friends" = "Amis";
+"member.share" = "Partager";
+"member.achievements" = "Tâches et réalisations";
+"member.settings" = "Paramètres";
+"member.add_friend" = "Ajouter un ami";
+"member.friend_list" = "Liste d'amis";
+"member.received_requests" = "Demandes reçues";
+"member.share_history" = "Historique de partage";
+"member.share_notifications" = "Notifications de partage";
+"member.event_invitations" = "Invitations d'événements";
+"member.achievements_tasks" = "Réalisations et tâches";
+"member.title" = "Fonctionnalités";
+"member.default_user" = "Utilisateur";
+"member.user_id" = "ID utilisateur";
+
+// MARK: - Community
+"community.title" = "Interaction communautaire";
+"community.friends_share" = "Partage d'amis";
+"community.groups_share" = "Partage de groupes";
+"community.nearby_events" = "Événements à proximité";
+"community.create_group" = "Créer un nouveau groupe";
+"community.search_group" = "Rechercher des groupes";
+
+// MARK: - Achievements
+"achievements.early_bird.title" = "Lève-tôt pendant 7 jours";
+"achievements.early_bird.description" = "Cultiver de bonnes habitudes de coucher et lever tôt";
+"achievements.family_trips.title" = "Terminer 5 voyages en famille";
+"achievements.family_trips.description" = "Partager des moments heureux avec les enfants";
+"achievements.low_carbon.title" = "Voyage à faible émission 10 fois";
+"achievements.low_carbon.description" = "Prendre les transports publics ou faire du vélo";
+
+// MARK: - Template Names
+"weekend_flash.template_name" = "Flash du week-end";
+"deep_culture.template_name" = "Culture profonde";
+
+// MARK: - Welcome Additional
+"welcome.quick_themes" = "Thèmes rapides";
+"welcome.view_more" = "Voir plus";
+
+// MARK: - Invite Friends
+"invite.invite_link" = "Lien d'invitation";
+"invite.generate_link" = "Générer un lien d'invitation";
+"invite.share_method" = "Méthode de partage";
+"invite.success" = "Invitation envoyée avec succès!";
+"invite.title" = "Inviter des amis";
+"invite.copy_link" = "Copier le lien";
+"invite.share" = "Partager";
+"invite.share_link" = "Partager le lien";
+"invite.app_friends" = "Amis de l'application";
+"invite.send_invite" = "Envoyer une invitation";
+"invite.send_invite_count" = "Envoyer une invitation (%d)";
+"invite.no_contacts" = "Aucun contact";
+"invite.allow_contacts_access" = "Veuillez autoriser l'accès aux contacts pour inviter des contacts";
+"invite.load_contacts_failed" = "Échec du chargement des contacts: %@";
+"invite.invite_method" = "Méthode d'invitation";
+"invite.search_contacts" = "Rechercher des contacts";
+"invite.loading" = "Chargement...";
+"invite.title_nav" = "Inviter des amis";
+"invite.add_friends_first_message" = "Ajoutez des amis avant d'inviter à des événements";
+"invite.cancel" = "Annuler";
+"invite.contacts" = "Contacts";
+
+// MARK: - Template Store
+"template_store.popular" = "Recommandations populaires";
+"template_store.tags" = "Tags";
+
+// MARK: - Multi Event
+"multi_event.title" = "Vue multi-voyage";
+"multi_event.total_count" = "Total %d voyages";
+"multi_event.all_deleted" = "Tous les voyages supprimés";
+"multi_event.deleted_not_shown" = "Les voyages supprimés ne seront pas affichés dans cette liste";
+"multi_event.delete_confirmation" = "Les %d voyages sélectionnés seront supprimés, cette action ne peut pas être annulée.";
+
+// MARK: - Search Group
+"search_group.search" = "Rechercher";
+"search_group.no_results" = "Aucun groupe correspondant trouvé";
+"search_group.try_different" = "Veuillez essayer d'autres mots-clés ou ID de groupe";
+"search_group.title" = "Rechercher des groupes";
+"search_group.placeholder" = "Entrez le nom du groupe ou l'ID pour rechercher\nLa similarité du nom doit être d'au moins 50%%";
+"search_group.join_success" = "Groupe rejoint avec succès";
+
+// MARK: - Batch Share
+"batch_share.events_to_share" = "Voyages à partager (%d)";
+"batch_share.no_friends" = "Pas encore d'amis";
+"batch_share.add_friends_first" = "Ajouter des amis avant de partager des voyages";
+"batch_share.success" = "Partage réussi!";
+"batch_share.share_to_friends" = "Partager avec %d amis";
+
+// MARK: - Friend Events
+"friend_events.invite_more" = "Inviter plus d'amis à rejoindre";
+
+// MARK: - Share History
+"share_history.no_history" = "Pas encore d'historique de partage";
+"share_history.description" = "Les activités que vous avez partagées seront affichées ici";
+"share_history.public_to_friends" = "Public pour les amis";
+"share_history.shared_at" = "Partagé le %@";
+
+// MARK: - Share Notifications
+"share_notifications.no_notifications" = "Pas encore de notifications de partage";
+"share_notifications.description" = "Les partages d'activités que vous avez reçus seront affichés ici";
+"share_notifications.received" = "Vous avez reçu un partage d'activité";
+"share_notifications.loading" = "Chargement des informations sur l'activité...";
+
+// MARK: - Event Invitations
+"event_invitations.no_invitations" = "Pas encore d'invitations d'événements";
+"event_invitations.description" = "Les événements auxquels vos amis vous ont invité seront affichés ici";
+"event_invitations.invited" = "Vous a invité à rejoindre l'événement";
+"event_invitations.loading" = "Chargement des informations sur l'événement...";
+
+// MARK: - Event Share Additional
+"event_share.public_to_friends" = "Public pour les amis";
+"event_share.private_only" = "Privé uniquement";
+"event_share.cannot_add_to_calendar" = "Impossible d'ajouter au calendrier";
+"event_share.unknown_error" = "Erreur inconnue";
+"event_share.view_event" = "Voir l'événement";
+"event_share.trip_info" = "Informations sur le voyage";
+"event_share.shared_with" = "PARTAGÉ AVEC";
+"event_share.participants_count" = "%d participants";
+"event_share.participate" = "Participer";
+"event_share.not_participate" = "Ne pas participer";
+"event_share.load_groups_failed" = "Échec du chargement des groupes d'utilisateurs";
+"event_share.get_group_details_failed" = "Échec de la récupération des détails du groupe";
+"event_share.load_participation_status_failed" = "Échec du chargement du statut de participation";
+"event_share.load_participants_failed" = "Échec du chargement de la liste des participants";
+"event_share.update_participation_status_failed" = "Échec de la mise à jour du statut de participation";
+"event_share.event_id_missing" = "L'ID de l'événement n'existe pas, impossible de supprimer";
+"event_share.delete_event_failed" = "Échec de la suppression de l'événement";
+"event_share.geocoding_failed" = "Échec du géocodage";
+"event_share.location_fetch_failed" = "Échec de la récupération de l'emplacement";
+"event_share.unknown_user" = "Inconnu";
+
+// MARK: - Common Loading
+"common.loading" = "Chargement...";
+"common.load_failed" = "Échec du chargement";
+
+// MARK: - Friend Requests Actions
+"friend_requests.accept" = "Accepter";
+"friend_requests.reject" = "Rejeter";
+"friend_requests.accept_failed" = "Échec de l'acceptation";
+"friend_requests.reject_failed" = "Échec du rejet";
+"friend_requests.unknown_user" = "Utilisateur inconnu";
+
+// MARK: - Friend Selection
+"friend_selection.select_friends" = "Sélectionner des amis";
+
+// MARK: - Friend Selection
+"friend_selection.no_friends" = "Pas encore d'amis";
+"friend_selection.add_friends_first" = "Ajouter des amis avant de partager des événements";
+
+// MARK: - Group Selector
+"group_selector.members" = "Membres: %d";
+
+// MARK: - Calendar Options
+"calendar_options.error" = "Erreur";
+"calendar_options.no_calendars" = "Aucun calendrier disponible";
+"calendar_options.enable_permission" = "Veuillez aller dans les paramètres pour activer l'autorisation du calendrier";
+"calendar_options.retry" = "Réessayer";
+
+// MARK: - Template Detail
+"template_detail.free" = "Gratuit";
+"template_detail.add_to_my_templates" = "Ajouter à mes modèles";
+"template_detail.view_trip" = "Voir le voyage";
+"template_detail.apply_to_calendar" = "Appliquer au calendrier";
+"template_detail.tip" = "Astuce";
+"template_detail.applied" = "Le modèle a été appliqué à votre calendrier.";
+"template_detail.confirm" = "Confirmer";
+"template_detail.purchase_success" = "Achat réussi";
+"template_detail.thanks_purchase" = "Merci pour votre achat! Vous pouvez maintenant appliquer ce modèle.";
+"template_detail.ok" = "OK";
+"template_detail.title" = "Détails du modèle";
+"template_detail.purchased" = "Acheté";
+"template_detail.buy_template" = "Acheter le modèle";
+
+// MARK: - Plan Day Section
+"plan_day.day" = "Jour %d";
+
+// MARK: - AI Plan Result
+"ai_plan_result.no_suggestions" = "Aucun voyage suggéré";
+"ai_plan_result.add_to_schedule" = "Ajouter au calendrier";
+
+// MARK: - Event Share Action
+"event_share_action.select_friends" = "Sélectionner des amis";
+"event_share_action.share_event" = "Partager l'événement";
+"event_share_action.select_friends_to_share" = "Sélectionner des amis à partager";
+"event_share_action.generate_share_link" = "Générer un lien de partage";
+"event_share_action.system_share" = "Partage système";
+"event_share_action.share_success" = "Partage réussi!";
+"event_share_action.friends_count" = "%d amis";
+
+// MARK: - Weekend Flash Template
+"weekend_flash.title" = "Flash du week-end";
+"weekend_flash.smart_planning" = "Planification intelligente";
+"weekend_flash.trip_title" = "Voyage Flash du week-end";
+"weekend_flash.select_location" = "Sélectionner un lieu";
+"weekend_flash.select_location_title" = "Sélectionner un lieu";
+"weekend_flash.location_description" = "Basé sur votre pays, sélectionnez un lieu, et nous vous recommanderons 6 attractions à proximité.";
+"weekend_flash.locating" = "Localisation...";
+"weekend_flash.click_to_select" = "Cliquez pour sélectionner le lieu de voyage";
+"weekend_flash.nearby_features" = "Attractions à proximité";
+"weekend_flash.searching_features" = "Recherche d'attractions à proximité...";
+"weekend_flash.no_features" = "Aucune attraction à proximité recommandée";
+"weekend_flash.selected_attractions" = "%d attractions sélectionnées";
+"weekend_flash.takes_time" = "Ce processus peut prendre un certain temps, veuillez patienter";
+"weekend_flash.completing" = "Finalisation de votre voyage";
+"weekend_flash.start_planning" = "Commencer la planification d'une journée";
+"weekend_flash.ai_creating" = "L'IA crée votre voyage parfait...";
+"weekend_flash.step_1_2" = "Étape 1/2";
+"weekend_flash.step_2_2" = "Étape 2/2";
+"weekend_flash.location_failed" = "Échec de la localisation, veuillez vérifier les paramètres de permission de localisation";
+"weekend_flash.missing_required_info" = "Informations requises manquantes";
+"weekend_flash.missing_location_info" = "Informations de localisation manquantes";
+"weekend_flash.generation_failed" = "Échec de la génération du voyage : %@";
+"weekend_flash.invalid_plan_data" = "Les données de voyage générées sont invalides";
+"weekend_flash.task_analyzing" = "Analyse des informations de destination";
+"weekend_flash.task_planning" = "Planification des activités";
+"weekend_flash.task_optimizing" = "Optimisation de l'itinéraire";
+"weekend_flash.task_generating" = "Génération de l'itinéraire complet";
+"weekend_flash.default_attraction_landmark" = "Point de repère célèbre";
+"weekend_flash.default_attraction_culture" = "Attraction culturelle";
+"weekend_flash.default_attraction_nature" = "Paysage naturel";
+"weekend_flash.default_attraction_food" = "Quartier gastronomique";
+"weekend_flash.default_attraction_shopping" = "Centre commercial";
+"weekend_flash.default_attraction_art" = "Espace artistique";
+
+// MARK: - Deep Culture Template
+"deep_culture.select_features" = "Sélectionner les attractions historiques et artistiques";
+"deep_culture.features_description" = "Basé sur votre emplacement, nous vous recommandons des attractions historiques et artistiques à proximité.";
+"deep_culture.locating" = "Localisation...";
+"deep_culture.historical_features" = "Attractions historiques et artistiques";
+"deep_culture.searching_features" = "Recherche d'attractions historiques et artistiques...";
+"deep_culture.no_features" = "Aucune attraction historique et artistique recommandée";
+"deep_culture.selected_attractions" = "%d/%d attractions sélectionnées";
+"deep_culture.max_selection" = "Veuillez sélectionner jusqu'à %d attractions";
+"deep_culture.selection_range" = "Veuillez sélectionner %d-%d attractions";
+"deep_culture.other_option" = "Autre";
+"deep_culture.other_category" = "Autre";
+"deep_culture.takes_time" = "Ce processus peut prendre un certain temps, veuillez patienter";
+"deep_culture.completing" = "Finalisation de votre voyage";
+"deep_culture.start_planning" = "Commencer la planification";
+"deep_culture.ai_creating" = "L'IA crée votre voyage parfait...";
+
+// MARK: - Event Create Additional
+"event_create.trip_1" = "Voyage 1";
+"event_create.publish_settings" = "Paramètres de publication";
+"event_create.group_publish" = "Publier par groupe";
+"event_create.personal_publish" = "Publication personnelle";
+"event_create.loading_groups" = "Chargement des groupes...";
+"event_create.multi_day_trip" = "Voyage de plusieurs jours";
+"event_create.no_manageable_groups_multi" = "Vous n'avez pas encore de groupes gérables";
+
+// MARK: - Map App Selector
+"map_app_selector.title" = "Sélectionner l'application de carte";
+"map_app_selector.not_installed" = "Non installé";
+"map_app_selector.system_builtin" = "Intégré au système";
+
+// MARK: - Nearby Events
+"nearby_events.locating" = "Localisation...";
+"nearby_events.location_error" = "Impossible d'obtenir l'emplacement actuel, veuillez vérifier les paramètres d'autorisation de localisation";
+"nearby_events.retry" = "Réessayer";
+
+// MARK: - Authentication
+"auth.subtitle" = "Planifiez votre prochaine aventure avec l'IA";
+"auth.continue_with_google" = "Continuer avec Google";
+"auth.continue_with_apple" = "Continuer avec Apple";
+"auth.continue_with_email" = "Continuer avec l'e-mail";
+"auth.or" = "OU";
+"auth.no_account" = "Vous n'avez pas de compte ?";
+"auth.sign_up" = "S'inscrire";
+"auth.skip_login" = "Ignorer la connexion et commencer";
+"auth.terms_agreement" = "En vous connectant, vous acceptez nos conditions d'utilisation et notre politique de confidentialité";
+
+// MARK: - Profile
+"profile.basic_info" = "Informations de base";
+"profile.user_id" = "ID utilisateur";
+"profile.display_name" = "Nom d'affichage";
+"profile.alias" = "Alias";
+"profile.gender" = "Genre";
+"profile.phone" = "Téléphone";
+"profile.region" = "Région";
+"profile.favorite_tags" = "Tags favoris";
+"profile.edit_profile" = "Modifier le profil";
+"profile.title" = "Profil";
+"profile.male" = "Homme";
+"profile.female" = "Femme";
+"profile.unknown" = "Inconnu";
+
+// MARK: - Event UI Style
+"event_ui.all_day" = "Toute la journée";
+"event_ui.start" = "Début";
+"event_ui.end" = "Fin";
+"event_ui.remove_end_time" = "Supprimer l'heure de fin";
+"event_ui.add_end_time" = "Ajouter l'heure de fin";
+"event_ui.other_settings" = "Autres paramètres";
+"event_ui.public_to_friends" = "Public pour les amis";
+"event_ui.repeat" = "Répéter";
+"event_ui.calendar" = "Calendrier";
+"event_ui.event_introduction" = "Introduction de l'activité";
+"event_ui.time_info" = "Informations sur l'heure";
+"event_ui.location_info" = "Informations sur le lieu";
+"event_ui.click_to_view_map" = "Appuyer pour voir la carte";
+"event_ui.invitees" = "Invités";
+"event_ui.share" = "Partager";
+"event_ui.share_event" = "Partager l'activité";
+"event_ui.permission_settings" = "Paramètres d'autorisation";
+"event_ui.date" = "Date";
+"event_ui.end_date" = "Date de fin";
+"event_ui.all_day_event" = "Événement toute la journée";
+"event_ui.start_time" = "Début";
+"event_ui.end_time" = "Heure de fin";
+"event_ui.date_time" = "Date et heure";
+"event_create.calendar_options.health" = "Santé";

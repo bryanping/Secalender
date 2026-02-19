@@ -51,6 +51,11 @@ struct DeepCultureView: View {
     @State private var showPlanEditView = false
     @State private var planToEdit: PlanResult? = nil
     
+    // 多行程检视相关状态
+    @State private var showMultiEventView = false
+    @State private var savedEventIds: [Int] = []
+    @State private var allEvents: [Event] = []  // 用于 MultiEventView 的事件列表
+    
     // 错误处理
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
@@ -116,7 +121,7 @@ struct DeepCultureView: View {
             } message: {
                 Text(errorMessage)
             }
-            .sheet(item: $generatedPlan) { plan in
+            .fullScreenCover(item: $generatedPlan) { plan in
                 NavigationView {
                     PlanDetailView(
                         plan: plan,
@@ -142,10 +147,17 @@ struct DeepCultureView: View {
                     PlanEditView(
                         plan: plan,
                         customTitle: "深度文化行程",
-                        onSaveToCalendar: {
+                        onSaveToCalendar: { eventIds in
+                            // 保存到日历后，导航到多行程检视页面
+                            savedEventIds = eventIds
                             showPlanEditView = false
-                            generatedPlan = nil
-                            dismiss()
+                            // 加载事件列表
+                            Task {
+                                await loadEventsForMultiView()
+                                await MainActor.run {
+                                    showMultiEventView = true
+                                }
+                            }
                         },
                         onSaveToTemplate: { editedPlan, title in
                             savePlanToTemplate(editedPlan, title: title ?? "深度文化行程")
@@ -163,12 +175,65 @@ struct DeepCultureView: View {
                     .environmentObject(userManager)
                 }
             }
+            .sheet(isPresented: $showMultiEventView) {
+                NavigationView {
+                    MultiEventView(
+                        eventIds: savedEventIds,
+                        allEvents: $allEvents,
+                        source: .template,  // 标识从行程模版打开
+                        onComplete: {
+                            // 完成操作后不关闭页面，保持在多行程检视页面
+                        },
+                        onRefreshEvents: {
+                            // 刷新事件列表
+                            await loadEventsForMultiView()
+                        },
+                        onDismiss: nil,  // 从模版打开时不使用 onDismiss
+                        onBackToTemplate: {
+                            // 返回到行程模版（PlanDetailView）
+                            showMultiEventView = false
+                            // 重新打开详情页
+                            if let plan = generatedPlan {
+                                generatedPlan = nil
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    generatedPlan = plan
+                                }
+                            }
+                        }
+                    )
+                    .environmentObject(userManager)
+                }
+            }
             .onAppear {
                 // 自动获取GPS位置
                 if !hasAutoRequestedGPS {
                     hasAutoRequestedGPS = true
                     requestGPSLocation()
                 }
+            }
+        }
+    }
+    
+    // MARK: - 加载事件列表（用于 MultiEventView）
+    private func loadEventsForMultiView() async {
+        guard !userManager.userOpenId.isEmpty else { return }
+        
+        // 从本地缓存加载事件
+        let cachedEvents = EventCacheManager.shared.loadEvents(for: userManager.userOpenId)
+        await MainActor.run {
+            allEvents = cachedEvents.filter { $0.deleted != 1 }
+        }
+        
+        // 后台同步 Firebase
+        Task {
+            do {
+                try await EventManager.shared.fetchEvents()
+                let updatedEvents = EventCacheManager.shared.loadEvents(for: userManager.userOpenId)
+                await MainActor.run {
+                    allEvents = updatedEvents.filter { $0.deleted != 1 }
+                }
+            } catch {
+                print("⚠️ 加载事件失败: \(error.localizedDescription)")
             }
         }
     }
@@ -231,10 +296,10 @@ struct DeepCultureView: View {
         VStack(alignment: .leading, spacing: 24) {
             // 标题和副标题
             VStack(alignment: .leading, spacing: 8) {
-                Text("選擇歷史藝術特色")
+                Text("deep_culture.select_features".localized())
                     .font(.system(size: 28, weight: .bold))
                 
-                Text("基於您的位置，為您推薦歷史藝術相關的周邊特色景點。")
+                Text("deep_culture.features_description".localized())
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -244,7 +309,7 @@ struct DeepCultureView: View {
                 HStack {
                     ProgressView()
                         .padding(.trailing, 8)
-                    Text("正在定位...")
+                    Text("deep_culture.locating".localized())
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -255,21 +320,21 @@ struct DeepCultureView: View {
             
             // 周边特色选择
             VStack(alignment: .leading, spacing: 16) {
-                Text("歷史藝術特色")
+                Text("deep_culture.historical_features".localized())
                     .font(.headline)
                 
                 if isLoadingSurroundingFeatures {
                     HStack {
                         ProgressView()
                             .padding(.trailing, 8)
-                        Text("正在搜尋歷史藝術特色...")
+                        Text("deep_culture.searching_features".localized())
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                 } else if surroundingAttractions.isEmpty {
-                    Text("暫無歷史藝術特色推薦")
+                    Text("deep_culture.no_features".localized())
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .padding()
@@ -277,12 +342,13 @@ struct DeepCultureView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         let currentSelectionCount = selectedSurroundingAttractions.count
                         let maxSelection = 3
+                        let minSelection = 1
                         if currentSelectionCount > 0 {
-                            Text("已選擇 \(currentSelectionCount)/\(maxSelection) 個景點")
+                            Text("deep_culture.selected_attractions".localized(with: currentSelectionCount, maxSelection))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         } else {
-                            Text("請選擇最多 \(maxSelection) 個景點")
+                            Text("deep_culture.selection_range".localized(with: minSelection, maxSelection))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -302,6 +368,27 @@ struct DeepCultureView: View {
                                     } else if currentSelectionCount < maxSelection {
                                         selectedSurroundingAttractions.insert(attraction.id)
                                     }
+                                }
+                            }
+                            
+                            // 添加"其他"选项
+                            let isOtherSelected = selectedSurroundingAttractions.contains("other")
+                            let isOtherDisabled = !isOtherSelected && currentSelectionCount >= maxSelection
+                            
+                            SurroundingAttractionButton(
+                                attraction: SurroundingAttraction(
+                                    id: "other",
+                                    name: "deep_culture.other_option".localized(),
+                                    category: "deep_culture.other_category".localized(),
+                                    icon: "ellipsis.circle"
+                                ),
+                                isSelected: isOtherSelected,
+                                isDisabled: isOtherDisabled
+                            ) {
+                                if isOtherSelected {
+                                    selectedSurroundingAttractions.remove("other")
+                                } else if currentSelectionCount < maxSelection {
+                                    selectedSurroundingAttractions.insert("other")
                                 }
                             }
                         }
@@ -328,10 +415,10 @@ struct DeepCultureView: View {
             
             // 标题和副标题
             VStack(spacing: 8) {
-                Text("AI正在為您打造完美行程...")
+                Text("deep_culture.ai_creating".localized())
                     .font(.system(size: 20, weight: .semibold))
                 
-                Text("這個過程可能需要一些時間，請稍候")
+                Text("deep_culture.takes_time".localized())
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -358,7 +445,7 @@ struct DeepCultureView: View {
             // 进度条
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("正在完成您的行程")
+                    Text("deep_culture.completing".localized())
                         .font(.subheadline)
                     Spacer()
                     Text("\(completedTasks.count + (currentTask.isEmpty ? 0 : 1))/\(pendingTasks.count + completedTasks.count + (currentTask.isEmpty ? 0 : 1))")
@@ -389,7 +476,7 @@ struct DeepCultureView: View {
                 Button(action: {
                     startGeneration()
                 }) {
-                    Text("開始規劃")
+                    Text("deep_culture.start_planning".localized())
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -405,7 +492,7 @@ struct DeepCultureView: View {
     }
     
     private var canProceedToStep2: Bool {
-        currentGPSLocation != nil && selectedSurroundingAttractions.count == 3
+        currentGPSLocation != nil && selectedSurroundingAttractions.count >= 1 && selectedSurroundingAttractions.count <= 3
     }
     
     // MARK: - 导航方法
@@ -542,7 +629,7 @@ struct DeepCultureView: View {
         
         let response = try await OpenAIManager.shared.generateSurroundingAttractions(
             prompt: prompt,
-            timeout: 20.0
+            timeout: 30.0
         )
         
         return parseSurroundingAttractions(response)
@@ -679,9 +766,12 @@ struct DeepCultureView: View {
             return
         }
         
-        // 获取选中的周边特色名称
+        // 检查是否选择了"其他"选项
+        let hasOtherOption = selectedSurroundingAttractions.contains("other")
+        
+        // 获取选中的周边特色名称（排除"其他"选项）
         let selectedAttractionNames = surroundingAttractions
-            .filter { selectedSurroundingAttractions.contains($0.id) }
+            .filter { selectedSurroundingAttractions.contains($0.id) && $0.id != "other" }
             .map { $0.name }
         
         // 使用GPS位置地址作为目的地
@@ -708,7 +798,7 @@ struct DeepCultureView: View {
         )
         
         let apiTask = Task {
-            let plan = try await generateAIPoweredPlan(from: classificationResult, selectedAttractions: selectedAttractionNames)
+            let plan = try await generateAIPoweredPlan(from: classificationResult, selectedAttractions: selectedAttractionNames, hasOtherOption: hasOtherOption)
             await MainActor.run {
                 generatedPlan = plan
             }
@@ -775,7 +865,7 @@ struct DeepCultureView: View {
         }
     }
     
-    private func generateAIPoweredPlan(from result: ClassificationResult, selectedAttractions: [String]) async throws -> PlanResult {
+    private func generateAIPoweredPlan(from result: ClassificationResult, selectedAttractions: [String], hasOtherOption: Bool = false) async throws -> PlanResult {
         guard let destination = result.slots.destination.value else {
             throw PlanGenerationError.missingDestination
         }
@@ -799,7 +889,8 @@ struct DeepCultureView: View {
             selectedAttractions: selectedAttractions,
             currentGPSLocation: currentGPSLocation,
             accommodationAddress: nil,
-            accommodationType: nil
+            accommodationType: nil,
+            hasOtherOption: hasOtherOption
         )
         
         var plan = try AITripGenerator.shared.convertToPlanResult(aiPlan, slots: result.slots)

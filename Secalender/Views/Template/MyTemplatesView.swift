@@ -4,9 +4,18 @@ import UIKit
 #endif
 
 enum TemplateFilterType: String, CaseIterable {
-    case myCreations = "我的生成"
-    case purchased = "已購買"
-    case friendShares = "好友分享"
+    case myCreations = "my_creations"
+    case purchased = "purchased"
+    case friendShares = "friend_shares"
+    
+    @MainActor
+    var localizedDisplayName: String {
+        switch self {
+        case .myCreations: return "my_templates.filter.my_creations".localized()
+        case .purchased: return "my_templates.filter.purchased".localized()
+        case .friendShares: return "my_templates.filter.friend_shares".localized()
+        }
+    }
 }
 
 // 统一的 Sheet 状态管理，避免两个 sheet 切换时的状态错乱
@@ -37,6 +46,12 @@ struct MyTemplatesView: View {
     @State private var templateToDelete: SavedTripTemplate? = nil
     @State private var showShareSheet = false
     @State private var shareItems: [Any] = []
+    
+    // 多行程检视相关状态
+    @State private var showMultiEventView = false
+    @State private var savedEventIds: [Int] = []
+    @State private var allEvents: [Event] = []  // 用于 MultiEventView 的事件列表
+    @State private var currentTemplate: SavedTripTemplate? = nil  // 当前打开的模版（用于返回）
 
     var body: some View {
         ScrollView {
@@ -73,7 +88,7 @@ struct MyTemplatesView: View {
         }
         .background(Color(.systemGroupedBackground))
         .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 80) }
-        .sheet(item: $activeSheet) { sheetType in
+        .fullScreenCover(item: $activeSheet) { sheetType in
             Group {
                 switch sheetType {
                 case .planDetail(let template):
@@ -97,9 +112,18 @@ struct MyTemplatesView: View {
                     PlanEditView(
                         plan: plan,
                         customTitle: template.title,  // 使用模板保存的标题（来自用户填写的"此行的主題"）
-                        onSaveToCalendar: {
-                            // 保存到日历后，关闭编辑页面
+                        onSaveToCalendar: { eventIds in
+                            // 保存到日历后，导航到多行程检视页面
+                            savedEventIds = eventIds
+                            currentTemplate = template
                             activeSheet = nil
+                            // 加载事件列表
+                            Task {
+                                await loadEventsForMultiView()
+                                await MainActor.run {
+                                    showMultiEventView = true
+                                }
+                            }
                         },
                         onSaveToTemplate: { editedPlan, title in
                             // 修复：使用编辑后的 PlanResult，而不是进入编辑页前的 plan
@@ -122,6 +146,34 @@ struct MyTemplatesView: View {
                 }
             }
         }
+        .sheet(isPresented: $showMultiEventView) {
+            NavigationView {
+                MultiEventView(
+                    eventIds: savedEventIds,
+                    allEvents: $allEvents,
+                    source: .template,  // 标识从行程模版打开
+                    onComplete: {
+                        // 完成操作后不关闭页面，保持在多行程检视页面
+                    },
+                    onRefreshEvents: {
+                        // 刷新事件列表
+                        await loadEventsForMultiView()
+                    },
+                    onDismiss: nil,  // 从模版打开时不使用 onDismiss
+                    onBackToTemplate: {
+                        // 返回到行程模版（PlanDetailView）
+                        showMultiEventView = false
+                        // 重新打开详情页
+                        if let template = currentTemplate {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                activeSheet = .planDetail(template)
+                            }
+                        }
+                    }
+                )
+                .environmentObject(userManager)
+            }
+        }
         //修改内容：只依赖 userOpenId，一次加载；避免 onAppear/onChange/task 互撞
         .task(id: userManager.userOpenId) {
             let uid = userManager.userOpenId
@@ -139,7 +191,7 @@ struct MyTemplatesView: View {
             }
         } message: {
             if let template = templateToDelete {
-                Text("確定要刪除「\(template.title)」嗎？此操作無法復原。")
+                Text("my_templates.delete_confirmation".localized(with: template.title))
             }
         }
         .sheet(isPresented: $showShareSheet) {
@@ -250,7 +302,7 @@ struct MyTemplatesView: View {
                         selectedFilter = filterType
                         vm.selectedFilterRawValue = filterType.rawValue
                     }) {
-                        Text(filterType.rawValue)
+                        Text(filterType.localizedDisplayName)
                             .font(.system(size: 14, weight: selectedFilter == filterType ? .semibold : .medium))
                             .foregroundColor(selectedFilter == filterType ? .blue : .primary)
                             .padding(.horizontal, 16)
@@ -296,12 +348,13 @@ struct MyTemplatesView: View {
                         
                         HStack(spacing: 8) {
                             if let destination = template.destination {
-                                Label(destination, systemImage: "mappin.circle.fill")
+                                let countryCity = formatCountryCity(from: destination)
+                                Label(countryCity, systemImage: "mappin.circle.fill")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
                             
-                            Label("\(template.plan.days.count)天", systemImage: "calendar")
+                            Label("my_templates.days".localized(with: template.plan.days.count), systemImage: "calendar")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -315,13 +368,13 @@ struct MyTemplatesView: View {
                             templateToDelete = template
                             showDeleteConfirmation = true
                         }) {
-                            Label("删除", systemImage: "trash")
+                            Label("my_templates.delete".localized(), systemImage: "trash")
                         }
                         
                         Button(action: {
                             shareTemplate(template)
                         }) {
-                            Label("分享", systemImage: "square.and.arrow.up")
+                            Label("my_templates.share".localized(), systemImage: "square.and.arrow.up")
                         }
                     } label: {
                         Image(systemName: "ellipsis")
@@ -331,59 +384,8 @@ struct MyTemplatesView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                     
-                    // 天数标签
-                    Text("\(template.plan.days.count)天")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(template.plan.days.count > 1 ? Color.blue : Color.green)
-                        .cornerRadius(12)
-                }
-                
-                Divider()
-                
-                // 行程预览：显示前2天的活动
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(Array(template.plan.days.enumerated().prefix(2)), id: \.offset) { dayIndex, day in
-                        let activities = day.blocks.filter { $0.type == .activity }
-                        if let firstActivity = activities.first {
-                            HStack(alignment: .top, spacing: 8) {
-                                // 时间
-                                Text(timeString(from: firstActivity.startTime))
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.secondary)
-                                    .frame(width: 50, alignment: .leading)
-                                
-                                // 活动信息
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(firstActivity.title)
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                        .foregroundColor(.primary)
-                                    
-                                    if let location = firstActivity.location {
-                                        Text(location)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(1)
-                                    }
-                                }
-                                
-                                Spacer()
-                            }
-                            .padding(.vertical, 4)
-                        }
-                    }
-                    
-                    if template.plan.days.count > 2 {
-                        Text("...还有 \(template.plan.days.count - 2) 天的行程")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .italic()
-                    }
+                    // 评分标签
+                    ratingStarsView(rating: template.rating)
                 }
                 
                 // 标签和日期
@@ -417,6 +419,30 @@ struct MyTemplatesView: View {
         .buttonStyle(PlainButtonStyle())
     }
     
+    // MARK: - 加载事件列表（用于 MultiEventView）
+    private func loadEventsForMultiView() async {
+        guard !userManager.userOpenId.isEmpty else { return }
+        
+        // 从本地缓存加载事件
+        let cachedEvents = EventCacheManager.shared.loadEvents(for: userManager.userOpenId)
+        await MainActor.run {
+            allEvents = cachedEvents.filter { $0.deleted != 1 }
+        }
+        
+        // 后台同步 Firebase
+        Task {
+            do {
+                try await EventManager.shared.fetchEvents()
+                let updatedEvents = EventCacheManager.shared.loadEvents(for: userManager.userOpenId)
+                await MainActor.run {
+                    allEvents = updatedEvents.filter { $0.deleted != 1 }
+                }
+            } catch {
+                print("⚠️ 加载事件失败: \(error.localizedDescription)")
+            }
+        }
+    }
+    
     // MARK: - 辅助方法
     // 缓存 DateFormatter 以提高性能，避免每次渲染都创建新实例
     private static let timeFormatter: DateFormatter = {
@@ -440,13 +466,84 @@ struct MyTemplatesView: View {
     private func formatDate(_ date: Date) -> String {
         return Self.dateFormatter.string(from: date)
     }
+    
+    /// 格式化目的地为国家-城市格式
+    private func formatCountryCity(from destination: String) -> String {
+        // 如果已经是"国家 - 城市"格式，直接返回
+        if destination.contains(" - ") {
+            return destination
+        }
+        
+        // 尝试从城市名推断国家
+        let countryMap: [String: String] = [
+            "東京": "日本", "京都": "日本", "大阪": "日本", "名古屋": "日本",
+            "札幌": "日本", "福岡": "日本", "沖繩": "日本",
+            "首爾": "韓國", "釜山": "韓國",
+            "台北": "台灣", "台東": "台灣", "台南": "台灣", "台中": "台灣",
+            "高雄": "台灣", "新北": "台灣", "桃園": "台灣", "新竹": "台灣", "基隆": "台灣",
+            "上海": "中國", "北京": "中國", "廣州": "中國", "深圳": "中國",
+            "杭州": "中國", "成都": "中國", "重慶": "中國",
+            "香港": "中國", "澳門": "中國",
+            "新加坡": "新加坡",
+            "曼谷": "泰國", "清邁": "泰國",
+            "巴黎": "法國",
+            "倫敦": "英國",
+            "紐約": "美國", "洛杉磯": "美國", "舊金山": "美國", "西雅圖": "美國"
+        ]
+        
+        // 查找匹配的城市
+        for (city, country) in countryMap {
+            if destination.contains(city) {
+                return "\(country) - \(city)"
+            }
+        }
+        
+        // 如果找不到匹配，直接返回原字符串
+        return destination
+    }
+    
+    /// 评分星星视图（0-5颗星，未评分时显示1颗空心星星）
+    @ViewBuilder
+    private func ratingStarsView(rating: Double?) -> some View {
+        HStack(spacing: 2) {
+            if let rating = rating {
+                // 有评分：显示5颗星（实心/半颗/空心）
+                ForEach(0..<5, id: \.self) { index in
+                    let starValue = Double(index) + 1.0
+                    if starValue <= rating {
+                        // 完整星星
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundColor(.yellow)
+                    } else if starValue - 0.5 <= rating {
+                        // 半颗星
+                        Image(systemName: "star.lefthalf.fill")
+                            .font(.caption)
+                            .foregroundColor(.yellow)
+                    } else {
+                        // 空心星星
+                        Image(systemName: "star")
+                            .font(.caption)
+                            .foregroundColor(.gray.opacity(0.3))
+                    }
+                }
+            } else {
+                // 未评分：只显示1颗空心星星
+                Image(systemName: "star")
+                    .font(.caption)
+                    .foregroundColor(.gray.opacity(0.3))
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+    }
 
     private var emptyStateView: some View {
         VStack(spacing: 16) {
             Image(systemName: "bookmark")
                 .font(.system(size: 48))
                 .foregroundColor(.secondary)
-            Text("还没有保存的行程模板")
+            Text("my_templates.no_templates".localized())
                 .font(.headline)
                 .foregroundColor(.secondary)
         }

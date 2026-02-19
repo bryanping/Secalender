@@ -39,6 +39,10 @@ struct ExtractedSlots {
     var budgetLevel: SlotInfo<BudgetLevel> = SlotInfo(value: nil, confidence: 0.0)
     var interestTags: [String] = []
     var transportPreference: SlotInfo<TransportPreference> = SlotInfo(value: nil, confidence: 0.0)
+    
+    // 人数信息（用于计算餐饮时间）
+    var adults: SlotInfo<Int> = SlotInfo(value: nil, confidence: 0.0)
+    var children: SlotInfo<Int> = SlotInfo(value: nil, confidence: 0.0)
 }
 
 /// 日期范围
@@ -175,7 +179,6 @@ final class InputClassifier {
         
         // 计算关键字段完整度
         var filledCount = 0
-        let totalRequired = 3  // 目的地、时间、意图
         
         if slots.destination.value != nil && slots.destination.confidence > 0.5 {
             filledCount += 1

@@ -461,7 +461,7 @@ final class GroupManager {
                         userId: memberId,
                         documentId: doc.documentID,
                         alias: data["alias"] as? String,
-                        name: data["name"] as? String ?? data["displayName"] as? String,
+                        name: data["name"] as? String ?? data["displayName"] as? String ?? data["display_name"] as? String, // 优先使用 name，兼容旧数据
                         email: data["email"] as? String,
                         photoUrl: data["photo_url"] as? String ?? data["photoUrl"] as? String,
                         gender: data["gender"] as? String

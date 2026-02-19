@@ -34,6 +34,7 @@ struct Event: Identifiable, Codable {
     var calendarComponent: String? = "default" // 行事曆組件
     var travelTime: String?            // 路程時間
     var invitees: [String]?            // 邀請對象
+    var aiEvent: Int? = 0              // 智能行程标识：0=普通行程，1=智能行程（AI生成）
     
     // 兼容 SwiftUI ForEach
     var uuid: UUID { UUID() }
@@ -62,7 +63,8 @@ struct Event: Identifiable, Codable {
         calendarComponent: String = "default",
         travelTime: String? = nil,
         groupId: String? = nil,
-        invitees: [String]? = nil
+        invitees: [String]? = nil,
+        aiEvent: Int? = 0
     ) {
         self.id = id
         self.title = title
@@ -88,6 +90,7 @@ struct Event: Identifiable, Codable {
         self.travelTime = travelTime
         self.groupId = groupId
         self.invitees = invitees
+        self.aiEvent = aiEvent
         
     }
     
@@ -96,7 +99,7 @@ struct Event: Identifiable, Codable {
         case id, title, creatorOpenid, color, date, startTime, endTime, endDate
         case destination, mapObj, openChecked, personChecked, personNumber
         case sponsorType, category, createTime, deleted, information, groupId
-        case isAllDay, repeatType, calendarComponent, travelTime, invitees
+        case isAllDay, repeatType, calendarComponent, travelTime, invitees, aiEvent
     }
     
     init(from decoder: Decoder) throws {
@@ -135,6 +138,7 @@ struct Event: Identifiable, Codable {
         calendarComponent = try container.decodeIfPresent(String.self, forKey: .calendarComponent) ?? "default"
         travelTime = try container.decodeIfPresent(String.self, forKey: .travelTime)
         invitees = try container.decodeIfPresent([String].self, forKey: .invitees)
+        aiEvent = try container.decodeIfPresent(Int.self, forKey: .aiEvent) ?? 0
     }
     
     func encode(to encoder: Encoder) throws {
@@ -164,11 +168,25 @@ struct Event: Identifiable, Codable {
         try container.encodeIfPresent(calendarComponent, forKey: .calendarComponent)
         try container.encodeIfPresent(travelTime, forKey: .travelTime)
         try container.encodeIfPresent(invitees, forKey: .invitees)
+        try container.encodeIfPresent(aiEvent, forKey: .aiEvent)
     }
 }
 
 // 辅助扩展
 extension Event {
+    /// 是否為外部匯入（Apple Calendar / Google Calendar）
+    var isFromExternalImport: Bool {
+        guard let comp = calendarComponent, !comp.isEmpty else { return false }
+        return comp != "default" && comp != "event"
+    }
+    
+    /// 是否為跨日/多日活動（開始與結束日期不同天）
+    var isMultiDay: Bool {
+        guard let start = dateObj else { return false }
+        guard let end = endDateObj else { return false }
+        return Calendar.current.compare(start, to: end, toGranularity: .day) != .orderedSame
+    }
+    
     var dateObj: Date? {
         let formats = ["yyyy-MM-dd", "yyyy/MM/dd", "MM/dd/yyyy"]
         for format in formats {
@@ -266,6 +284,7 @@ extension Event {
     
     var isOpenChecked: Bool { self.openChecked == 1 }
     var isPersonChecked: Bool { self.personChecked == 1 }
+    var isAiEvent: Bool { (self.aiEvent ?? 0) == 1 }  // 是否为智能行程
     
     /// 推断是否有结束时间（用于 UI 显示）
     /// isHasEnd 是一个 UI 状态，不需要存储到 Firebase

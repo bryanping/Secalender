@@ -117,10 +117,20 @@ extension SignInAppleHelper: ASAuthorizationControllerDelegate {
             return
         }
         
-        let name = appleIDCredential.fullName?.givenName
+        // 正確獲取 Apple 姓名：組合 givenName 和 familyName
+        var fullName: String? = nil
+        if let givenName = appleIDCredential.fullName?.givenName,
+           let familyName = appleIDCredential.fullName?.familyName {
+            fullName = "\(givenName) \(familyName)"
+        } else if let givenName = appleIDCredential.fullName?.givenName {
+            fullName = givenName
+        } else if let familyName = appleIDCredential.fullName?.familyName {
+            fullName = familyName
+        }
+        
         let email = appleIDCredential.email
         
-        let tokens = SignInWithAppleResult(token: idTokenString, nonce: nonce, name: name,email: email)
+        let tokens = SignInWithAppleResult(token: idTokenString, nonce: nonce, name: fullName, email: email)
         completionHandler?(.success(tokens))
         
     }

@@ -64,7 +64,7 @@ struct FriendEventsView: View {
                     }
                 }
 
-                Text("邀請更多朋友加入")
+                Text("friend_events.invite_more".localized())
                     .font(.callout)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
