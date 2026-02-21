@@ -10,51 +10,66 @@ import SwiftUI
 
 struct TemplateDetailView: View {
     let template: StoreTemplate
+    var creator: TemplateCreator? = nil
+    var creatorTemplates: [StoreTemplate] = []  // 該創作者的全部模版（用於進入主頁）
+    var isPurchased: Bool = false
+    var isFollowing: Bool = false
+    var onFollow: () -> Void = {}
+    var onUnfollow: () -> Void = {}
     @EnvironmentObject var userManager: FirebaseUserManager
     @State private var showingPurchaseAlert = false
-    @State private var purchased = false
+    @State private var purchased: Bool
     @State private var showPlanDetail = false
     @State private var templatePlan: PlanResult? = nil
     @State private var isLoadingPlan = false
 
+    init(
+        template: StoreTemplate,
+        creator: TemplateCreator? = nil,
+        creatorTemplates: [StoreTemplate] = [],
+        isPurchased: Bool = false,
+        isFollowing: Bool = false,
+        onFollow: @escaping () -> Void = {},
+        onUnfollow: @escaping () -> Void = {}
+    ) {
+        self.template = template
+        self.creator = creator
+        self.creatorTemplates = creatorTemplates
+        self.isPurchased = isPurchased
+        self.isFollowing = isFollowing
+        self.onFollow = onFollow
+        self.onUnfollow = onUnfollow
+        _purchased = State(initialValue: isPurchased || template.price == 0)
+    }
+
     var body: some View {
         ScrollView {
-        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 20) {
+                // 封面圖區域
+                coverSection
+
                 Text(template.title)
-                    .font(.title)
+                    .font(.title2)
                     .bold()
+                
+                if let creator = creator {
+                    creatorRow(creator)
+                }
                 
                 Text(template.description)
                     .font(.body)
                     .foregroundColor(.secondary)
                 
-            HStack {
-                ForEach(template.tags, id: \.self) { tag in
-                    Text("#\(tag)")
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.gray.opacity(0.2))
-                        .cornerRadius(4)
-                }
-            }
+                // 標籤、評分、天數、購買數
+                metaSection
                 
-            // 價格顯示：如果為0則顯示"免費"
-            if template.price == 0 {
-                Text("template_detail.free".localized())
-                    .font(.title3)
-                    .foregroundColor(.blue)
-                    .padding(.top, 8)
-            } else {
-                Text(String(format: "NT$%.0f", template.price))
-                    .font(.title3)
-                    .foregroundColor(.green)
-                    .padding(.top, 8)
-            }
+                // 價格
+                priceSection
 
-            Spacer()
+                Spacer(minLength: 16)
 
-            VStack(spacing: 12) {
+                // 操作按鈕
+                VStack(spacing: 12) {
                 // 開發期間：價格為0的模板可以直接添加到我的模板
                 if template.price == 0 {
                     Button(action: {
@@ -165,6 +180,7 @@ struct TemplateDetailView: View {
                              dismissButton: .default(Text("template_detail.confirm".localized())))
             } else {
                 purchased = true
+                TemplatePurchaseManager.shared.markAsPurchased(templateId: template.id, for: userManager.userOpenId)
                 return Alert(title: Text("template_detail.purchase_success".localized()),
                              message: Text("template_detail.thanks_purchase".localized()),
                              dismissButton: .default(Text("template_detail.ok".localized())))
@@ -172,9 +188,163 @@ struct TemplateDetailView: View {
         }
     }
     
+    // MARK: - UI Sections
+    
+    private var coverSection: some View {
+        Group {
+            if let urlString = template.coverImageURL, !urlString.isEmpty, let url = URL(string: urlString) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image): image.resizable().scaledToFill()
+                    case .failure, .empty: detailGradientPlaceholder
+                    @unknown default: detailGradientPlaceholder
+                    }
+                }
+            } else {
+                detailGradientPlaceholder
+            }
+        }
+        .frame(height: 180)
+        .frame(maxWidth: .infinity)
+        .clipped()
+        .cornerRadius(12)
+    }
+    
+    private func creatorRow(_ creator: TemplateCreator) -> some View {
+        NavigationLink(destination: creatorProfileDestination(creator)) {
+            HStack(spacing: 12) {
+                avatarPlaceholderView(creator)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(creator.name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                    Text("creator.templates_count".localized(with: creator.templateCount))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Button(action: {
+                    if isFollowing { onUnfollow() } else { onFollow() }
+                }) {
+                    Text(isFollowing ? "creator.following".localized() : "creator.follow".localized())
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(isFollowing ? .secondary : .blue)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(isFollowing ? Color.gray.opacity(0.2) : Color.blue.opacity(0.15))
+                        .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(12)
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
+        }
+        .buttonStyle(.plain)
+    }
+    
+    private func avatarPlaceholderView(_ creator: TemplateCreator) -> some View {
+        Text(creator.name.prefix(1))
+            .font(.subheadline)
+            .fontWeight(.semibold)
+            .foregroundColor(.white)
+            .frame(width: 36, height: 36)
+            .background(
+                LinearGradient(
+                    colors: [Color.blue.opacity(0.6), Color.purple.opacity(0.5)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(Circle())
+    }
+    
+    @ViewBuilder
+    private func creatorProfileDestination(_ creator: TemplateCreator) -> some View {
+        CreatorProfileView(
+            creator: creator,
+            templates: creatorTemplates,
+            isFollowing: isFollowing,
+            isPurchased: { t in
+                t.id == template.id ? isPurchased : TemplatePurchaseManager.shared.isPurchased(templateId: t.id, for: userManager.userOpenId)
+            },
+            onFollow: onFollow,
+            onUnfollow: onUnfollow
+        )
+        .environmentObject(userManager)
+    }
+    
+    private var detailGradientPlaceholder: some View {
+        LinearGradient(
+            colors: [
+                Color.blue.opacity(0.6),
+                Color.purple.opacity(0.4)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .overlay(
+            Image(systemName: "map.fill")
+                .font(.system(size: 48))
+                .foregroundColor(.white.opacity(0.5))
+        )
+    }
+    
+    private var metaSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                ForEach(template.tags, id: \.self) { tag in
+                    Text("#\(tag)")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(6)
+                }
+            }
+            HStack(spacing: 16) {
+                if let rating = template.rating {
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundColor(.yellow)
+                        Text(String(format: "%.1f", rating))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                Label("\(template.daysCount) " + "template_detail.days".localized(), systemImage: "calendar")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                if template.purchaseCount > 0 {
+                    Label("\(template.purchaseCount) " + "template_detail.purchases".localized(), systemImage: "person.2.fill")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+        }
+    }
+    
+    private var priceSection: some View {
+        Group {
+            if template.price == 0 {
+                Text("template_detail.free".localized())
+                    .font(.title3)
+                    .foregroundColor(.blue)
+            } else {
+                Text("template_store.price_format".localized(with: template.price))
+                    .font(.title3)
+                    .foregroundColor(.green)
+            }
+        }
+    }
+    
     // MARK: - 方法
     
-    /// 添加到我的模板（開發期間免費模板直接添加）
+    /// 添加到我的模板（免費模板直接添加）
     private func addToMyTemplates() {
         // 開發期間：價格為0的模板可以直接添加到我的模板
         // 這裡需要從API獲取完整的PlanResult，然後保存到本地模板
@@ -185,6 +355,7 @@ struct TemplateDetailView: View {
             if let plan = templatePlan {
                 await MainActor.run {
                     savePlanToTemplate(plan, title: template.title)
+                    TemplatePurchaseManager.shared.markAsPurchased(templateId: template.id, for: userManager.userOpenId)
                     showingPurchaseAlert = true
                     purchased = true
                 }
@@ -221,7 +392,7 @@ struct TemplateDetailView: View {
         var dayPlans: [DayPlan] = []
         
         // 根据模板标题推断天数（简单处理）
-        let daysCount = extractDaysFromTitle(template.title) ?? 3
+        let daysCount = template.daysCount > 0 ? template.daysCount : (extractDaysFromTitle(template.title) ?? 3)
         
         for dayIndex in 0..<daysCount {
             let date = Calendar.current.date(byAdding: .day, value: dayIndex, to: today) ?? today

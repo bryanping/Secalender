@@ -193,6 +193,7 @@ struct TravelTemplateView: View {
                         
                     case .templateStore:
                         TemplateStoreView()
+                            .environmentObject(userManager)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

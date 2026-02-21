@@ -41,17 +41,105 @@ struct PlanEditView: View {
     @State private var tripStartDate: Date = Date()  // 行程开始日期
     @State private var originalBlocksByDay: [Date: [TimeBlock]] = [:]  // 保存原始的所有 blocks（包括 transit, buffer, flex, rest）
     
+    @State private var templateTitle: String = ""     // 模版標題（儲存模板時使用，與行程1分離）
+    @State private var firstDayTitle: String = ""    // 行程1的標題（第一個行程卡片的標題）
+    @State private var isDataLoaded = false          // 行程資料是否已非同步載入完成
+    
     var body: some View {
         NavigationView {
             ZStack {
                 Color(.systemGroupedBackground)
                     .ignoresSafeArea()
                 
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // 模版标题
+                if isDataLoaded {
+                    formContent
+                } else {
+                    loadingView
+                }
+            }
+            .navigationTitle("編輯行程")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") {
+                        onDismiss?()
+                        dismiss()
+                    }
+                }
+            }
+            .alert("錯誤", isPresented: $showErrorAlert) {
+                Button("好") {}
+            } message: {
+                Text(errorMessage)
+            }
+            .sheet(item: $activeSheet) { sheetType in
+                switch sheetType {
+                case .locationPicker:
+                    LocationPickerView(
+                        selectedAddress: Binding(
+                            get: {
+                                if let itemId = formState.showLocationPickerForItem,
+                                   let item = formState.multiDayItems.first(where: { $0.id == itemId }) {
+                                    return item.destination
+                                }
+                                return ""
+                            },
+                            set: { newValue in
+                                if let itemId = formState.showLocationPickerForItem,
+                                   let index = formState.multiDayItems.firstIndex(where: { $0.id == itemId }) {
+                                    formState.multiDayItems[index].destination = newValue
+                                }
+                            }
+                        ),
+                        selectedCoordinate: Binding(
+                            get: {
+                                if let itemId = formState.showLocationPickerForItem,
+                                   let item = formState.multiDayItems.first(where: { $0.id == itemId }) {
+                                    return item.coordinate
+                                }
+                                return nil
+                            },
+                            set: { newValue in
+                                if let itemId = formState.showLocationPickerForItem,
+                                   let index = formState.multiDayItems.firstIndex(where: { $0.id == itemId }) {
+                                    formState.multiDayItems[index].coordinate = newValue
+                                }
+                            }
+                        )
+                    )
+                    .onDisappear {
+                        activeSheet = nil
+                        formState.showLocationPickerForItem = nil
+                    }
+                default:
+                    EmptyView()
+                }
+            }
+            .onAppear {
+                loadPlanDataAsync()
+            }
+        }
+    }
+    
+    // MARK: - 載入中視圖
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("載入行程中...")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // MARK: - 表單內容
+    private var formContent: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                        // 模版标题（與行程1標題分離，僅用於儲存模板時的名稱）
                         EventFormCard(icon: "textformat", title: "模版標題", iconColor: .blue) {
-                            TextField("例如:東京5日深度遊", text: $formState.title)
+                            TextField("例如:東京5日深度遊", text: $templateTitle)
                                 .lineLimit(1)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 12)
@@ -88,7 +176,7 @@ struct PlanEditView: View {
                                     index: index,
                                     item: item,
                                     items: $formState.multiDayItems,
-                                    mainTitle: $formState.title,
+                                    mainTitle: $firstDayTitle,
                                     isCalculatingTravelTime: false,
                                     showLocationPickerForItem: $formState.showLocationPickerForItem,
                                     activeSheet: $activeSheet,
@@ -181,77 +269,8 @@ struct PlanEditView: View {
                         .padding(.horizontal)
                         .padding(.top, 8)
                         .padding(.bottom, 20)
-                    }
-                    .padding(.vertical)
-                }
             }
-            .navigationTitle("編輯行程")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") {
-                        onDismiss?()
-                        dismiss()
-                    }
-                }
-            }
-            .alert("錯誤", isPresented: $showErrorAlert) {
-                Button("好") {}
-            } message: {
-                Text(errorMessage)
-            }
-            .sheet(item: $activeSheet) { sheetType in
-                switch sheetType {
-                case .locationPicker:
-                    LocationPickerView(
-                        selectedAddress: Binding(
-                            get: {
-                                if let itemId = formState.showLocationPickerForItem,
-                                   let item = formState.multiDayItems.first(where: { $0.id == itemId }) {
-                                    return item.destination
-                                }
-                                return ""
-                            },
-                            set: { newValue in
-                                if let itemId = formState.showLocationPickerForItem,
-                                   let index = formState.multiDayItems.firstIndex(where: { $0.id == itemId }) {
-                                    formState.multiDayItems[index].destination = newValue
-                                }
-                            }
-                        ),
-                        selectedCoordinate: Binding(
-                            get: {
-                                if let itemId = formState.showLocationPickerForItem,
-                                   let item = formState.multiDayItems.first(where: { $0.id == itemId }) {
-                                    return item.coordinate
-                                }
-                                return nil
-                            },
-                            set: { newValue in
-                                if let itemId = formState.showLocationPickerForItem,
-                                   let index = formState.multiDayItems.firstIndex(where: { $0.id == itemId }) {
-                                    formState.multiDayItems[index].coordinate = newValue
-                                }
-                            }
-                        )
-                    )
-                    .onDisappear {
-                        activeSheet = nil
-                        formState.showLocationPickerForItem = nil
-                    }
-                default:
-                    EmptyView()
-                }
-            }
-            .onAppear {
-                // 确保 plan 数据有效后再初始化
-                guard !plan.days.isEmpty else {
-                    errorMessage = "行程数据无效：没有行程天数"
-                    showErrorAlert = true
-                    return
-                }
-                initializeFromPlan()
-            }
+            .padding(.vertical)
         }
     }
     
@@ -297,65 +316,64 @@ struct PlanEditView: View {
         }
     }
     
-    // MARK: - 初始化方法
-    
-    private func initializeFromPlan() {
-        // 验证 plan 数据有效性
+    // MARK: - 非同步載入行程
+    /// 先顯示頁面與載入中狀態，再於背景完成資料轉換，避免被誤認為當機
+    private func loadPlanDataAsync() {
         guard !plan.days.isEmpty else {
             errorMessage = "行程数据无效：没有行程天数"
             showErrorAlert = true
             return
         }
+        Task.detached(priority: .userInitiated) {
+            // 在背景執行耗時的 plan 轉換
+            let result = computePlanInitialData()
+            await MainActor.run {
+                applyPlanInitialData(result)
+                isDataLoaded = true
+            }
+        }
+    }
+    
+    /// 背景執行：將 plan 轉為初始化所需資料（不觸碰 UI 狀態，僅讀取 plan / customTitle）
+    private func computePlanInitialData() -> (titles: (String, String), tripStartDate: Date, items: [MultiDayEventItem], blocksByDay: [Date: [TimeBlock]]) {
+        let planData = plan
+        let customTitleValue = customTitle
         
-        // 设置标题：优先使用用户填写的"此行的主題"（customTitle）
-        if let customTitle = customTitle, !customTitle.isEmpty {
-            formState.title = customTitle
+        // 設置模版標題與行程1標題（兩者獨立，初始值可相同）
+        let initialTitle: String
+        if let ct = customTitleValue, !ct.isEmpty {
+            initialTitle = ct
         } else {
-            // 如果没有自定义标题，从第一个活动的 location 中提取目的地
             let destination: String
-            if let firstDay = plan.days.first,
+            if let firstDay = planData.days.first,
                let firstBlock = firstDay.blocks.first(where: { $0.type == .activity }),
                let location = firstBlock.location {
-                // 提取城市名（如果格式是"国家 - 城市"，只取城市部分）
-                if location.contains(" - ") {
-                    destination = String(location.split(separator: " - ").last ?? "")
-                } else {
-                    destination = location
-                }
+                destination = location.contains(" - ") ? String(location.split(separator: " - ").last ?? "") : location
             } else {
                 destination = "行程"
             }
-            formState.title = "\(destination) \(plan.days.count)天行程"
+            initialTitle = "\(destination) \(planData.days.count)天行程"
         }
         
-        // 设置行程开始日期（使用第一个行程的日期）
-        if let firstDay = plan.days.first {
-            tripStartDate = firstDay.date
+        let startDate: Date
+        if let firstDay = planData.days.first {
+            startDate = firstDay.date
         } else {
-            tripStartDate = Date()
+            startDate = Date()
         }
         
-        // 转换为 MultiDayEventItem
-        // 包含所有活动，不限制数量
         var items: [MultiDayEventItem] = []
         let calendar = Calendar.current
+        var blocksByDay: [Date: [TimeBlock]] = [:]
         
-        // 保存原始的所有 blocks（包括 transit, buffer, flex, rest）
-        originalBlocksByDay = [:]
-        
-        for (dayIndex, day) in plan.days.enumerated() {
-            // 计算该天的日期（基于 tripStartDate 和 dayIndex）
+        for (dayIndex, day) in planData.days.enumerated() {
             let dayDate: Date
-            if let calculatedDate = calendar.date(byAdding: .day, value: dayIndex, to: tripStartDate) {
+            if let calculatedDate = calendar.date(byAdding: .day, value: dayIndex, to: startDate) {
                 dayDate = calculatedDate
             } else {
-                // 如果计算失败，使用原始日期或当前日期
-                let originalDate = day.date
-                dayDate = originalDate.isValid ? originalDate : Date()
+                dayDate = day.date.isValid ? day.date : Date()
             }
             
-            // 保存该天的所有原始 blocks（包括 transit, buffer, flex, rest）
-            // 调整日期部分以匹配新的 tripStartDate
             var adjustedBlocks: [TimeBlock] = []
             for block in day.blocks {
                 let startTimeComponents = calendar.dateComponents([.hour, .minute, .second], from: block.startTime)
@@ -364,8 +382,7 @@ struct PlanEditView: View {
                 let adjustedStartTime = calendar.date(bySettingHour: startTimeComponents.hour ?? 0, minute: startTimeComponents.minute ?? 0, second: startTimeComponents.second ?? 0, of: dayDate) ?? dayDate
                 let adjustedEndTime = calendar.date(bySettingHour: endTimeComponents.hour ?? 0, minute: endTimeComponents.minute ?? 0, second: endTimeComponents.second ?? 0, of: dayDate) ?? dayDate
                 
-                // 创建新的 TimeBlock 实例（因为 id 是 let，不能直接修改）
-                var adjustedBlock = TimeBlock(
+                let adjustedBlock = TimeBlock(
                     type: block.type,
                     startTime: adjustedStartTime,
                     endTime: adjustedEndTime,
@@ -377,7 +394,7 @@ struct PlanEditView: View {
                 )
                 adjustedBlocks.append(adjustedBlock)
             }
-            originalBlocksByDay[dayDate] = adjustedBlocks
+            blocksByDay[dayDate] = adjustedBlocks
             
             // 获取当天的所有活动（过滤掉 transit、buffer 等），并按开始时间排序
             let activities = day.blocks
@@ -441,16 +458,25 @@ struct PlanEditView: View {
             }
         }
         
-        formState.multiDayItems = items
+        return ((initialTitle, initialTitle), startDate, items, blocksByDay)
+    }
+    
+    /// 主線程：將計算結果套用到 UI 狀態
+    private func applyPlanInitialData(_ result: (titles: (String, String), tripStartDate: Date, items: [MultiDayEventItem], blocksByDay: [Date: [TimeBlock]])) {
+        templateTitle = result.titles.0
+        firstDayTitle = result.titles.1
+        tripStartDate = result.tripStartDate
+        originalBlocksByDay = result.blocksByDay
+        formState.multiDayItems = result.items
         formState.isMultiDayEvent = true
     }
     
     // MARK: - 保存方法
     
     private func saveToCalendar() {
-        // 验证数据
-        guard !formState.title.isEmpty else {
-            errorMessage = "請輸入行程標題"
+        // 驗證：行程1需有標題
+        guard !firstDayTitle.isEmpty else {
+            errorMessage = "請輸入行程1的標題"
             showErrorAlert = true
             return
         }
@@ -465,11 +491,11 @@ struct PlanEditView: View {
             for (index, item) in formState.multiDayItems.enumerated() {
                 let eventTitle: String
                 if index == 0 {
-                    eventTitle = formState.title
+                    eventTitle = firstDayTitle
                 } else if !item.title.isEmpty {
                     eventTitle = item.title
                 } else {
-                    eventTitle = "\(formState.title) - 行程 \(index + 1)"
+                    eventTitle = "\(templateTitle.isEmpty ? firstDayTitle : templateTitle) - 行程 \(index + 1)"
                 }
                 
                 let endTimeString: String
@@ -565,9 +591,9 @@ struct PlanEditView: View {
     }
     
     private func saveToTemplate() {
-        // 验证数据
-        guard !formState.title.isEmpty else {
-            errorMessage = "請輸入行程標題"
+        // 驗證：模版標題必填
+        guard !templateTitle.isEmpty else {
+            errorMessage = "請輸入模版標題"
             showErrorAlert = true
             return
         }
@@ -594,7 +620,7 @@ struct PlanEditView: View {
                     type: .activity,
                     startTime: item.startTime,
                     endTime: item.isHasEnd ? item.endTime : item.startTime,
-                    title: item.title.isEmpty ? formState.title : item.title,
+                    title: item.title.isEmpty ? firstDayTitle : item.title,
                     location: item.destination,
                     isAnchor: false,
                     priority: 5,
@@ -625,8 +651,8 @@ struct PlanEditView: View {
         
         let updatedPlan = PlanResult(days: dayPlans, assumptions: plan.assumptions, riskFlags: plan.riskFlags)
         
-        // 通过回调传回编辑后的 PlanResult 和标题，让调用方决定如何处理
-        onSaveToTemplate?(updatedPlan, formState.title)
+        // 通过回调传回编辑后的 PlanResult 和模版標題，让调用方决定如何处理
+        onSaveToTemplate?(updatedPlan, templateTitle)
         
         dismiss()
     }

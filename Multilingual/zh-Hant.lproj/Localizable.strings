@@ -48,6 +48,8 @@
 "ai_planner.searching_features" = "正在搜尋周邊特色...";
 "ai_planner.no_features" = "暫無周邊特色推薦";
 "ai_planner.selected_attractions" = "已選擇 %d/%d 個景點";
+"ai_planner.custom_tags" = "自訂標籤";
+"ai_planner.custom_tag_placeholder" = "例如：文青咖啡、網紅店…";
 "ai_planner.pace" = "行程節奏";
 "ai_planner.departure_location" = "出發位置";
 "ai_planner.locating" = "正在定位...";
@@ -476,6 +478,21 @@
 // MARK: - Template Store
 "template_store.popular" = "熱門推薦";
 "template_store.tags" = "標籤";
+"template_store.search_placeholder" = "搜尋目的地、主題...";
+"template_store.featured" = "精選推薦";
+"template_store.category.all" = "全部";
+"template_store.category.popular" = "熱門";
+"template_store.category.new" = "新品";
+"template_store.category.japan" = "日本";
+"template_store.category.taiwan" = "台灣";
+"template_store.category.korea" = "韓國";
+"template_store.category.europe" = "歐洲";
+"template_store.results_count" = "共 %d 個結果";
+"template_store.price_format" = "NT$%.0f";
+"template_store.empty" = "未找到符合的模板，試試其他關鍵詞";
+"template_store.loading" = "載入中...";
+"template_store.category.creators" = "創作者";
+"template_store.creators_title" = "熱門博主";
 
 // MARK: - Multi Event
 "multi_event.title" = "多行程檢視";
@@ -571,7 +588,7 @@
 
 // MARK: - Template Detail
 "template_detail.free" = "免費";
-"template_detail.add_to_my_templates" = "添加到我的模板";
+"template_detail.add_to_my_templates" = "加入我的模板";
 "template_detail.view_trip" = "檢視行程";
 "template_detail.apply_to_calendar" = "套用至行事曆";
 "template_detail.tip" = "提示";
@@ -583,6 +600,19 @@
 "template_detail.title" = "模板詳情";
 "template_detail.purchased" = "已購買";
 "template_detail.buy_template" = "購買模板";
+"template_detail.days" = "天";
+"template_detail.purchases" = "人已購買";
+
+// MARK: - Creator / 博主
+"creator.follow" = "關注";
+"creator.following" = "已關注";
+"creator.followers" = "粉絲";
+"creator.templates" = "模版";
+"creator.filter.all" = "全部";
+"creator.filter.free" = "免費";
+"creator.filter.paid" = "付費";
+"creator.no_templates" = "暫無模版行程";
+"creator.templates_count" = "%d 個模版行程";
 
 // MARK: - Plan Day Section
 "plan_day.day" = "第%d天";

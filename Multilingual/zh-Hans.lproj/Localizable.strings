@@ -475,6 +475,21 @@
 // MARK: - Template Store
 "template_store.popular" = "热门推荐";
 "template_store.tags" = "标签";
+"template_store.search_placeholder" = "搜索目的地、主题...";
+"template_store.featured" = "精选推荐";
+"template_store.category.all" = "全部";
+"template_store.category.popular" = "热门";
+"template_store.category.new" = "新品";
+"template_store.category.japan" = "日本";
+"template_store.category.taiwan" = "台湾";
+"template_store.category.korea" = "韩国";
+"template_store.category.europe" = "欧洲";
+"template_store.results_count" = "共 %d 个结果";
+"template_store.price_format" = "NT$%.0f";
+"template_store.empty" = "未找到符合的模板，试试其他关键词";
+"template_store.loading" = "加载中...";
+"template_store.category.creators" = "创作者";
+"template_store.creators_title" = "热门博主";
 
 // MARK: - Multi Event
 "multi_event.title" = "多行程检视";
@@ -534,7 +549,7 @@
 
 // MARK: - Template Detail
 "template_detail.free" = "免费";
-"template_detail.add_to_my_templates" = "添加到我的模板";
+"template_detail.add_to_my_templates" = "加入我的模板";
 "template_detail.view_trip" = "检视行程";
 "template_detail.apply_to_calendar" = "套用至行事历";
 "template_detail.tip" = "提示";
@@ -546,6 +561,19 @@
 "template_detail.title" = "模板详情";
 "template_detail.purchased" = "已购买";
 "template_detail.buy_template" = "购买模板";
+"template_detail.days" = "天";
+"template_detail.purchases" = "人已购买";
+
+// MARK: - Creator / 博主
+"creator.follow" = "关注";
+"creator.following" = "已关注";
+"creator.followers" = "粉丝";
+"creator.templates" = "模版";
+"creator.filter.all" = "全部";
+"creator.filter.free" = "免费";
+"creator.filter.paid" = "付费";
+"creator.no_templates" = "暂无模版行程";
+"creator.templates_count" = "%d 个模版行程";
 
 // MARK: - Plan Day Section
 "plan_day.day" = "第%d天";

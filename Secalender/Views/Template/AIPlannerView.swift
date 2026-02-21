@@ -196,12 +196,14 @@ struct AIPlannerView: View {
     // 步骤2：偏好设置
     @State private var selectedInterests: Set<InterestTag> = []
     @State private var selectedTransportation: TransportationType? = .publicTransport
-    @State private var selectedPace: Pace = .moderate
+    @State private var selectedPace: Pace = .relaxed  // 預設輕鬆，僅支援輕鬆/緊湊
     @State private var budgetLevel: BudgetLevel = .moderate
     
     // 步骤3：行程細節優化
     @State private var surroundingAttractions: [SurroundingAttraction] = []
     @State private var selectedSurroundingAttractions: Set<String> = []  // 存储选中的ID
+    @State private var customSurroundingTags: [String] = []  // 用戶自訂標籤
+    @State private var customTagInput: String = ""  // 自訂標籤輸入框
     @State private var isLoadingSurroundingFeatures = false
     @State private var selectedRestrictions: Set<SpecialRestriction> = []
     @State private var additionalRequirements: String = ""
@@ -410,12 +412,10 @@ struct AIPlannerView: View {
                         plan: plan,
                         customTitle: tripTheme.isEmpty ? nil : tripTheme,  // 传递用户填写的标题
                         onEdit: { planToEdit in
-                            // 编辑功能：打开 PlanEditView
+                            // 编辑功能：打開 PlanEditView（PlanEditView 會立即顯示載入中，再非同步載入行程）
                             self.planToEdit = planToEdit
-                            // 先关闭详情页
                             generatedPlan = nil
-                            // 然后打开编辑页（需要短暂延迟确保 sheet 切换流畅）
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                 showPlanEditView = true
                             }
                         },
@@ -995,43 +995,81 @@ struct AIPlannerView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
-                } else if surroundingAttractions.isEmpty {
+                } else if surroundingAttractions.isEmpty && customSurroundingTags.isEmpty {
                     Text("暫無周邊特色推薦")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .padding()
                 } else {
-                    // 计算最多可选择数量（天数+1）
+                    // 计算最多可选择数量（天数+1），含 API 推薦與自訂標籤
                     let maxSelection = travelDays + 1
-                    let currentSelectionCount = selectedSurroundingAttractions.count
+                    let currentSelectionCount = selectedSurroundingAttractions.count + customSurroundingTags.count
                     
-                    VStack(alignment: .leading, spacing: 8) {
-                        if currentSelectionCount > 0 {
-                            Text("已選擇 \(currentSelectionCount)/\(maxSelection) 個景點")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 12) {
+                        // API 推薦的周邊特色
+                        if !surroundingAttractions.isEmpty {
+                            if currentSelectionCount > 0 {
+                                Text("ai_planner.selected_attractions".localized(with: currentSelectionCount, maxSelection))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                                ForEach(surroundingAttractions) { attraction in
+                                    let isSelected = selectedSurroundingAttractions.contains(attraction.id)
+                                    let isDisabled = !isSelected && currentSelectionCount >= maxSelection
+                                    SurroundingAttractionButton(
+                                        attraction: attraction,
+                                        isSelected: isSelected
+                                    ) {
+                                        if isSelected {
+                                            selectedSurroundingAttractions.remove(attraction.id)
+                                        } else if currentSelectionCount < maxSelection {
+                                            selectedSurroundingAttractions.insert(attraction.id)
+                                        }
+                                    }
+                                    .opacity(isDisabled ? 0.5 : 1.0)
+                                    .disabled(isDisabled)
+                                }
+                            }
                         }
                         
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                            ForEach(surroundingAttractions) { attraction in
-                                let isSelected = selectedSurroundingAttractions.contains(attraction.id)
-                                let isDisabled = !isSelected && currentSelectionCount >= maxSelection
-                                
-                                SurroundingAttractionButton(
-                                    attraction: attraction,
-                                    isSelected: isSelected
-                                ) {
-                                    if isSelected {
-                                        selectedSurroundingAttractions.remove(attraction.id)
-                                    } else if currentSelectionCount < maxSelection {
-                                        selectedSurroundingAttractions.insert(attraction.id)
-                                    } else {
-                                        // 修复：已达上限时显示提示（可选，如果需要的话）
-                                        // 这里可以添加 Toast 提示，但为了简化，我们只禁用按钮
+                        // 自訂標籤區塊
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("ai_planner.custom_tags".localized())
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                            HStack(spacing: 8) {
+                                TextField("ai_planner.custom_tag_placeholder".localized(), text: $customTagInput)
+                                    .textFieldStyle(.roundedBorder)
+                                    .onSubmit { addCustomTag() }
+                                Button(action: { addCustomTag() }) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.title2)
+                                        .foregroundColor(customTagInput.trimmingCharacters(in: .whitespaces).isEmpty ? .gray : .blue)
+                                }
+                                .disabled(customTagInput.trimmingCharacters(in: .whitespaces).isEmpty || currentSelectionCount >= maxSelection)
+                            }
+                            if !customSurroundingTags.isEmpty {
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 8) {
+                                    ForEach(customSurroundingTags, id: \.self) { tag in
+                                        Button(action: { customSurroundingTags.removeAll { $0 == tag } }) {
+                                            HStack(spacing: 4) {
+                                                Text(tag)
+                                                    .font(.caption)
+                                                    .lineLimit(1)
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .font(.caption2)
+                                            }
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(Color.blue.opacity(0.15))
+                                            .foregroundColor(.primary)
+                                            .cornerRadius(16)
+                                        }
+                                        .buttonStyle(.plain)
                                     }
                                 }
-                                .opacity(isDisabled ? 0.5 : 1.0)
-                                .disabled(isDisabled)  // 修复：添加 disabled，避免可点击但无反应
                             }
                         }
                     }
@@ -1051,14 +1089,6 @@ struct AIPlannerView: View {
                         isSelected: selectedPace == .relaxed
                     ) {
                         selectedPace = .relaxed
-                    }
-                    
-                    PaceOption(
-                        title: "中等",
-                        description: "充實適中",
-                        isSelected: selectedPace == .moderate
-                    ) {
-                        selectedPace = .moderate
                     }
                     
                     PaceOption(
@@ -1872,6 +1902,21 @@ struct AIPlannerView: View {
         isLoadingSurroundingFeatures = false
     }
     
+    /// 新增自訂標籤（限於總選取數 travelDays+1 內）
+    private func addCustomTag() {
+        let trimmed = customTagInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let maxSelection = travelDays + 1
+        let currentCount = selectedSurroundingAttractions.count + customSurroundingTags.count
+        guard currentCount < maxSelection else { return }
+        guard !customSurroundingTags.contains(trimmed) else {
+            customTagInput = ""
+            return
+        }
+        customSurroundingTags.append(trimmed)
+        customTagInput = ""
+    }
+    
     // 通过 OpenAI API 获取周邊特色（带超时处理）
     private func loadSurroundingFeatures() {
         guard !destination.isEmpty else { return }
@@ -2413,7 +2458,7 @@ struct AIPlannerView: View {
         let days = calendar.dateComponents([.day], from: dateRange.startDate, to: dateRange.endDate).day ?? 1
         let numberOfDays = max(1, days + 1)
         
-        // 获取选中的周边特色名称
+        // 获取选中的周边特色名称 + 自訂標籤
         let selectedAttractionNames = surroundingAttractions
             .filter { selectedSurroundingAttractions.contains($0.id) }
             .map { $0.name }
@@ -2436,10 +2481,11 @@ struct AIPlannerView: View {
             endDate: dateRange.endDate,
             durationDays: numberOfDays,
             interestTags: result.slots.interestTags,
-            pace: result.slots.pace.value ?? .moderate,
+            pace: selectedPace,  // 使用表單選擇的節奏（輕鬆/緊湊）
             walkingLevel: result.slots.walkingLevel.value,
             transportPreference: result.slots.transportPreference.value,
             selectedAttractions: selectedAttractionNames,
+            customTags: customSurroundingTags,
             currentGPSLocation: departureLocation,
             accommodationAddress: accommodationAddressString,
             accommodationType: accommodationTypeString,

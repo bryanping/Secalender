@@ -145,6 +145,12 @@ struct PlanDetailView: View {
                 addPlanToCalendar()
             }
             
+            if onEdit != nil {
+                Button("編輯整個行程") {
+                    openPlanEditView()
+                }
+            }
+            
             Button("取消", role: .cancel) {}
         }
         .sheet(isPresented: $showShareSheet) {
@@ -297,7 +303,7 @@ struct PlanDetailView: View {
                                     showBlockEditView = true
                                 }
                             )
-                            .frame(width: geometry.size.width * 0.9)
+                            .frame(width: geometry.size.width)
                             .id("day-\(index)")
                             .background(
                                 GeometryReader { dayGeometry in
@@ -347,7 +353,7 @@ struct PlanDetailView: View {
         var closestIndex = selectedDayIndex
         
         for data in offsetData {
-            let dayWidth = screenWidth * 0.7
+            let dayWidth = screenWidth
             let dayCenter = data.offset + dayWidth / 2
             let distance = abs(dayCenter - centerX)
             
@@ -587,6 +593,14 @@ struct PlanDetailView: View {
                 break
             }
         }
+    }
+    
+    // MARK: - 開啟整個行程編輯
+    /// 用戶明確點擊「編輯整個行程」時，將目前編輯後的 plan 傳給父層並進入 PlanEditView
+    private func openPlanEditView() {
+        var updatedPlan = plan
+        updatedPlan.days = planDays
+        onEdit?(updatedPlan)
     }
     
     // MARK: - 储存行程

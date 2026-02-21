@@ -61,6 +61,7 @@ final class AITripGenerator {
         walkingLevel: WalkingLevel?,
         transportPreference: TransportPreference?,
         selectedAttractions: [String] = [],
+        customTags: [String] = [],
         currentGPSLocation: CLLocation? = nil,
         accommodationAddress: String? = nil,
         accommodationType: String? = nil,
@@ -96,6 +97,7 @@ final class AITripGenerator {
             walkingLevel: walkingLevel,
             transportPreference: transportPreference,
             selectedAttractions: selectedAttractions,
+            customTags: customTags,
             currentGPSLocation: currentGPSLocation,
             accommodationAddress: accommodationAddress,
             accommodationType: accommodationType,
@@ -413,6 +415,7 @@ final class AITripGenerator {
         walkingLevel: WalkingLevel?,
         transportPreference: TransportPreference?,
         selectedAttractions: [String] = [],
+        customTags: [String] = [],
         currentGPSLocation: CLLocation? = nil,
         accommodationAddress: String? = nil,
         accommodationType: String? = nil,
@@ -450,6 +453,7 @@ final class AITripGenerator {
             walkingLevel: walkingLevel,
             transportPreference: transportPreference,
             selectedAttractions: selectedAttractions,
+            customTags: customTags,
             currentGPSLocation: currentGPSLocation,
             accommodationAddress: accommodationAddress,
             accommodationType: accommodationType,
@@ -474,6 +478,7 @@ final class AITripGenerator {
         walkingLevel: WalkingLevel?,
         transportPreference: TransportPreference?,
         selectedAttractions: [String],
+        customTags: [String],
         currentGPSLocation: CLLocation?,
         accommodationAddress: String?,
         accommodationType: String?,
@@ -494,6 +499,7 @@ final class AITripGenerator {
                 walkingLevel: walkingLevel,
                 transportPreference: transportPreference,
                 selectedAttractions: selectedAttractions,
+                customTags: customTags,
                 currentGPSLocation: currentGPSLocation,
                 accommodationAddress: accommodationAddress,
                 accommodationType: accommodationType,
@@ -513,6 +519,7 @@ final class AITripGenerator {
                 walkingLevel: walkingLevel,
                 transportPreference: transportPreference,
                 selectedAttractions: selectedAttractions,
+                customTags: customTags,
                 currentGPSLocation: currentGPSLocation,
                 accommodationAddress: accommodationAddress,
                 accommodationType: accommodationType,
@@ -530,6 +537,7 @@ final class AITripGenerator {
                 walkingLevel: walkingLevel,
                 transportPreference: transportPreference,
                 selectedAttractions: selectedAttractions,
+                customTags: customTags,
                 currentGPSLocation: currentGPSLocation,
                 accommodationAddress: accommodationAddress,
                 accommodationType: accommodationType,
@@ -547,6 +555,7 @@ final class AITripGenerator {
                 walkingLevel: walkingLevel,
                 transportPreference: transportPreference,
                 selectedAttractions: selectedAttractions,
+                customTags: customTags,
                 currentGPSLocation: currentGPSLocation,
                 accommodationAddress: accommodationAddress,
                 accommodationType: accommodationType,
@@ -564,6 +573,7 @@ final class AITripGenerator {
                 walkingLevel: walkingLevel,
                 transportPreference: transportPreference,
                 selectedAttractions: selectedAttractions,
+                customTags: customTags,
                 currentGPSLocation: currentGPSLocation,
                 accommodationAddress: accommodationAddress,
                 accommodationType: accommodationType,
@@ -581,6 +591,7 @@ final class AITripGenerator {
                 walkingLevel: walkingLevel,
                 transportPreference: transportPreference,
                 selectedAttractions: selectedAttractions,
+                customTags: customTags,
                 currentGPSLocation: currentGPSLocation,
                 accommodationAddress: accommodationAddress,
                 accommodationType: accommodationType,
@@ -602,6 +613,7 @@ final class AITripGenerator {
                 walkingLevel: walkingLevel,
                 transportPreference: transportPreference,
                 selectedAttractions: selectedAttractions,
+                customTags: customTags,
                 currentGPSLocation: currentGPSLocation,
                 accommodationAddress: accommodationAddress,
                 accommodationType: accommodationType,
@@ -622,6 +634,7 @@ final class AITripGenerator {
         walkingLevel: WalkingLevel?,
         transportPreference: TransportPreference?,
         selectedAttractions: [String],
+        customTags: [String],
         currentGPSLocation: CLLocation?,
         accommodationAddress: String?,
         accommodationType: String?,
@@ -666,6 +679,11 @@ final class AITripGenerator {
         // 添加用户选中的周边特色
         if !selectedAttractions.isEmpty {
             prompt += "\n- 必须包含的景点：\(selectedAttractions.joined(separator: "、"))（这些景点必须出现在行程中，请合理安排到每天的活动中）"
+        }
+        
+        // 添加用户自訂標籤（可能為模糊描述，請 AI 理解為該類型的真實景點）
+        if !customTags.isEmpty {
+            prompt += "\n- 用户自定义兴趣/类型标签：\(customTags.joined(separator: "、"))。这些可能为模糊描述（如「文青咖啡」「网红店」），请理解为目的地周边符合该描述的真实知名景点，安排具体行程时选择该类型的优质地点，避免因标签命名不明确导致行程偏差。"
         }
         
         // 根据节奏给出更具体的指导
@@ -905,6 +923,7 @@ final class AITripGenerator {
         walkingLevel: WalkingLevel?,
         transportPreference: TransportPreference?,
         selectedAttractions: [String],
+        customTags: [String],
         currentGPSLocation: CLLocation?,
         accommodationAddress: String?,
         accommodationType: String?,
@@ -946,6 +965,10 @@ final class AITripGenerator {
         
         if !selectedAttractions.isEmpty {
             prompt += "\n- Must include attractions: \(selectedAttractions.joined(separator: ", ")) (These attractions must appear in the itinerary, please arrange them reasonably in daily activities)"
+        }
+        
+        if !customTags.isEmpty {
+            prompt += "\n- User custom interest/type tags: \(customTags.joined(separator: ", ")). These may be vague descriptions (e.g. \"hipster cafes\", \"Instagram spots\"). Please interpret as real, well-known attractions that match the description near the destination. When arranging the itinerary, select quality places of that type to avoid incorrect itineraries due to ambiguous tag names."
         }
         
         let paceGuidance: String
@@ -1135,6 +1158,7 @@ final class AITripGenerator {
         walkingLevel: WalkingLevel?,
         transportPreference: TransportPreference?,
         selectedAttractions: [String],
+        customTags: [String],
         currentGPSLocation: CLLocation?,
         accommodationAddress: String?,
         accommodationType: String?,
@@ -1160,6 +1184,9 @@ final class AITripGenerator {
         
         if !selectedAttractions.isEmpty {
             prompt += "\n- Muss enthaltene Sehenswürdigkeiten: \(selectedAttractions.joined(separator: ", ")) (Diese Sehenswürdigkeiten müssen in der Reiseroute erscheinen, bitte ordnen Sie sie vernünftig in tägliche Aktivitäten ein)"
+        }
+        if !customTags.isEmpty {
+            prompt += "\n- Benutzerdefinierte Interessen-Tags: \(customTags.joined(separator: ", ")). Diese können vage Beschreibungen sein. Bitte als echte, bekannte Sehenswürdigkeiten interpretieren, die der Beschreibung entsprechen."
         }
         
         let paceGuidance: String
@@ -1301,6 +1328,7 @@ final class AITripGenerator {
         walkingLevel: WalkingLevel?,
         transportPreference: TransportPreference?,
         selectedAttractions: [String],
+        customTags: [String],
         currentGPSLocation: CLLocation?,
         accommodationAddress: String?,
         accommodationType: String?,
@@ -1325,6 +1353,9 @@ final class AITripGenerator {
         
         if !selectedAttractions.isEmpty {
             prompt += "\n- Attractions à inclure: \(selectedAttractions.joined(separator: ", "))"
+        }
+        if !customTags.isEmpty {
+            prompt += "\n- Tags personnalisés: \(customTags.joined(separator: ", ")). Ce sont des descriptions possibles. Interprétez-les comme des lieux réels et de qualité correspondant à la description."
         }
         
         let paceGuidance: String
@@ -1414,6 +1445,7 @@ final class AITripGenerator {
         walkingLevel: WalkingLevel?,
         transportPreference: TransportPreference?,
         selectedAttractions: [String],
+        customTags: [String],
         currentGPSLocation: CLLocation?,
         accommodationAddress: String?,
         accommodationType: String?,
@@ -1438,6 +1470,9 @@ final class AITripGenerator {
         
         if !selectedAttractions.isEmpty {
             prompt += "\n- Atracciones a incluir: \(selectedAttractions.joined(separator: ", "))"
+        }
+        if !customTags.isEmpty {
+            prompt += "\n- Etiquetas personalizadas: \(customTags.joined(separator: ", ")). Pueden ser descripciones vagas. Interprete como lugares reales y de calidad que coincidan con la descripción."
         }
         
         let paceGuidance: String
@@ -1527,6 +1562,7 @@ final class AITripGenerator {
         walkingLevel: WalkingLevel?,
         transportPreference: TransportPreference?,
         selectedAttractions: [String],
+        customTags: [String],
         currentGPSLocation: CLLocation?,
         accommodationAddress: String?,
         accommodationType: String?,
@@ -1552,6 +1588,9 @@ final class AITripGenerator {
         
         if !selectedAttractions.isEmpty {
             prompt += "\n- 含める必要がある観光スポット：\(selectedAttractions.joined(separator: "、"))（これらの観光スポットは旅程に必ず含まれ、毎日の活動に適切に配置してください）"
+        }
+        if !customTags.isEmpty {
+            prompt += "\n- ユーザー独自のタグ：\(customTags.joined(separator: "、"))。曖昧な説明の可能性あり。目的地周辺で該当する実在の有名スポットとして解釈し、高品質な場所を選んで日程に組み込んでください。"
         }
         
         let paceGuidance: String

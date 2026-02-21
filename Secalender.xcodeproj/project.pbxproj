@@ -89,7 +89,10 @@
 		A2E0F9DB2F210B6A00DA4FC9 /* AIPlanningWelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9D52F210B6A00DA4FC9 /* AIPlanningWelcomeView.swift */; };
 		A2E0F9DF2F2113C200DA4FC9 /* AIConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9DE2F2113C200DA4FC9 /* AIConversationView.swift */; };
 		A2E0F9E12F21154500DA4FC9 /* StoreTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9E02F21154500DA4FC9 /* StoreTemplate.swift */; };
+		A2E0F9E52F21155000DA4FC9 /* TemplatePurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9E42F21155000DA4FC9 /* TemplatePurchaseManager.swift */; };
+		A2E0F9ED2F21156000DA4FC9 /* CreatorFollowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9EC2F21156000DA4FC9 /* CreatorFollowManager.swift */; };
 		A2E0F9E72F21C53000DA4FC9 /* MyTemplatesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9E62F21C52F00DA4FC9 /* MyTemplatesViewModel.swift */; };
+		A2E0F9EB2F21C54000DA4FC9 /* TemplateStoreViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9EA2F21C54000DA4FC9 /* TemplateStoreViewModel.swift */; };
 		A2E0F9E92F21F30A00DA4FC9 /* AIPlannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9E82F21F30A00DA4FC9 /* AIPlannerView.swift */; };
 		A2E0F9EC2F248A7D00DA4FC9 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = A2E0F9EA2F248A7D00DA4FC9 /* GoogleService-Info.plist */; };
 		A2E0F9F42F250FE500DA4FC9 /* DestinationData.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9F32F250FE500DA4FC9 /* DestinationData.swift */; };
@@ -108,6 +111,7 @@
 		A2E93C612C32ADEF00516E52 /* UserManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E93C602C32ADEF00516E52 /* UserManager.swift */; };
 		A2EDD8F52C2484B00098B31A /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2EDD8F42C2484B00098B31A /* Utilities.swift */; };
 		A2F153E62E45D57400158F94 /* TemplateStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F153E52E45D57300158F94 /* TemplateStoreView.swift */; };
+		A2E0F9EF2F21157000DA4FC9 /* CreatorProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9EE2F21157000DA4FC9 /* CreatorProfileView.swift */; };
 		A2F153E82E45D58F00158F94 /* TemplateDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F153E72E45D58E00158F94 /* TemplateDetailView.swift */; };
 		A2F153EC2E45D5B100158F94 /* AchievementsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F153EB2E45D5AF00158F94 /* AchievementsView.swift */; };
 		A2F229B62D40CC9400B4CA4D /* AIPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F229B42D40CC9400B4CA4D /* AIPlanner.swift */; };
@@ -226,7 +230,10 @@
 		A2E0F9D72F210B6A00DA4FC9 /* TravelTemplateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelTemplateView.swift; sourceTree = "<group>"; };
 		A2E0F9DE2F2113C200DA4FC9 /* AIConversationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConversationView.swift; sourceTree = "<group>"; };
 		A2E0F9E02F21154500DA4FC9 /* StoreTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreTemplate.swift; sourceTree = "<group>"; };
+		A2E0F9E42F21155000DA4FC9 /* TemplatePurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplatePurchaseManager.swift; sourceTree = "<group>"; };
+		A2E0F9EC2F21156000DA4FC9 /* CreatorFollowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatorFollowManager.swift; sourceTree = "<group>"; };
 		A2E0F9E62F21C52F00DA4FC9 /* MyTemplatesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyTemplatesViewModel.swift; sourceTree = "<group>"; };
+		A2E0F9EA2F21C54000DA4FC9 /* TemplateStoreViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateStoreViewModel.swift; sourceTree = "<group>"; };
 		A2E0F9E82F21F30A00DA4FC9 /* AIPlannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIPlannerView.swift; sourceTree = "<group>"; };
 		A2E0F9EA2F248A7D00DA4FC9 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		A2E0F9F32F250FE500DA4FC9 /* DestinationData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestinationData.swift; sourceTree = "<group>"; };
@@ -245,6 +252,7 @@
 		A2E93C602C32ADEF00516E52 /* UserManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserManager.swift; sourceTree = "<group>"; };
 		A2EDD8F42C2484B00098B31A /* Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
 		A2F153E52E45D57300158F94 /* TemplateStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateStoreView.swift; sourceTree = "<group>"; };
+		A2E0F9EE2F21157000DA4FC9 /* CreatorProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatorProfileView.swift; sourceTree = "<group>"; };
 		A2F153E72E45D58E00158F94 /* TemplateDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateDetailView.swift; sourceTree = "<group>"; };
 		A2F153EB2E45D5AF00158F94 /* AchievementsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsView.swift; sourceTree = "<group>"; };
 		A2F229B42D40CC9400B4CA4D /* AIPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIPlanner.swift; sourceTree = "<group>"; };
@@ -441,6 +449,8 @@
 				A2E0F9A02F1A76F000DA4FC9 /* FollowUpManager.swift */,
 				A2E0F9BE2F1B1E8000DA4FC9 /* ChatMessageManager.swift */,
 				A2E0F9C22F1B87F100DA4FC9 /* TripTemplateManager.swift */,
+				A2E0F9E42F21155000DA4FC9 /* TemplatePurchaseManager.swift */,
+				A2E0F9EC2F21156000DA4FC9 /* CreatorFollowManager.swift */,
 				A2E0F9A22F1A76F600DA4FC9 /* InputClassifier.swift */,
 				A2E0F9A42F1A77B900DA4FC9 /* PlanGenerator.swift */,
 				A29AA4942E48B2CC00EDB8CF /* OpenAIManager.swift */,
@@ -479,6 +489,7 @@
 			isa = PBXGroup;
 			children = (
 				A2E0F9E62F21C52F00DA4FC9 /* MyTemplatesViewModel.swift */,
+				A2E0F9EA2F21C54000DA4FC9 /* TemplateStoreViewModel.swift */,
 				A2E0F9D72F210B6A00DA4FC9 /* TravelTemplateView.swift */,
 				A2E0F9E82F21F30A00DA4FC9 /* AIPlannerView.swift */,
 				A2E0F9D52F210B6A00DA4FC9 /* AIPlanningWelcomeView.swift */,
@@ -487,6 +498,7 @@
 				A2E0F9D62F210B6A00DA4FC9 /* MyTemplatesView.swift */,
 				A2FD9DE32F2BA9D400595BAB /* EnrichTripView.swift */,
 				A2F153E52E45D57300158F94 /* TemplateStoreView.swift */,
+				A2E0F9EE2F21157000DA4FC9 /* CreatorProfileView.swift */,
 			);
 			path = Template;
 			sourceTree = "<group>";
@@ -754,6 +766,7 @@
 				A2BD0C152F303BF70054E3F1 /* SignInEmailView.swift in Sources */,
 				A2BD0C162F303BF70054E3F1 /* EmailVerificationView.swift in Sources */,
 				A2F153E62E45D57400158F94 /* TemplateStoreView.swift in Sources */,
+		A2E0F9EF2F21157000DA4FC9 /* CreatorProfileView.swift in Sources */,
 				A2F229BC2D41DDC100B4CA4D /* EventShareView.swift in Sources */,
 				A2E0F9B92F1B1B7600DA4FC9 /* AIConfig.swift in Sources */,
 				A2706CF52C1BF335004AB455 /* RootView.swift in Sources */,
@@ -798,6 +811,8 @@
 				A280B4FA2C291AE500CC4A45 /* SignInGoogleHelper.swift in Sources */,
 				A2E0F9A12F1A76F000DA4FC9 /* FollowUpManager.swift in Sources */,
 				A2E0F9C32F1B87F100DA4FC9 /* TripTemplateManager.swift in Sources */,
+				A2E0F9E52F21155000DA4FC9 /* TemplatePurchaseManager.swift in Sources */,
+				A2E0F9ED2F21156000DA4FC9 /* CreatorFollowManager.swift in Sources */,
 				A2F153E82E45D58F00158F94 /* TemplateDetailView.swift in Sources */,
 				A2E913AD2DE801CD00629016 /* FriendEventsView.swift in Sources */,
 				A2E0F9CB2F1DC79C00DA4FC9 /* MultiEventView.swift in Sources */,
@@ -816,6 +831,7 @@
 				A29AA4852E48851D00EDB8CF /* AddGroupView.swift in Sources */,
 				A22A187D2DF5624200FF4B1C /* EventAccessManager.swift in Sources */,
 				A2E0F9E72F21C53000DA4FC9 /* MyTemplatesViewModel.swift in Sources */,
+				A2E0F9EB2F21C54000DA4FC9 /* TemplateStoreViewModel.swift in Sources */,
 				A2EDD8F52C2484B00098B31A /* Utilities.swift in Sources */,
 				A2BD0C242F35874B0054E3F1 /* BlockEditView.swift in Sources */,
 				A2FD9DE42F2BA9D400595BAB /* EnrichTripView.swift in Sources */,

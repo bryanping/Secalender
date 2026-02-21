@@ -180,6 +180,21 @@
 // MARK: - Template Store
 "template_store.popular" = "Popular Recommendations";
 "template_store.tags" = "Tags";
+"template_store.search_placeholder" = "Search destination, theme...";
+"template_store.featured" = "Featured";
+"template_store.category.all" = "All";
+"template_store.category.popular" = "Popular";
+"template_store.category.new" = "New";
+"template_store.category.japan" = "Japan";
+"template_store.category.taiwan" = "Taiwan";
+"template_store.category.korea" = "Korea";
+"template_store.category.europe" = "Europe";
+"template_store.results_count" = "%d results";
+"template_store.price_format" = "NT$%.0f";
+"template_store.empty" = "No matching templates, try different keywords";
+"template_store.loading" = "Loading...";
+"template_store.category.creators" = "Creators";
+"template_store.creators_title" = "Top Creators";
 
 // MARK: - Multi Event
 "multi_event.title" = "Multi-Trip View";
@@ -380,6 +395,22 @@
 "template_detail.purchase_success" = "Purchase Successful";
 "template_detail.thanks_purchase" = "Thank you for your purchase! You can now apply this template.";
 "template_detail.ok" = "OK";
+"template_detail.purchased" = "Purchased";
+"template_detail.buy_template" = "Buy Template";
+"template_detail.title" = "Template Details";
+"template_detail.days" = " days";
+"template_detail.purchases" = " purchased";
+
+// MARK: - Creator
+"creator.follow" = "Follow";
+"creator.following" = "Following";
+"creator.followers" = "Followers";
+"creator.templates" = "Templates";
+"creator.filter.all" = "All";
+"creator.filter.free" = "Free";
+"creator.filter.paid" = "Paid";
+"creator.no_templates" = "No templates yet";
+"creator.templates_count" = "%d templates";
 
 // MARK: - Plan Day Section
 "plan_day.day" = "Day %d";
