@@ -174,6 +174,39 @@ struct Event: Identifiable, Codable {
 
 // 辅助扩展
 extension Event {
+    /// 從 TimeItem 轉換為 Event（用於 CalendarView 漸進式遷移顯示）
+    static func from(timeItem: TimeItem, creatorOpenid: String) -> Event? {
+        guard timeItem.type == .event || timeItem.type == .suggestion,
+              let startAt = timeItem.startAt, let endAt = timeItem.endAt else { return nil }
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        let tf = DateFormatter()
+        tf.dateFormat = "HH:mm:ss"
+        let dateStr = df.string(from: startAt)
+        let startTimeStr = tf.string(from: startAt)
+        let endTimeStr = tf.string(from: endAt)
+        let endDateStr = df.string(from: endAt)
+        let createStr = timeItem.createdAt.map { df.string(from: $0) + " " + tf.string(from: $0) } ?? ""
+        let idFromHash = -1_000_000 - (abs(timeItem.id?.hashValue ?? UUID().hashValue) % 1_000_000)
+        return Event(
+            id: idFromHash,
+            title: timeItem.title,
+            creatorOpenid: creatorOpenid,
+            color: timeItem.type == .suggestion ? "#9E9E9E" : "#007AFF",
+            date: dateStr,
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+            endDate: dateStr != endDateStr ? endDateStr : nil,
+            destination: timeItem.notes ?? "",
+            mapObj: "{}",
+            openChecked: 0,
+            personChecked: 0,
+            createTime: createStr,
+            information: timeItem.notes,
+            aiEvent: timeItem.source == .ai ? 1 : 0
+        )
+    }
+    
     /// 是否為外部匯入（Apple Calendar / Google Calendar）
     var isFromExternalImport: Bool {
         guard let comp = calendarComponent, !comp.isEmpty else { return false }

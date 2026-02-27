@@ -16,18 +16,17 @@ final class TemplatePurchaseManager {
     private func key(for userId: String) -> String { "purchased_store_templates_\(userId)" }
     
     /// 標記模板為已購買
-    func markAsPurchased(templateId: UUID, for userId: String) {
+    func markAsPurchased(templateId: String, for userId: String) {
         var ids = loadPurchasedIds(for: userId)
-        let idString = templateId.uuidString
-        if !ids.contains(idString) {
-            ids.append(idString)
+        if !ids.contains(templateId) {
+            ids.append(templateId)
             savePurchasedIds(ids, for: userId)
         }
     }
     
     /// 檢查是否已購買
-    func isPurchased(templateId: UUID, for userId: String) -> Bool {
-        loadPurchasedIds(for: userId).contains(templateId.uuidString)
+    func isPurchased(templateId: String, for userId: String) -> Bool {
+        loadPurchasedIds(for: userId).contains(templateId)
     }
     
     /// 取得已購買的模板 ID 列表（供 MyTemplatesView 篩選等用）

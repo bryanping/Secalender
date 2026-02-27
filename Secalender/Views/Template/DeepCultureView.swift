@@ -107,14 +107,7 @@ struct DeepCultureView: View {
                     }
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if currentStep == .step1 {
-                        Button("取消") {
-                            dismiss()
-                        }
-                        .foregroundColor(.blue)
-                    }
-                }
+                // 系統自帶主題：不顯示右上角選單
             }
             .alert("錯誤", isPresented: $showErrorAlert) {
                 Button("好") {}
@@ -129,9 +122,13 @@ struct DeepCultureView: View {
                         onEdit: { planToEdit in
                             self.planToEdit = planToEdit
                             generatedPlan = nil
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                 showPlanEditView = true
                             }
+                        },
+                        onPlanUpdated: { updatedPlan in
+                            self.planToEdit = updatedPlan
+                            generatedPlan = updatedPlan
                         },
                         onAddToCalendar: nil,
                         onSaveToTemplate: nil,
@@ -890,7 +887,8 @@ struct DeepCultureView: View {
             currentGPSLocation: currentGPSLocation,
             accommodationAddress: nil,
             accommodationType: nil,
-            hasOtherOption: hasOtherOption
+            hasOtherOption: hasOtherOption,
+            themeKey: "deep_culture"
         )
         
         var plan = try AITripGenerator.shared.convertToPlanResult(aiPlan, slots: result.slots)
@@ -902,6 +900,7 @@ struct DeepCultureView: View {
     @MainActor
     private func convertAndSavePlan(_ plan: PlanResult) async {
         isGenerating = false
+        ActivityRecorder.recordAIUsed()
         savePlanToTemplate(plan, title: "深度文化行程")
         generatedPlan = plan
         

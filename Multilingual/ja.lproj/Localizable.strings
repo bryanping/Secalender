@@ -70,6 +70,10 @@
 "ai_planner.select_city" = "都市を選択 - %@";
 "ai_planner.no_city_data" = "都市データがありません";
 "ai_planner.no_matching_city" = "一致する都市が見つかりません";
+"ai_planner.theme_form_subtitle" = "以下の情報を入力して、AIにスケジュールを計画させましょう";
+"custom_theme.welcome_title" = "あなたの %@ プランをお聞かせください";
+"theme.enable_ai_generation" = "AI生成を有効にする";
+"theme.ai_generation_premium_hint" = "AI生成はプレミアム機能で、有効にすると別途料金がかかります";
 
 // MARK: - Transportation Types
 "transport.public_transport" = "公共交通機関";
@@ -179,6 +183,17 @@
 
 // MARK: - Template Store
 "template_store.popular" = "人気のおすすめ";
+"template_store.main_tab.themes" = "テーマ";
+"template_store.main_tab.itineraries" = "行程";
+"template_store.section.featured_themes" = "おすすめテーマ";
+"template_store.section.featured_itineraries" = "おすすめ行程";
+"template_store.section.popular_themes" = "人気テーマ";
+"template_store.section.popular_itineraries" = "人気行程";
+"template_store.section.new_themes" = "新着テーマ";
+"template_store.section.new_itineraries" = "新着行程";
+"template_store.swipe_hint" = "左にスワイプして続きを見る";
+"template_store.get" = "取得";
+"template_store.opened" = "開く";
 "template_store.tags" = "タグ";
 
 // MARK: - Multi Event
@@ -281,6 +296,12 @@
 "profile.signature_hint" = "個性を表現、最大6行";
 "profile.max_tags_exceeded" = "最大6つのタグまで選択可能";
 "profile.id_invalid" = "ユーザーIDが無効または形式が正しくありません";
+"profile.save" = "保存";
+"profile.change_avatar_hint" = "タップしてプロフィール写真を変更";
+"profile.bind_social_accounts" = "ソーシャルアカウントを連携";
+"profile.bound" = "連携済み";
+"profile.unbound" = "未連携";
+"profile.quick_share" = "クイック共有";
 "profile.favorite_tags" = "お気に入りタグ";
 "profile.edit_profile" = "プロフィールを編集";
 "profile.title" = "プロフィール";
@@ -455,6 +476,8 @@
 "friends.add_friend_hint" = "右上の+ボタンをタップして友達を追加";
 "groups.no_groups" = "グループがまだありません";
 "groups.create_group_hint" = "右上の+ボタンをタップしてグループを作成";
+"groups.followed_communities" = "フォロー中のコミュニティ";
+"groups.latest_public_trips" = "最新の公開・コミュニティ行程";
 "friends.unknown" = "不明な友達";
 "friends.delete" = "友達を削除";
 "friends.delete_confirmation" = "この友達を削除してもよろしいですか？";
@@ -519,6 +542,7 @@
 "event_create.cancel_multi_day" = "複数日旅行をキャンセル";
 "event_create.create_trip" = "旅行を作成";
 "event_create.save" = "保存";
+"event_create.export_to_template" = "テンプレートに転送";
 "event_create.cancel" = "キャンセル";
 "event_create.selected_events" = "%d件の旅行を選択";
 "event_create.title_placeholder" = "例：東京羽田空港到着";
@@ -672,6 +696,33 @@
 "member.title" = "機能";
 "member.default_user" = "ユーザー";
 "member.user_id" = "ユーザーID";
+"member.revenue_management" = "収益管理";
+
+// MARK: - Business Center Detail
+"business.total_revenue_title" = "総収益残高（TWD）";
+"business.withdraw" = "出金";
+"business.income_details" = "収支明細";
+"business.ai_quota_title" = "AIクォータ";
+"business.purchase_quota" = "購入";
+"business.ai_quota_remaining" = "残り";
+"business.ai_quota_estimate" = "約%d件の旅程を生成可能";
+"business.template_sales_trend" = "今月のテンプレート販売トレンド";
+"business.week_mon" = "月";
+"business.week_tue" = "火";
+"business.week_wed" = "水";
+"business.week_thu" = "木";
+"business.week_fri" = "金";
+"business.week_sat" = "土";
+"business.week_today" = "今日";
+"business.creator_benefits" = "クリエイター特典";
+"business.creator_level_gold" = "ゴールド";
+"business.commission_ratio" = "手数料率";
+"business.recommendation_weight" = "推薦加重";
+"business.fast_support" = "専属サポート";
+"business.account_settings" = "アカウント設定";
+"business.tax_info" = "税務情報";
+"business.account_settings_hint" = "支払いとアカウントを設定";
+"business.tax_info_hint" = "コンプライアンスのための税務情報";
 
 // MARK: - Community
 "community.title" = "コミュニティインタラクション";
@@ -691,4 +742,14 @@
 
 // MARK: - Template Names
 "weekend_flash.template_name" = "週末フラッシュ";
+"weekend_flash.welcome_title" = "週末プランをお聞かせください";
+"weekend_flash.welcome_subtitle" = "場所と周辺スポットを選んで、日帰り旅行を計画します";
+"travel_planning.template_name" = "旅行計画";
+"travel_planning.welcome_title" = "旅行計画をお聞かせください";
+"travel_planning.welcome_subtitle" = "基本情報から始めて、完璧な旅程を作成しましょう";
 "deep_culture.template_name" = "ディープカルチャー";
+"deep_culture.welcome_title" = "文化プランをお聞かせください";
+"deep_culture.welcome_subtitle" = "歴史・芸術スポットを選んで、文化の旅を計画します";
+"enrich_trip.template_name" = "充実旅行";
+"enrich_trip.welcome_title" = "充実プランをお聞かせください";
+"enrich_trip.welcome_subtitle" = "基本情報を入力し、周辺オプションを検索・選択";

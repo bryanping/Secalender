@@ -91,6 +91,10 @@ struct EventCreateView: View {
     // 优化：合并多个 sheet 为一个状态
     @State private var activeSheet: EventSheetType?
     
+    // 轉存模板：進入 PlanEditView 確認交通與時間
+    @State private var showExportToTemplateSheet = false
+    @State private var exportPlanForSheet: PlanResult?
+    
     // 修改内容：添加防抖机制（使用 @State 保持任务引用，避免重绘时丢失）
     @State private var travelTimeCalculationTask: Task<Void, Never>?
     @State private var isLoadingGroupsTask: Task<Void, Never>?
@@ -450,7 +454,7 @@ struct EventCreateView: View {
     // MARK: - 多日行程表單部分（优化：使用 LazyVStack 减少渲染负担）
     @ViewBuilder
     private var multiDayEventSections: some View {
-        // 動態生成行程項（最多5個）
+        // 動態生成行程項（無上限）
         ForEach(Array(formState.multiDayItems.enumerated()), id: \.element.id) { index, item in
             MultiDayEventItemView(
                 index: index,
@@ -466,9 +470,8 @@ struct EventCreateView: View {
             .id(item.id) // 优化：明确标识，帮助 SwiftUI 优化重绘
         }
             
-            // 添加行程按鈕（最多5個）
-            if formState.multiDayItems.count < 5 {
-                Button(action: {
+            // 添加行程按鈕（無上限）
+            Button(action: {
                     withAnimation {
                         // 如果已有行程，設置默認時間為上一個行程開始時間後15分鐘
                         if let lastItem = formState.multiDayItems.last {
@@ -509,7 +512,6 @@ struct EventCreateView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .padding(.horizontal)
-            }
             
             // 社群/个人设置卡片（多行程模式）
             EventFormCard(icon: "person.3.fill", title: "event_create.publish_settings".localized(), iconColor: .purple) {
@@ -683,6 +685,7 @@ struct EventCreateView: View {
                             icon: "checkmark.circle.fill",
                             style: .primary
                         ) {
+                            hideKeyboard()
                             saveEvent()
                         }
                     }
@@ -691,12 +694,15 @@ struct EventCreateView: View {
                 }
                 .padding(.bottom, 80) // 为底部按钮留出空间
             }
+            .scrollDismissesKeyboard(.interactively)
+            .dismissKeyboardOnTap()
             .background(Color(.systemGroupedBackground))
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
+                        hideKeyboard()
                         dismiss()
                     }) {
                         Text("event_create.cancel".localized())
@@ -712,9 +718,14 @@ struct EventCreateView: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        saveEvent()
+                        hideKeyboard()
+                        if formState.isMultiDayEvent {
+                            exportToTemplate()
+                        } else {
+                            saveEvent()
+                        }
                     }) {
-                        Text("event_create.save".localized())
+                        Text(formState.isMultiDayEvent ? "event_create.export_to_template".localized() : "event_create.save".localized())
                             .foregroundColor(.blue)
                             .font(.system(size: 17))
                     }
@@ -806,6 +817,43 @@ struct EventCreateView: View {
                         formState.showLocationPickerForItem = nil
                     }
                 }
+            }
+        }
+        .sheet(isPresented: $showExportToTemplateSheet) {
+            if let plan = exportPlanForSheet {
+                PlanEditView(
+                    plan: plan,
+                    customTitle: formState.title.isEmpty ? nil : formState.title,
+                    onSaveToTemplate: { updatedPlan, templateTitle in
+                        let userId = userManager.userOpenId
+                        let title = templateTitle ?? formState.title
+                        let destination = formState.multiDayItems.first?.destination ?? ""
+                        let template = SavedTripTemplate(
+                            title: title.isEmpty ? "行程模板" : title,
+                            plan: updatedPlan,
+                            savedDate: Date(),
+                            tags: [],
+                            destination: destination.isEmpty ? nil : destination
+                        )
+                        TripTemplateManager.shared.saveTemplate(template, for: userId, syncToAppleCalendar: false)
+                        showExportToTemplateSheet = false
+                        exportPlanForSheet = nil
+                        #if os(iOS)
+                        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                           let window = windowScene.windows.first,
+                           let rootVC = window.rootViewController {
+                            let alert = UIAlertController(title: "成功", message: "已轉存為模板", preferredStyle: .alert)
+                            alert.addAction(UIAlertAction(title: "確定", style: .default))
+                            rootVC.present(alert, animated: true)
+                        }
+                        #endif
+                    },
+                    onDismiss: {
+                        showExportToTemplateSheet = false
+                        exportPlanForSheet = nil
+                    }
+                )
+                .environmentObject(userManager)
             }
         }
         .alert("錯誤", isPresented: $showErrorAlert) {
@@ -1249,6 +1297,50 @@ struct EventCreateView: View {
         }
     }
     
+    /// 轉存模板：將多日行程轉為 PlanResult，進入 PlanEditView 確認交通與時間
+    private func exportToTemplate() {
+        // 驗證多日行程數據
+        for (index, item) in formState.multiDayItems.enumerated() {
+            if item.information.trimmingCharacters(in: .whitespaces).isEmpty {
+                errorMessage = "請填寫行程 \(index + 1) 的活動內容"
+                showErrorAlert = true
+                return
+            }
+        }
+        
+        let plan = multiDayItemsToPlanResult()
+        exportPlanForSheet = plan
+        showExportToTemplateSheet = true
+    }
+    
+    /// 將 multiDayItems 轉換為 PlanResult（供 PlanEditView 使用）
+    private func multiDayItemsToPlanResult() -> PlanResult {
+        let calendar = Calendar.current
+        let groupedByDate = Dictionary(grouping: formState.multiDayItems) { calendar.startOfDay(for: $0.date) }
+        
+        var dayPlans: [DayPlan] = []
+        for (date, items) in groupedByDate.sorted(by: { $0.key < $1.key }) {
+            var blocks: [TimeBlock] = []
+            for item in items.sorted(by: { $0.startTime < $1.startTime }) {
+                let title = item.title.isEmpty ? formState.title : item.title
+                let block = TimeBlock(
+                    type: .activity,
+                    startTime: item.startTime,
+                    endTime: item.isHasEnd ? item.endTime : item.startTime,
+                    title: title.isEmpty ? "行程活動" : title,
+                    location: item.destination.isEmpty ? nil : item.destination,
+                    isAnchor: false,
+                    priority: 5,
+                    description: item.information
+                )
+                blocks.append(block)
+            }
+            dayPlans.append(DayPlan(date: date, blocks: blocks))
+        }
+        
+        return PlanResult(days: dayPlans, assumptions: [], riskFlags: [])
+    }
+    
     private func saveMultiDayEvents() {
         // 检查用户信息是否准备好
         guard !userManager.userOpenId.isEmpty else {
@@ -1622,6 +1714,8 @@ struct MultiDayEventItemView: View {
     @Binding var activeSheet: EventSheetType? // 优化：使用统一的 sheet 状态
     let onCoordinateChanged: () -> Void
     let onStartTimeChanged: () -> Void
+    var showDeleteButton: Bool = false  // PlanEditView 顯示刪除按鈕
+    var onDelete: (() -> Void)? = nil
     
     // 辅助方法：通过ID安全地获取项目索引
     private var itemIndex: Int? {
@@ -1858,6 +1952,16 @@ struct MultiDayEventItemView: View {
                         onStartTimeChanged()
                     }
                 }
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if showDeleteButton, let onDelete = onDelete {
+                Button(action: onDelete) {
+                    Image(systemName: "trash.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.red.opacity(0.8))
+                }
+                .padding(12)
             }
         }
     }

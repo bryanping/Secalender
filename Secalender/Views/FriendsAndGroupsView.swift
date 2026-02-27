@@ -23,6 +23,7 @@ struct FriendsAndGroupsView: View {
     
     @State private var hasInitialized = false
     @State private var activityInvitations: [NotificationEntry] = []
+    @State private var feedRefreshTrigger = UUID()
     
     enum ManagementTab: Int, CaseIterable {
         case friends, groups
@@ -241,47 +242,125 @@ struct FriendsAndGroupsView: View {
         }
     }
     
-    // MARK: - 社群管理视图
+    // MARK: - 社群管理视图（上半部：已關注的社群，下半部：最新公開行程、關注社群行程）
     @ViewBuilder
     private var groupsView: some View {
-        if isLoading {
+        if isLoading && groups.isEmpty {
             ProgressView("friends.loading".localized())
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(.systemGroupedBackground))
-        } else if groups.isEmpty {
-            VStack(spacing: 20) {
-                Image(systemName: "person.3")
-                    .font(.system(size: 56, weight: .light))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.gray.opacity(0.6), .gray.opacity(0.4)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                Text("groups.no_groups".localized())
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-                Text("groups.create_group_hint".localized())
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemGroupedBackground))
         } else {
             ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(groups, id: \.id) { group in
-                        GroupRowView(group: group)
-                            .glassCard(radius: 14, padding: 16)
-                            .padding(.horizontal)
-                    }
+                VStack(alignment: .leading, spacing: 0) {
+                    // 上半部：已關注的社群（橫向滾動）
+                    followedCommunitiesSection
+                    
+                    // 下半部：最新公開行程、關注社群行程
+                    latestTripsSection
                 }
-                .padding(.vertical)
-                .padding(.bottom, 80)
             }
             .background(Color(.systemGroupedBackground))
+            .refreshable {
+                await loadData()
+                feedRefreshTrigger = UUID()
+            }
+        }
+    }
+    
+    /// 上半部：已關注的社群（橫向滾動圓形圖標）
+    @ViewBuilder
+    private var followedCommunitiesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("groups.followed_communities".localized())
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+                .padding(.horizontal)
+            
+            if groups.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "person.3")
+                        .foregroundColor(.secondary)
+                    Text("groups.no_groups".localized())
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        ForEach(groups, id: \.id) { group in
+                            NavigationLink(destination: GroupDetailView(group: group)) {
+                                VStack(spacing: 8) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [
+                                                        Color.blue.opacity(0.4),
+                                                        Color.blue.opacity(0.25)
+                                                    ],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                        Circle()
+                                            .fill(.ultraThinMaterial)
+                                        Image(systemName: "person.3.fill")
+                                            .font(.system(size: 18))
+                                            .foregroundStyle(
+                                                LinearGradient(
+                                                    colors: [.blue, .blue.opacity(0.7)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                    }
+                                    .frame(width: 56, height: 56)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(.white.opacity(0.3), lineWidth: 2)
+                                    )
+                                    
+                                    Text(group.name)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.primary)
+                                        .lineLimit(1)
+                                        .frame(width: 64)
+                                }
+                                .frame(width: 80)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 12)
+                }
+                .background(Color(.systemBackground).opacity(0.5))
+            }
+        }
+        .padding(.top, 10)
+        .padding(.bottom, 16)
+    }
+    
+    /// 下半部：最新公開行程、關注社群行程
+    @ViewBuilder
+    private var latestTripsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("groups.latest_public_trips".localized())
+                .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+                .padding(.horizontal)
+            
+            CommunityTripsFeedView(
+                groupIds: groups.compactMap { $0.id },
+                friendIds: friends.map { $0.id },
+                currentUserId: userManager.userOpenId,
+                refreshTrigger: feedRefreshTrigger
+            )
         }
     }
     

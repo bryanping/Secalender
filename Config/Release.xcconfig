@@ -1,0 +1,5 @@
+// Release 環境：生產
+#include "Secrets.xcconfig"
+
+// 生產 API
+SECALENDER_API_BASE_URL = https://app.huodonli.cn

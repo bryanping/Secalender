@@ -118,6 +118,7 @@ final class TripTemplateManager {
         // 保存模板列表
         saveTemplates(templates, for: userId)
         print("✅ 行程模板已保存: \(template.title) (共 \(templates.count) 个模板)")
+        ActivityRecorder.recordTemplateCreated(title: template.title, templateId: template.id.uuidString)
         
         // 同步到手机日历
         if syncToAppleCalendar {

@@ -198,12 +198,15 @@ struct BlockEditView: View {
                 }
                 .padding(.bottom, 80) // 为底部按钮留出空间
             }
+            .scrollDismissesKeyboard(.interactively)
+            .dismissKeyboardOnTap()
             .background(Color(.systemGroupedBackground))
             .navigationTitle("編輯行程")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") {
+                        hideKeyboard()
                         onCancel()
                         dismiss()
                     }
@@ -211,6 +214,7 @@ struct BlockEditView: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("確定") {
+                        hideKeyboard()
                         confirmSelection()
                     }
                     .font(.system(size: 16, weight: .semibold))

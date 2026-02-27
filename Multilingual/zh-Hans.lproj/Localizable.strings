@@ -17,7 +17,7 @@
 
 // MARK: - Tab Bar
 "tab.calendar" = "日历";
-"tab.ai_planning" = "智能规划";
+"tab.ai_planning" = "时间秘书";
 "tab.my_templates" = "行程模板";
 "tab.template_store" = "模板市集";
 "tab.friends_community" = "朋友＆社群";
@@ -65,6 +65,13 @@
 "ai_planner.previous" = "上一步";
 "ai_planner.next" = "下一步";
 "ai_planner.complete_setup" = "完成设定";
+"ai_planner.start_generate" = "开始生成";
+"ai_planner.theme_form_subtitle" = "填写以下信息，让 AI 为您规划时间安排";
+"custom_theme.welcome_title" = "告诉我们您的 %@ 计划";
+"theme.enable_ai_generation" = "启用 AI 生成";
+"theme.ai_generation_premium_hint" = "AI 生成为进阶功能，开启后需单独付费";
+"ai_planner.plan_start_date" = "计划开始日期";
+"ai_planner.plan_duration" = "计划时长";
 "ai_planner.start_date" = "开始日期";
 "ai_planner.end_date" = "结束日期";
 "ai_planner.select_city" = "选择城市 - %@";
@@ -154,9 +161,9 @@
 "common.error" = "错误";
 
 // MARK: - AI Planning Welcome
-"welcome.where_to_travel" = "想去哪里旅行?";
-"welcome.create_perfect_itinerary" = "让我为您打造个人化行程";
-"welcome.start_ai_planning" = "开始 AI 规划";
+"welcome.where_to_travel" = "您的时间规划秘书";
+"welcome.create_perfect_itinerary" = "规划时间、地点、人物——行程、活动、会议，各种需求一键搞定";
+"welcome.start_ai_planning" = "开始智能规划";
 
 // MARK: - Events
 "event.create" = "创建活动";
@@ -205,6 +212,8 @@
 "friends.add_friend_hint" = "点击右上角 + 添加好友";
 "groups.no_groups" = "暂无社群";
 "groups.create_group_hint" = "点击右上角 + 创建社群";
+"groups.followed_communities" = "已关注的社群";
+"groups.latest_public_trips" = "最新公开行程、关注社群行程";
 "friends.unknown" = "未知好友";
 "friends.delete" = "删除好友";
 "friends.delete_confirmation" = "确定要删除这位好友吗？";
@@ -274,6 +283,7 @@
 "event_create.cancel_multi_day" = "取消多日行程";
 "event_create.create_trip" = "建立行程";
 "event_create.save" = "儲存";
+"event_create.export_to_template" = "转存模板";
 "event_create.cancel" = "取消";
 "event_create.selected_events" = "已选择 %d 个行程";
 "event_create.title_placeholder" = "例如：抵达北京首都机场";
@@ -408,6 +418,12 @@
 "profile.signature_hint" = "展示您的个性，最多6行";
 "profile.max_tags_exceeded" = "最多只能选择6个标签";
 "profile.id_invalid" = "用户ID不可用或格式不正确";
+"profile.save" = "保存";
+"profile.change_avatar_hint" = "点击更换头像";
+"profile.bind_social_accounts" = "绑定社交账号";
+"profile.bound" = "已绑定";
+"profile.unbound" = "未绑定";
+"profile.quick_share" = "快速分享";
 
 // MARK: - Member View
 "member.friends" = "好友";
@@ -424,6 +440,33 @@
 "member.title" = "功能";
 "member.default_user" = "用户";
 "member.user_id" = "用户ID";
+"member.revenue_management" = "收益管理";
+
+// MARK: - Business Center Detail
+"business.total_revenue_title" = "总收益余额（TWD）";
+"business.withdraw" = "提现";
+"business.income_details" = "收支明细";
+"business.ai_quota_title" = "AI 运算额度";
+"business.purchase_quota" = "购买额度";
+"business.ai_quota_remaining" = "剩余";
+"business.ai_quota_estimate" = "约可再生成 %d 套行程";
+"business.template_sales_trend" = "本月模板销售趋势";
+"business.week_mon" = "周一";
+"business.week_tue" = "周二";
+"business.week_wed" = "周三";
+"business.week_thu" = "周四";
+"business.week_fri" = "周五";
+"business.week_sat" = "周六";
+"business.week_today" = "今日";
+"business.creator_benefits" = "创作者权益";
+"business.creator_level_gold" = "黄金";
+"business.commission_ratio" = "抽成比例";
+"business.recommendation_weight" = "推荐加权";
+"business.fast_support" = "专属客服";
+"business.account_settings" = "帐务资讯设定";
+"business.tax_info" = "税务资料填写";
+"business.account_settings_hint" = "设置收款与帐务";
+"business.tax_info_hint" = "税务资料以符合法规";
 
 // MARK: - Community
 "community.title" = "社群互动";
@@ -443,11 +486,81 @@
 
 // MARK: - Template Names
 "weekend_flash.template_name" = "周末快闪";
+"weekend_flash.welcome_title" = "告诉我们您的周末快闪计划";
+"weekend_flash.welcome_subtitle" = "选择地点与周边特色，我们为您安排一日游";
+"travel_planning.template_name" = "行程规划";
+"travel_planning.welcome_title" = "告诉我们您的旅行计划";
+"travel_planning.welcome_subtitle" = "从基本信息开始，打造您的完美行程";
 "deep_culture.template_name" = "深度文化";
+"deep_culture.welcome_title" = "告诉我们您的深度文化计划";
+"deep_culture.welcome_subtitle" = "选择历史艺术景点，我们为您规划文化之旅";
+"enrich_trip.template_name" = "充实行程";
+"enrich_trip.welcome_title" = "告诉我们您的充实计划";
+"enrich_trip.welcome_subtitle" = "填写基本信息，搜索并选择周边选项";
 
 // MARK: - Welcome Additional
 "welcome.quick_themes" = "快速主题";
 "welcome.view_more" = "查看更多";
+
+// MARK: - Quick Theme
+"quick_theme.manage" = "管理";
+"quick_theme.search_placeholder" = "搜索主题...";
+"quick_theme.category.all" = "全部";
+"quick_theme.category.popular" = "热门";
+"quick_theme.category.custom" = "自定义";
+"quick_theme.category.favorites" = "我的收藏";
+"quick_theme.custom" = "自定义";
+"quick_theme.explore_more" = "探索更多主题";
+"quick_theme.create_template" = "创建行程模版";
+"quick_theme.cancel" = "取消";
+"quick_theme.done" = "完成";
+"quick_theme.edit" = "编辑";
+"quick_theme.delete" = "删除";
+"quick_theme.delete_confirm" = "确认删除";
+"quick_theme.delete_confirm_message" = "确定要删除「%@」吗？";
+"quick_theme.step" = "步骤 ";
+"quick_theme.icon" = "图示";
+"quick_theme.color" = "主题颜色";
+"quick_theme.theme_title" = "主题名称";
+"quick_theme.theme_title_placeholder" = "例如：『宠物友善散策』";
+"quick_theme.theme_mode" = "主题用途";
+"theme_mode.generateItinerary" = "生成行程";
+"theme_mode.floatingTasks" = "浮动任务";
+"theme_mode.collectAvailability" = "收集可用时间";
+"theme_mode.collectInfoOnly" = "只收集信息";
+"theme_mode.no_itinerary" = "此主题类型不支持生成行程，请使用对应功能（浮动任务／收集可用时间等）";
+"quick_theme.ai_prompt_prefix" = "主题专属提示词";
+"quick_theme.ai_prompt_prefix_placeholder" = "约束 AI 只生成符合主题的行程，例如：宠物喂养→宠物餐厅、宠物公园，禁止天安门等无关景点";
+"quick_theme.ai_prompt_prefix_hint" = "建议填写，可避免生成偏题行程（如宠物主题却出现天安门旅游）";
+"quick_theme.ai_generate" = "AI 生成";
+"quick_theme.ai_instruction" = "AI 指令定义";
+"quick_theme.ai_complete" = "AI 补全";
+"quick_theme.advanced_params_desc" = "AI 已根据您的主题思考还缺少哪些重要信息，您可在此补充或修改：";
+"quick_theme.ai_thinking" = "AI 正在思考...";
+"quick_theme.next" = "下一步";
+"quick_theme.save" = "保存";
+"quick_theme.generating_questions" = "正在生成问题...";
+"quick_theme.error" = "错误";
+"quick_theme.error_suggest" = "建议失败";
+"quick_theme.change_icon" = "更换图示";
+"quick_theme.basic_settings" = "基础设定";
+"quick_theme.ai_instruction_placeholder" = "描述此主题的规划重点，例如：『优先寻找带草皮的餐厅，避开人潮拥挤处，并标注可携带宠物的公园。』";
+"quick_theme.ai_instruction_hint" = "建议输入50字以上更精准";
+"quick_theme.form_questions" = "表单问题";
+"quick_theme.form_questions_desc" = "AI 已根据主题生成问题，您可编辑、新增或删除。编辑说明后可点「根据说明生成」产生新选项。";
+"quick_theme.question_label" = "问题标题";
+"quick_theme.question_label_placeholder" = "问题标题";
+"quick_theme.question_description" = "说明";
+"quick_theme.delete" = "删除";
+"quick_theme.regenerate_ai" = "重新 AI 生成";
+"quick_theme.unit_and_range" = "单位与范围";
+"quick_theme.description_placeholder" = "描述此问题的用途，编辑后可生成新选项";
+"quick_theme.options" = "选项";
+"quick_theme.generate_from_desc" = "根据说明生成";
+"quick_theme.add_option" = "新增选项";
+"quick_theme.add_question" = "新增问题";
+"quick_theme.unit_placeholder" = "单位";
+"quick_theme.range" = "范围";
 
 // MARK: - Invite Friends
 "invite.invite_link" = "邀请链接";
@@ -475,8 +588,19 @@
 // MARK: - Template Store
 "template_store.popular" = "热门推荐";
 "template_store.tags" = "标签";
-"template_store.search_placeholder" = "搜索目的地、主题...";
+"template_store.search_placeholder" = "搜索主题、模版、创作者...";
 "template_store.featured" = "精选推荐";
+"template_store.main_tab.themes" = "主题";
+"template_store.main_tab.itineraries" = "行程";
+"template_store.section.featured_themes" = "精选主题";
+"template_store.section.featured_itineraries" = "精选行程";
+"template_store.section.popular_themes" = "热门主题";
+"template_store.section.popular_itineraries" = "热门行程";
+"template_store.section.new_themes" = "最新主题";
+"template_store.section.new_itineraries" = "最新行程";
+"template_store.swipe_hint" = "向左滑动，查看更多";
+"template_store.get" = "取得";
+"template_store.opened" = "打开";
 "template_store.category.all" = "全部";
 "template_store.category.popular" = "热门";
 "template_store.category.new" = "新品";
@@ -488,8 +612,17 @@
 "template_store.price_format" = "NT$%.0f";
 "template_store.empty" = "未找到符合的模板，试试其他关键词";
 "template_store.loading" = "加载中...";
+"template_store.category.themes" = "主题";
 "template_store.category.creators" = "创作者";
+"template_store.themes_title" = "精选主题";
+"template_store.themes_desc" = "探索创作者上架的主题与模版，涵盖行程、活动、会议等各种时间规划需求";
 "template_store.creators_title" = "热门博主";
+"template_store.filter.country" = "国家";
+"template_store.filter.days" = "天数";
+"template_store.filter.all" = "全部";
+"template_store.filter.days_1_2" = "1–2 天";
+"template_store.filter.days_3_4" = "3–4 天";
+"template_store.filter.days_5_plus" = "5 天以上";
 
 // MARK: - Multi Event
 "multi_event.title" = "多行程检视";

@@ -115,14 +115,7 @@ struct WeekendFlashView: View {
                     }
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if currentStep == .step1 {
-                        Button("common.cancel".localized()) {
-                            dismiss()
-                        }
-                        .foregroundColor(.blue)
-                    }
-                }
+                // 系統自帶主題：不顯示右上角選單
             }
             .fullScreenCover(item: $generatedPlan) { plan in
                 NavigationView {
@@ -132,9 +125,13 @@ struct WeekendFlashView: View {
                         onEdit: { planToEdit in
                             self.planToEdit = planToEdit
                             generatedPlan = nil
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                 showPlanEditView = true
                             }
+                        },
+                        onPlanUpdated: { updatedPlan in
+                            self.planToEdit = updatedPlan
+                            generatedPlan = updatedPlan
                         },
                         onAddToCalendar: nil,
                         onSaveToTemplate: nil,
@@ -970,7 +967,8 @@ struct WeekendFlashView: View {
             selectedAttractions: selectedAttractions,
             currentGPSLocation: currentGPSLocation,
             accommodationAddress: nil,
-            accommodationType: nil
+            accommodationType: nil,
+            themeKey: "weekend_flash"
         )
         
         var plan = try AITripGenerator.shared.convertToPlanResult(aiPlan, slots: result.slots)
@@ -982,6 +980,7 @@ struct WeekendFlashView: View {
     @MainActor
     private func convertAndSavePlan(_ plan: PlanResult) async {
         isGenerating = false
+        ActivityRecorder.recordAIUsed()
         savePlanToTemplate(plan, title: "weekend_flash.trip_title".localized())
         generatedPlan = plan
         

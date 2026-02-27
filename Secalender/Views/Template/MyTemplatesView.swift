@@ -86,6 +86,8 @@ struct MyTemplatesView: View {
                 }
             }
         }
+        .scrollDismissesKeyboard(.interactively)
+        .dismissKeyboardOnTap()
         .background(Color(.systemGroupedBackground))
         .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 80) }
         .fullScreenCover(item: $activeSheet) { sheetType in
@@ -97,8 +99,14 @@ struct MyTemplatesView: View {
                             plan: template.plan,
                             customTitle: template.title,  // 传递模板标题（来自"此行的主题"）
                             onEdit: { planToEdit in
-                                // 编辑功能：切换到 PlanEditView
+                                // 僅「編輯整個行程」按鈕：切換到 PlanEditView
                                 activeSheet = .planEdit(plan: planToEdit, template: template)
+                            },
+                            onPlanUpdated: { updatedPlan in
+                                // block 編輯：僅同步 plan，不切換視圖
+                                var updated = template
+                                updated.plan = updatedPlan
+                                activeSheet = .planDetail(updated)
                             },
                             onAddToCalendar: nil,
                             onSaveToTemplate: nil,

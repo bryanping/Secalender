@@ -15,7 +15,8 @@ import UIKit
 struct PlanDetailView: View {
     let plan: PlanResult
     var customTitle: String? = nil  // 用户自定义标题
-    var onEdit: ((PlanResult) -> Void)? = nil
+    var onEdit: ((PlanResult) -> Void)? = nil           // 僅用於「編輯整個行程」按鈕，切換到 PlanEditView
+    var onPlanUpdated: ((PlanResult) -> Void)? = nil      // block 編輯或 GPS 更新時同步 plan，不切換視圖
     var onAddToCalendar: (() -> Void)? = nil
     var onSaveToTemplate: ((String?) -> Void)? = nil
     var onDismiss: (() -> Void)? = nil  // 关闭时的回调
@@ -38,6 +39,7 @@ struct PlanDetailView: View {
     // GPS实时确认相关状态
     @StateObject private var locationManager = TransitLocationManager()
     @State private var gpsUpdateTask: Task<Void, Never>? = nil  // 后台GPS更新任务
+    @State private var isDismissing = false  // 關閉中，避免 onPlanUpdated 在關閉時觸發重複彈出
     
     var body: some View {
         ZStack {
@@ -91,9 +93,16 @@ struct PlanDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: {
-                    // 使用系统原生的 dismiss，让系统管理动画
-                    onDismiss?()
-                    dismiss()
+                    // 先停止 GPS 任務，避免關閉時 onPlanUpdated 觸發重複彈出
+                    stopGPSUpdateTask()
+                    isDismissing = true
+                    if let onDismiss = onDismiss {
+                        // 由父層控制關閉（fullScreenCover item 綁定）
+                        onDismiss()
+                    } else {
+                        // 無 onDismiss 時使用系統 dismiss（如 TemplateDetailView）
+                        dismiss()
+                    }
                 }) {
                     Image(systemName: "chevron.left")
                         .foregroundColor(.primary)
@@ -585,10 +594,12 @@ struct PlanDetailView: View {
                 )
                 planDays[dayIndex].blocks = recalculatedBlocks
                 
-                // 更新原始 plan
-                var updatedPlan = plan
-                updatedPlan.days = planDays
-                onEdit?(updatedPlan)
+                // 同步 plan 給父層（關閉中不觸發，避免重複彈出）
+                if !isDismissing {
+                    var updatedPlan = plan
+                    updatedPlan.days = planDays
+                    onPlanUpdated?(updatedPlan)
+                }
                 
                 break
             }
@@ -1275,6 +1286,7 @@ struct PlanDetailView: View {
     /// 更新从餐厅到下一个景点的交通时间
     @MainActor
     private func updateTransitTimesFromRestaurants() async {
+        guard !isDismissing else { return }
         guard let currentLocation = locationManager.currentLocation else {
             print("📍 [PlanDetailView] GPS位置不可用，跳过交通时间更新")
             return
@@ -1350,10 +1362,12 @@ struct PlanDetailView: View {
             if hasUpdates {
                 planDays[dayIndex].blocks = updatedBlocks
                 
-                // 更新原始 plan
-                var updatedPlan = plan
-                updatedPlan.days = planDays
-                onEdit?(updatedPlan)
+                // 同步 plan 給父層（關閉中不觸發，避免重複彈出）
+                if !isDismissing {
+                    var updatedPlan = plan
+                    updatedPlan.days = planDays
+                    onPlanUpdated?(updatedPlan)
+                }
             }
         }
     }

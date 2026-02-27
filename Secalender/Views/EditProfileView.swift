@@ -6,130 +6,419 @@
 
 import SwiftUI
 import FirebaseFirestore
+import FirebaseAuth
 import Combine
+import PhotosUI
 
 struct EditProfileView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
     @Environment(\.dismiss) var dismiss
+    
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var isUploadingAvatar = false
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
+    @State private var linkedProviders: Set<String> = []
+    @State private var isLinkingProvider = false
+    @State private var showShareSheet = false
 
     var body: some View {
-        List {
-            // MARK: - 基本资料
-            Section(header: Text("profile.basic_info".localized())) {
-
-                // 显示名称
-                NavigationLink(destination: EditDisplayNameView().environmentObject(userManager)) {
-                    HStack {
-                        Text("profile.display_name".localized())
-                        Spacer()
-                        if let name = userManager.displayName, !name.isEmpty {
-                            Text(name)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("profile.not_set".localized())
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
+        ScrollView {
+            VStack(spacing: 0) {
+                // MARK: - 頭像區
+                avatarSection
                 
-                // 用户ID
-                NavigationLink(destination: EditUserCodeView().environmentObject(userManager)) {
-                    HStack {
-                        Text("profile.user_id".localized())
-                        Spacer()
-                        if let userCode = userManager.userCode {
-                            Text(userCode)
-                                .foregroundColor(.secondary)
-                                .font(.system(.body, design: .monospaced))
-                        } else {
-                            Text("profile.not_set".localized())
-                                .foregroundColor(.secondary)
-                        }
-                        if userManager.userCodeModified {
-                            Text("profile.modified".localized())
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        }
-                    }
-                }
+                // MARK: - 基本資料
+                basicInfoSection
                 
+                // MARK: - 綁定社交帳號
+                bindSocialSection
                 
-                // 性别
-                NavigationLink(destination: EditGenderView().environmentObject(userManager)) {
-                    HStack {
-                        Text("profile.gender".localized())
-                        Spacer()
-                        if let gender = userManager.gender, !gender.isEmpty {
-                            Text(gender == "Male" ? "profile.male".localized() : (gender == "Female" ? "profile.female".localized() : "profile.unknown".localized()))
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("profile.not_set".localized())
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                
-                // 手机号
-                NavigationLink(destination: EditPhoneView().environmentObject(userManager)) {
-                    HStack {
-                        Text("profile.phone".localized())
-                        Spacer()
-                        if let phone = userManager.phone, !phone.isEmpty {
-                            Text(phone)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("profile.not_set".localized())
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                
-                // 地区
-                NavigationLink(destination: EditRegionView().environmentObject(userManager)) {
-                    HStack {
-                        Text("profile.region".localized())
-                        Spacer()
-                        if let region = userManager.region, !region.isEmpty {
-                            Text(region)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("profile.not_set".localized())
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                
-                // 个性签名
-                NavigationLink(destination: EditSignatureView().environmentObject(userManager)) {
-                    HStack {
-                        Text("profile.signature".localized())
-                        Spacer()
-                        if let signature = userManager.signature, !signature.isEmpty {
-                            Text(signature)
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                        } else {
-                            Text("profile.not_set".localized())
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
+                // MARK: - 喜好標籤
+                preferencesSection
             }
-            
-            // MARK: - 喜好标签
-            Section(header: Text("profile.preferences".localized())) {
-                NavigationLink(destination: EditFavoriteTagsView().environmentObject(userManager)) {
-                    HStack {
-                        Text("profile.favorite_tags".localized())
-                        Spacer()
-                        Text("profile.selected_tags".localized(with: userManager.favoriteTags.count))
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    }
+            .padding(.bottom, 32)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .dismissKeyboardOnTap()
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("profile.edit_profile".localized())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("profile.save".localized()) {
+                    hideKeyboard()
+                    dismiss()
                 }
+                .fontWeight(.medium)
             }
         }
-        .navigationTitle("profile.edit_profile".localized())
+        .onAppear {
+            loadLinkedProviders()
+        }
+        .alert("common.error".localized(), isPresented: $showErrorAlert) {
+            Button("common.ok".localized()) {}
+        } message: {
+            Text(errorMessage)
+        }
+        .sheet(isPresented: $showShareSheet) {
+            ShareProfileSheetView(userName: userManager.displayName ?? "", userCode: userManager.userCode ?? "")
+        }
+    }
+    
+    // MARK: - 頭像區
+    private var avatarSection: some View {
+        VStack(spacing: 12) {
+            PhotosPicker(
+                selection: $selectedPhoto,
+                matching: .images,
+                photoLibrary: .shared()
+            ) {
+                ZStack(alignment: .bottomTrailing) {
+                    avatarImage
+                        .frame(width: 100, height: 100)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color(.separator), lineWidth: 1)
+                        )
+                    
+                    if isUploadingAvatar {
+                        Circle()
+                            .fill(Color.black.opacity(0.5))
+                            .overlay(ProgressView().tint(.white))
+                            .frame(width: 100, height: 100)
+                    } else {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(Circle().fill(Color.blue))
+                            .offset(x: 4, y: 4)
+                    }
+                }
+            }
+            .onChange(of: selectedPhoto) { _, newItem in
+                Task { await uploadSelectedPhoto(newItem) }
+            }
+            .disabled(isUploadingAvatar)
+            
+            Text("profile.change_avatar_hint".localized())
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+        .background(Color(.systemBackground))
+    }
+    
+    @ViewBuilder
+    private var avatarImage: some View {
+        if let photoUrl = userManager.photoUrl, let url = URL(string: photoUrl) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let img): img.resizable().scaledToFill()
+                default: avatarPlaceholder
+                }
+            }
+        } else {
+            avatarPlaceholder
+        }
+    }
+    
+    private var avatarPlaceholder: some View {
+        Circle()
+            .fill(
+                LinearGradient(
+                    colors: [Color.blue.opacity(0.4), Color.purple.opacity(0.3)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay(
+                Image(systemName: "person.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.white.opacity(0.8))
+            )
+    }
+    
+    // MARK: - 基本資料
+    private var basicInfoSection: some View {
+        VStack(spacing: 0) {
+            profileRow(
+                label: "profile.display_name".localized(),
+                value: userManager.displayName ?? "profile.not_set".localized(),
+                icon: "person",
+                destination: AnyView(EditDisplayNameView().environmentObject(userManager))
+            )
+            
+            profileRow(
+                label: "profile.user_id".localized(),
+                value: (userManager.userCode ?? "profile.not_set".localized()) + (userManager.userCodeModified ? " profile.modified".localized() : ""),
+                icon: "lock.fill",
+                isMonospaced: true,
+                destination: AnyView(EditUserCodeView().environmentObject(userManager))
+            )
+            
+            profileRow(
+                label: "profile.gender".localized(),
+                value: genderDisplayText,
+                icon: "person.fill.questionmark",
+                destination: AnyView(EditGenderView().environmentObject(userManager))
+            )
+            
+            profileRow(
+                label: "profile.region".localized(),
+                value: userManager.region ?? "profile.not_set".localized(),
+                icon: "location.fill",
+                destination: AnyView(EditRegionView().environmentObject(userManager))
+            )
+            
+            profileRow(
+                label: "profile.signature".localized(),
+                value: userManager.signature ?? "profile.not_set".localized(),
+                icon: "signature",
+                lineLimit: 2,
+                destination: AnyView(EditSignatureView().environmentObject(userManager))
+            )
+        }
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .padding(.horizontal)
+        .padding(.top, 16)
+    }
+    
+    private var genderDisplayText: String {
+        guard let g = userManager.gender, !g.isEmpty else { return "profile.not_set".localized() }
+        switch g {
+        case "Male": return "profile.male".localized()
+        case "Female": return "profile.female".localized()
+        default: return "profile.unknown".localized()
+        }
+    }
+    
+    @ViewBuilder
+    private func profileRow(
+        label: String,
+        value: String,
+        icon: String,
+        isMonospaced: Bool = false,
+        lineLimit: Int = 1,
+        destination: AnyView
+    ) -> some View {
+        NavigationLink(destination: destination) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .frame(width: 24, alignment: .center)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(value)
+                        .font(isMonospaced ? .system(.body, design: .monospaced) : .body)
+                        .foregroundColor(.primary)
+                        .lineLimit(lineLimit)
+                }
+                
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(Color(.tertiaryLabel))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .buttonStyle(.plain)
+    }
+    
+    // MARK: - 綁定社交帳號
+    private var bindSocialSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("profile.bind_social_accounts".localized())
+                .font(.headline)
+                .foregroundColor(.primary)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            
+            VStack(spacing: 0) {
+                socialAccountRow(
+                    id: "google.com",
+                    name: "Google",
+                    iconName: "GoogleLogo",
+                    systemIcon: "g.circle.fill"
+                )
+                socialAccountRow(
+                    id: "apple.com",
+                    name: "Apple",
+                    iconName: nil,
+                    systemIcon: "apple.logo"
+                )
+                socialAccountRow(
+                    id: "instagram",
+                    name: "Instagram",
+                    iconName: nil,
+                    systemIcon: "camera.fill",
+                    isExternal: true
+                )
+            }
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+        }
+        .padding(.horizontal)
+        .padding(.top, 24)
+    }
+    
+    private func socialAccountRow(
+        id: String,
+        name: String,
+        iconName: String?,
+        systemIcon: String,
+        isExternal: Bool = false
+    ) -> some View {
+        let isBound = linkedProviders.contains(id)
+        let showQuickShare = (id == "google.com" || id == "apple.com") && isBound
+        
+        return Button {
+            if isExternal && id == "instagram" {
+                if let url = URL(string: "https://www.instagram.com/") {
+                    UIApplication.shared.open(url)
+                }
+            } else if showQuickShare {
+                showShareSheet = true
+            } else if !isBound {
+                Task { await linkProvider(id: id) }
+            }
+        } label: {
+            HStack(spacing: 12) {
+                if let iconName = iconName {
+                    Image(iconName)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 28, height: 28)
+                } else {
+                    Image(systemName: systemIcon)
+                        .font(.title2)
+                        .foregroundColor(id == "apple.com" ? .primary : .blue)
+                        .frame(width: 28, height: 28)
+                }
+                
+                Text(name)
+                    .font(.body)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                if isExternal && id == "instagram" {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(Color(.tertiaryLabel))
+                } else if showQuickShare {
+                    HStack(spacing: 4) {
+                        Text("profile.quick_share".localized())
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                } else {
+                    Text(isBound ? "profile.bound".localized() : "profile.unbound".localized())
+                        .font(.caption)
+                        .foregroundColor(isBound ? .green : .secondary)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+        }
+        .buttonStyle(.plain)
+        .disabled(isLinkingProvider)
+    }
+    
+    // MARK: - 喜好標籤
+    private var preferencesSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("profile.preferences".localized())
+                .font(.headline)
+                .foregroundColor(.primary)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            
+            NavigationLink(destination: EditFavoriteTagsView().environmentObject(userManager)) {
+                HStack {
+                    Image(systemName: "tag.fill")
+                        .foregroundColor(.secondary)
+                    Text("profile.favorite_tags".localized())
+                    Spacer()
+                    Text("profile.selected_tags".localized(with: userManager.favoriteTags.count))
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(Color(.tertiaryLabel))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal)
+        .padding(.top, 24)
+    }
+    
+    // MARK: - Actions
+    private func loadLinkedProviders() {
+        do {
+            let providers = try AuthenticationManager.shared.getProviders()
+            linkedProviders = Set(providers.map { $0.rawValue })
+        } catch {
+            linkedProviders = []
+        }
+    }
+    
+    private func uploadSelectedPhoto(_ item: PhotosPickerItem?) async {
+        guard let item = item,
+              let imageData = try? await item.loadTransferable(type: Data.self) else { return }
+        
+        isUploadingAvatar = true
+        defer { isUploadingAvatar = false }
+        
+        do {
+            let urlString = try await AvatarUploadService.uploadAvatar(imageData: imageData, userId: userManager.userOpenId)
+            try await UserManager.shared.updatePhotoUrl(for: userManager.userOpenId, to: urlString)
+            userManager.refresh()
+        } catch {
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
+        }
+    }
+    
+    private func linkProvider(id: String) async {
+        isLinkingProvider = true
+        defer { isLinkingProvider = false }
+        
+        do {
+            if id == "google.com" {
+                let helper = SignInGoogleHelper()
+                let tokens = try await helper.signIn()
+                _ = try await AuthenticationManager.shared.linkGoogle(tokens: tokens)
+                try await UserManager.shared.createNewUser(auth: try AuthenticationManager.shared.getAuthenticatedUser(), providerName: tokens.name, providerType: "google")
+            } else if id == "apple.com" {
+                let helper = SignInAppleHelper()
+                let tokens = try await helper.startSignInWithAppleFlow()
+                _ = try await AuthenticationManager.shared.linkApple(tokens: tokens)
+                try await UserManager.shared.createNewUser(auth: try AuthenticationManager.shared.getAuthenticatedUser(), providerName: tokens.name, providerType: "apple")
+            }
+            userManager.refresh()
+            loadLinkedProviders()
+        } catch {
+            errorMessage = error.localizedDescription
+            showErrorAlert = true
+        }
     }
 }
 

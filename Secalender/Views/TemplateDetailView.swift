@@ -158,6 +158,9 @@ struct TemplateDetailView: View {
                         onEdit: { planToEdit in
                             templatePlan = planToEdit
                         },
+                        onPlanUpdated: { updatedPlan in
+                            templatePlan = updatedPlan
+                        },
                         onAddToCalendar: {
                             if let plan = templatePlan {
                                 applyPlanToCalendar(plan)
@@ -368,93 +371,21 @@ struct TemplateDetailView: View {
         await MainActor.run {
             isLoadingPlan = true
         }
-        
-        // TODO: 从 API 获取 StoreTemplate 对应的 PlanResult
-        // 目前使用模拟数据生成一个基本的PlanResult
-        // 实际实现应从 API 获取: /api/templates/{templateId}/content
-        
-        // 模拟 API 调用延迟
-        try? await Task.sleep(nanoseconds: 500_000_000)
-        
-        // 生成一个基本的PlanResult（开发期间使用模拟数据）
-        let mockPlan = generateMockPlanResult(for: template)
-        
-        await MainActor.run {
-            isLoadingPlan = false
-            templatePlan = mockPlan
-            showPlanDetail = true
-        }
-    }
-    
-    /// 生成模拟的PlanResult（开发期间使用）
-    private func generateMockPlanResult(for template: StoreTemplate) -> PlanResult {
-        let today = Date()
-        var dayPlans: [DayPlan] = []
-        
-        // 根据模板标题推断天数（简单处理）
-        let daysCount = template.daysCount > 0 ? template.daysCount : (extractDaysFromTitle(template.title) ?? 3)
-        
-        for dayIndex in 0..<daysCount {
-            let date = Calendar.current.date(byAdding: .day, value: dayIndex, to: today) ?? today
-            var blocks: [TimeBlock] = []
-            
-            // 为每一天生成2-3个活动
-            let activitiesPerDay = 2
-            for activityIndex in 0..<activitiesPerDay {
-                let startHour = 9 + activityIndex * 3
-                let startDate = Calendar.current.date(bySettingHour: startHour, minute: 0, second: 0, of: date) ?? date
-                let endDate = Calendar.current.date(byAdding: .hour, value: 2, to: startDate) ?? startDate
-                
-                var block = TimeBlock(
-                    type: .activity,
-                    startTime: startDate,
-                    endTime: endDate,
-                    title: "\(template.title) - 活動 \(activityIndex + 1)",
-                    location: template.title,
-                    isAnchor: activityIndex == 0,
-                    priority: 8,
-                    description: template.description
-                )
-                blocks.append(block)
+
+        do {
+            let plan = try await APIClient.shared.fetchTemplateContent(id: template.id)
+            await MainActor.run {
+                isLoadingPlan = false
+                templatePlan = plan
+                showPlanDetail = true
             }
-            
-            let dayPlan = DayPlan(date: date, blocks: blocks)
-            dayPlans.append(dayPlan)
-        }
-        
-        return PlanResult(
-            days: dayPlans,
-            assumptions: [
-                "建議提前預訂熱門景點門票",
-                "預留彈性時間應對突發情況"
-            ],
-            riskFlags: [
-                "注意景點的開放時間和節假日安排",
-                "建議攜帶地圖或使用導航應用"
-            ]
-        )
-    }
-    
-    /// 从标题中提取天数
-    private func extractDaysFromTitle(_ title: String) -> Int? {
-        // 简单匹配：寻找"X日"或"X天"的模式
-        let patterns = [
-            "([0-9]+)日",
-            "([0-9]+)天"
-        ]
-        
-        for pattern in patterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []),
-               let match = regex.firstMatch(in: title, options: [], range: NSRange(location: 0, length: title.utf16.count)),
-               let range = Range(match.range(at: 1), in: title),
-               let days = Int(title[range]) {
-                return days
+        } catch {
+            await MainActor.run {
+                isLoadingPlan = false
             }
         }
-        
-        return nil
     }
-    
+
     /// 加载模板并应用到日历
     private func loadTemplatePlanAndApply() async {
         await loadTemplatePlan()

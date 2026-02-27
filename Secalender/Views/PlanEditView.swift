@@ -57,11 +57,13 @@ struct PlanEditView: View {
                     loadingView
                 }
             }
+            .dismissKeyboardOnTap()
             .navigationTitle("編輯行程")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") {
+                        hideKeyboard()
                         onDismiss?()
                         dismiss()
                     }
@@ -181,7 +183,9 @@ struct PlanEditView: View {
                                     showLocationPickerForItem: $formState.showLocationPickerForItem,
                                     activeSheet: $activeSheet,
                                     onCoordinateChanged: {},
-                                    onStartTimeChanged: {}
+                                    onStartTimeChanged: {},
+                                    showDeleteButton: formState.multiDayItems.count > 1,
+                                    onDelete: formState.multiDayItems.count > 1 ? { deleteTrip(at: index) } : nil
                                 )
                             }
                             
@@ -236,6 +240,7 @@ struct PlanEditView: View {
                         VStack(spacing: 12) {
                             // 保存模版按钮
                             Button(action: {
+                                hideKeyboard()
                                 saveToTemplate()
                             }) {
                                 HStack {
@@ -252,6 +257,7 @@ struct PlanEditView: View {
                             
                             // 发布行程按钮（将行程加入行事历）
                             Button(action: {
+                                hideKeyboard()
                                 saveToCalendar()
                             }) {
                                 HStack {
@@ -271,6 +277,16 @@ struct PlanEditView: View {
                         .padding(.bottom, 20)
             }
             .padding(.vertical)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .dismissKeyboardOnTap()
+    }
+    
+    // MARK: - 刪除行程
+    private func deleteTrip(at index: Int) {
+        guard index >= 0, index < formState.multiDayItems.count, formState.multiDayItems.count > 1 else { return }
+        withAnimation {
+            formState.multiDayItems.remove(at: index)
         }
     }
     

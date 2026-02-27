@@ -46,6 +46,7 @@ struct TemplateCreator: Identifiable, Equatable {
 enum StoreTemplateCategory: String, CaseIterable, Codable {
     case all = "all"
     case popular = "popular"
+    case themes = "themes"
     case newArrivals = "new_arrivals"
     case creators = "creators"
     case japan = "japan"
@@ -57,6 +58,7 @@ enum StoreTemplateCategory: String, CaseIterable, Codable {
         switch self {
         case .all: return nil
         case .popular: return nil
+        case .themes: return nil
         case .newArrivals: return nil
         case .creators: return nil
         case .japan: return "日本"
@@ -81,7 +83,7 @@ enum StoreTemplateCategory: String, CaseIterable, Codable {
 /// - StoreTemplate: 付费模板，存储在 PostgreSQL
 /// - SavedTripTemplate: 用户保存的AI生成的行程模板，存储在本地 UserDefaults
 struct StoreTemplate: Identifiable, Codable, Equatable {
-    let id: UUID
+    let id: String  // Firestore 文件 ID（如 3QvclfJpS2wZNSLEgaOl）
     let title: String
     let description: String
     let tags: [String]
@@ -95,11 +97,13 @@ struct StoreTemplate: Identifiable, Codable, Equatable {
     let creatorId: String?
     let isFeatured: Bool
     let createdAt: Date?
+    let country: String?
+    let city: String?
     
     var isFree: Bool { price == 0 }
     
     init(
-        id: UUID = UUID(),
+        id: String,
         title: String,
         description: String,
         tags: [String],
@@ -112,7 +116,9 @@ struct StoreTemplate: Identifiable, Codable, Equatable {
         authorName: String? = nil,
         creatorId: String? = nil,
         isFeatured: Bool = false,
-        createdAt: Date? = nil
+        createdAt: Date? = nil,
+        country: String? = nil,
+        city: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -128,6 +134,8 @@ struct StoreTemplate: Identifiable, Codable, Equatable {
         self.creatorId = creatorId
         self.isFeatured = isFeatured
         self.createdAt = createdAt
+        self.country = country
+        self.city = city
     }
     
     static func == (lhs: StoreTemplate, rhs: StoreTemplate) -> Bool {

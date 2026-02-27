@@ -60,6 +60,9 @@ class EventManager {
             
             // 更新本地缓存中的事件ID
             EventCacheManager.shared.addEventToCache(newEvent, for: userId)
+            
+            // 記錄影響力：活動創建
+            ActivityRecorder.recordEventCreated(title: newEvent.title, eventId: documentId, visibility: newEvent.openChecked)
         } catch {
             print("⚠️ Firebase保存失败，但已保存到本地缓存: \(error.localizedDescription)")
             // 即使Firebase失败，本地缓存已保存，可以继续使用
@@ -213,6 +216,10 @@ class EventManager {
         
         // 更新本地缓存（用帶 id 的事件替換臨時事件）
         EventCacheManager.shared.addEventToCache(newEvent, for: userId)
+        
+        // 記錄影響力：活動創建
+        ActivityRecorder.recordEventCreated(title: newEvent.title, eventId: documentId, visibility: newEvent.openChecked)
+        
         return intId
     }
 
@@ -853,6 +860,11 @@ class EventManager {
             try await db.collection("event_invitations")
                 .document(doc.documentID)
                 .updateData(["status": status])
+        }
+        
+        // 記錄影響力：參與活動（接受邀請時）
+        if status == "joined" || status == "accepted" {
+            ActivityRecorder.recordEventParticipated(eventId: String(eventId))
         }
     }
     

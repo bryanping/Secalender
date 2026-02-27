@@ -8,6 +8,27 @@
 import Foundation
 import SwiftUI
 
+/// 天數篩選選項
+enum TemplateDaysFilter: String, CaseIterable {
+    case all
+    case oneToTwo   // 1-2天
+    case threeToFour // 3-4天
+    case fivePlus   // 5天以上
+}
+
+/// 國家篩選（與模板資料的 country 對應）
+enum TemplateCountryFilter: String, CaseIterable {
+    case all
+    case japan
+    case taiwan
+    case usa
+    case france
+    case italy
+    case spain
+    case uk
+    case korea
+}
+
 @MainActor
 final class TemplateStoreViewModel: ObservableObject {
     @Published var templates: [StoreTemplate] = []
@@ -20,6 +41,12 @@ final class TemplateStoreViewModel: ObservableObject {
     @Published var selectedCategory: StoreTemplateCategory = .all {
         didSet { applyFilters() }
     }
+    @Published var selectedCountry: TemplateCountryFilter = .all {
+        didSet { applyFilters() }
+    }
+    @Published var selectedDays: TemplateDaysFilter = .all {
+        didSet { applyFilters() }
+    }
     
     /// 篩選後的模板列表
     @Published var filteredTemplates: [StoreTemplate] = []
@@ -29,29 +56,35 @@ final class TemplateStoreViewModel: ObservableObject {
     
     private var userId: String = ""
     
-    func load(userId: String) {
+    func load(userId: String, isRefresh: Bool = false) async {
         guard !userId.isEmpty else { return }
         self.userId = userId
-        isLoading = true
+        if !isRefresh {
+            isLoading = true
+        }
         errorMessage = nil
-        
-        // 模擬載入延遲（後續改為 API）
-        Task {
-            try? await Task.sleep(nanoseconds: 400_000_000)
-            let all = Self.mockTemplates()
-            let creatorList = Self.mockCreators()
-            await MainActor.run {
-                templates = all
-                featuredTemplates = all.filter { $0.isFeatured }
-                creators = creatorList
-                applyFilters()
-                isLoading = false
+        do {
+            let all = try await APIClient.shared.fetchTemplates()
+            templates = all
+            featuredTemplates = all.filter { $0.isFeatured }
+            creators = Self.mockCreators()
+            applyFilters()
+        } catch {
+            // 下拉刷新時 view 重繪會取消 task，導致 URLError.cancelled，不應顯示給用戶
+            if (error as NSError).domain == NSURLErrorDomain,
+               (error as NSError).code == NSURLErrorCancelled {
+                // 保持原有資料與狀態，不設定 errorMessage
+            } else {
+                errorMessage = error.localizedDescription
             }
+        }
+        if !isRefresh {
+            isLoading = false
         }
     }
     
-    func refresh(userId: String) {
-        load(userId: userId)
+    func refresh(userId: String) async {
+        await load(userId: userId, isRefresh: true)
     }
     
     func isPurchased(_ template: StoreTemplate) -> Bool {
@@ -88,6 +121,138 @@ final class TemplateStoreViewModel: ObservableObject {
         templates.filter { $0.creatorId == creator.id }
     }
     
+    /// 依主分類（主題／行程）篩選後的模板
+    func filteredTemplates(for mainTab: TemplateStoreMainTab) -> [StoreTemplate] {
+        let byMainTab = filterByMainTab(templates, mainTab: mainTab)
+        return applyCategoryAndSearchFilters(to: byMainTab)
+    }
+    
+    /// 依主分類篩選的精選模板
+    func featuredTemplates(for mainTab: TemplateStoreMainTab) -> [StoreTemplate] {
+        let byMainTab = filterByMainTab(featuredTemplates, mainTab: mainTab)
+        return applyCountryAndDaysFilters(to: byMainTab)
+    }
+    
+    /// 依主分類篩選的熱門模板（依購買數、評分排序）
+    func popularTemplates(for mainTab: TemplateStoreMainTab) -> [StoreTemplate] {
+        let byMainTab = filterByMainTab(templates, mainTab: mainTab)
+        let filtered = applyCountryAndDaysFilters(to: applySearchOnly(to: byMainTab))
+        return filtered.sorted { ($0.purchaseCount, $0.rating ?? 0) > ($1.purchaseCount, $1.rating ?? 0) }
+    }
+    
+    /// 依主分類篩選的最新模板（依建立時間排序）
+    func newTemplates(for mainTab: TemplateStoreMainTab) -> [StoreTemplate] {
+        let byMainTab = filterByMainTab(templates, mainTab: mainTab)
+        let filtered = applyCountryAndDaysFilters(to: applySearchOnly(to: byMainTab))
+        return filtered
+            .filter { $0.createdAt != nil }
+            .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+    }
+    
+    private func applySearchOnly(to list: [StoreTemplate]) -> [StoreTemplate] {
+        guard !searchText.trimmingCharacters(in: .whitespaces).isEmpty else { return list }
+        let q = searchText.trimmingCharacters(in: .whitespaces).lowercased()
+        return list.filter {
+            $0.title.lowercased().contains(q) ||
+            $0.description.lowercased().contains(q) ||
+            $0.tags.contains { $0.lowercased().contains(q) } ||
+            ($0.authorName?.lowercased().contains(q) ?? false)
+        }
+    }
+    
+    private func filterByMainTab(_ list: [StoreTemplate], mainTab: TemplateStoreMainTab) -> [StoreTemplate] {
+        switch mainTab {
+        case .themes:
+            let themeKeywords = ["主題", "主题", "theme"]
+            let filtered = list.filter { t in
+                t.tags.contains { tag in themeKeywords.contains { tag.contains($0) } } ||
+                (t.category?.lowercased() ?? "").contains("theme")
+            }
+            return filtered.isEmpty ? list : filtered
+        case .itineraries:
+            let itineraryKeywords = ["行程", "旅行", "trip", "travel", "遊", "游"]
+            let filtered = list.filter { t in
+                t.tags.contains { tag in itineraryKeywords.contains { tag.contains($0) } } ||
+                t.title.contains("遊") || t.title.contains("游") || t.title.contains("之旅") ||
+                (t.category?.lowercased() ?? "").contains("japan") ||
+                (t.category?.lowercased() ?? "").contains("taiwan") ||
+                (t.category?.lowercased() ?? "").contains("korea") ||
+                (t.category?.lowercased() ?? "").contains("europe")
+            }
+            return filtered.isEmpty ? list : filtered
+        }
+    }
+    
+    private func applyCategoryAndSearchFilters(to list: [StoreTemplate]) -> [StoreTemplate] {
+        var result = list
+        switch selectedCategory {
+        case .all: break
+        case .popular:
+            result = result.sorted { ($0.purchaseCount, $0.rating ?? 0) > ($1.purchaseCount, $1.rating ?? 0) }
+        case .newArrivals:
+            result = result
+                .filter { $0.createdAt != nil }
+                .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+        case .creators: break
+        case .themes:
+            let themeKeywords = ["主題", "主题", "theme"]
+            let themeFiltered = result.filter { t in
+                t.tags.contains { tag in themeKeywords.contains { tag.contains($0) } } ||
+                (t.category?.lowercased() ?? "").contains("theme")
+            }
+            result = themeFiltered.isEmpty ? result : themeFiltered
+        case .japan, .taiwan, .korea, .europe:
+            if let tag = selectedCategory.displayTag {
+                result = result.filter { $0.tags.contains(tag) || $0.title.contains(tag) }
+            }
+        }
+        result = applyCountryAndDaysFilters(to: result)
+        if !searchText.trimmingCharacters(in: .whitespaces).isEmpty {
+            let q = searchText.trimmingCharacters(in: .whitespaces).lowercased()
+            result = result.filter {
+                $0.title.lowercased().contains(q) ||
+                $0.description.lowercased().contains(q) ||
+                $0.tags.contains { $0.lowercased().contains(q) } ||
+                ($0.authorName?.lowercased().contains(q) ?? false) ||
+                ($0.country?.lowercased().contains(q) ?? false) ||
+                ($0.city?.lowercased().contains(q) ?? false)
+            }
+        }
+        return result
+    }
+
+    private func applyCountryAndDaysFilters(to list: [StoreTemplate]) -> [StoreTemplate] {
+        var result = list
+        if selectedCountry != .all {
+            let countryName = countryNameForFilter(selectedCountry)
+            result = result.filter { ($0.country ?? "").contains(countryName) }
+        }
+        switch selectedDays {
+        case .all: break
+        case .oneToTwo:
+            result = result.filter { $0.daysCount >= 1 && $0.daysCount <= 2 }
+        case .threeToFour:
+            result = result.filter { $0.daysCount >= 3 && $0.daysCount <= 4 }
+        case .fivePlus:
+            result = result.filter { $0.daysCount >= 5 }
+        }
+        return result
+    }
+
+    private func countryNameForFilter(_ filter: TemplateCountryFilter) -> String {
+        switch filter {
+        case .all: return ""
+        case .japan: return "日本"
+        case .taiwan: return "台灣"
+        case .usa: return "美國"
+        case .france: return "法國"
+        case .italy: return "義大利"
+        case .spain: return "西班牙"
+        case .uk: return "英國"
+        case .korea: return "韓國"
+        }
+    }
+    
     private func applyFilters() {
         var result = templates
         
@@ -102,148 +267,38 @@ final class TemplateStoreViewModel: ObservableObject {
                 .filter { $0.createdAt != nil }
                 .sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
         case .creators:
-            // 創作者分類：不篩選模板，由 UI 顯示創作者卡片
             break
+        case .themes:
+            let themeKeywords = ["主題", "主题", "theme"]
+            let themeFiltered = result.filter { t in
+                let hasThemeTag = t.tags.contains { tag in
+                    themeKeywords.contains { tag.contains($0) }
+                }
+                let hasThemeCategory = (t.category?.lowercased() ?? "").contains("theme")
+                return hasThemeTag || hasThemeCategory
+            }
+            result = themeFiltered.isEmpty ? result : themeFiltered
         case .japan, .taiwan, .korea, .europe:
             if let tag = selectedCategory.displayTag {
                 result = result.filter { $0.tags.contains(tag) || $0.title.contains(tag) }
             }
         }
         
-        // 搜尋
+        result = applyCountryAndDaysFilters(to: result)
+        
         if !searchText.trimmingCharacters(in: .whitespaces).isEmpty {
             let q = searchText.trimmingCharacters(in: .whitespaces).lowercased()
             result = result.filter {
                 $0.title.lowercased().contains(q) ||
                 $0.description.lowercased().contains(q) ||
                 $0.tags.contains { $0.lowercased().contains(q) } ||
-                ($0.authorName?.lowercased().contains(q) ?? false)
+                ($0.authorName?.lowercased().contains(q) ?? false) ||
+                ($0.country?.lowercased().contains(q) ?? false) ||
+                ($0.city?.lowercased().contains(q) ?? false)
             }
         }
         
         filteredTemplates = result
-    }
-    
-    /// 市集 mock 資料（後續改為 API）
-    private static func mockTemplates() -> [StoreTemplate] {
-        let cal = Calendar.current
-        let today = Date()
-        let weekAgo = cal.date(byAdding: .day, value: -7, to: today)!
-        
-        return [
-            StoreTemplate(
-                title: "東京3日遊",
-                description: "經典東京景點，包含淺草寺、東京鐵塔、新宿等。適合第一次造訪東京的旅客。",
-                tags: ["東京", "日本", "文化", "購物"],
-                price: 299,
-                category: "japan",
-                rating: 4.8,
-                purchaseCount: 1250,
-                daysCount: 3,
-                authorName: "Secalender",
-                creatorId: "secalender",
-                isFeatured: true,
-                createdAt: weekAgo
-            ),
-            StoreTemplate(
-                title: "京都深度文化之旅",
-                description: "探索古都京都的傳統文化與歷史，含祇園、清水寺、金閣寺等經典路線。",
-                tags: ["京都", "日本", "文化", "歷史"],
-                price: 399,
-                category: "japan",
-                rating: 4.9,
-                purchaseCount: 890,
-                daysCount: 4,
-                authorName: "Secalender",
-                creatorId: "secalender",
-                isFeatured: true,
-                createdAt: today
-            ),
-            StoreTemplate(
-                title: "大阪美食之旅",
-                description: "品嚐大阪道地美食，體驗當地文化，含道頓堀、黑門市場、環球影城。",
-                tags: ["大阪", "日本", "美食", "文化"],
-                price: 349,
-                category: "japan",
-                rating: 4.7,
-                purchaseCount: 720,
-                daysCount: 3,
-                authorName: "Secalender",
-                creatorId: "secalender",
-                isFeatured: false,
-                createdAt: today
-            ),
-            StoreTemplate(
-                title: "首爾4日購物美食行",
-                description: "弘大、明洞、東大門時尚購物與韓式料理體驗。",
-                tags: ["首爾", "韓國", "美食", "購物"],
-                price: 279,
-                category: "korea",
-                rating: 4.6,
-                purchaseCount: 560,
-                daysCount: 4,
-                authorName: "旅遊達人小美",
-                creatorId: "travel_lover",
-                isFeatured: false,
-                createdAt: weekAgo
-            ),
-            StoreTemplate(
-                title: "台北文青3日遊",
-                description: "大稻埕、華山、松菸文創園區與在地小吃探索。",
-                tags: ["台北", "台灣", "文化", "美食"],
-                price: 0,
-                category: "taiwan",
-                rating: 4.5,
-                purchaseCount: 2100,
-                daysCount: 3,
-                authorName: "Secalender",
-                creatorId: "secalender",
-                isFeatured: true,
-                createdAt: today
-            ),
-            StoreTemplate(
-                title: "花蓮太魯閣2日自然行",
-                description: "太魯閣國家公園、清水斷崖、七星潭海景一日遊。",
-                tags: ["花蓮", "台灣", "自然", "戶外"],
-                price: 199,
-                category: "taiwan",
-                rating: 4.7,
-                purchaseCount: 430,
-                daysCount: 2,
-                authorName: "旅遊達人小美",
-                creatorId: "travel_lover",
-                isFeatured: false,
-                createdAt: weekAgo
-            ),
-            StoreTemplate(
-                title: "巴黎浪漫5日",
-                description: "艾菲爾鐵塔、羅浮宮、聖母院與塞納河畔漫步。",
-                tags: ["巴黎", "歐洲", "藝術", "浪漫"],
-                price: 499,
-                category: "europe",
-                rating: 4.9,
-                purchaseCount: 380,
-                daysCount: 5,
-                authorName: "日本通阿明",
-                creatorId: "japan_expert",
-                isFeatured: true,
-                createdAt: weekAgo
-            ),
-            StoreTemplate(
-                title: "沖繩海島4日",
-                description: "美麗海水族館、古宇利島、萬座毛與海灘休閒。",
-                tags: ["沖繩", "日本", "海島", "潛水"],
-                price: 329,
-                category: "japan",
-                rating: 4.8,
-                purchaseCount: 520,
-                daysCount: 4,
-                authorName: "日本通阿明",
-                creatorId: "japan_expert",
-                isFeatured: false,
-                createdAt: today
-            ),
-        ]
     }
     
     /// 創作者 mock 資料

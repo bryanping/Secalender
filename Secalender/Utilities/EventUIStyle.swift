@@ -162,7 +162,7 @@ struct EventFormCard<Content: View>: View {
                 VStack(alignment: .leading, spacing: 12) {
                     content
                 }
-                .padding(16)
+                .padding(22)
                 .background( //修改内容：卡片内部白底
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color(.systemBackground))
@@ -363,12 +363,12 @@ struct EventTimeDisplayView: View {
             let startDay = calendar.startOfDay(for: startDate)
             let endDay = calendar.startOfDay(for: endDateObj)
             
-            // 如果跨日期，显示开始日期时间
+            // 如果跨日期，上排显示：开始日期 - 结束日期
             if startDay != endDay {
                 let df = DateFormatter()
                 df.locale = locale
-                df.dateFormat = "M月d日 EEE a h:mm"
-                return df.string(from: startDateTime)
+                df.dateFormat = "M月d日 EEE"
+                return "\(df.string(from: startDate)) - \(df.string(from: endDateObj))"
             }
         }
         
@@ -403,12 +403,14 @@ struct EventTimeDisplayView: View {
                 let startDay = calendar.startOfDay(for: startDate)
                 let endDay = calendar.startOfDay(for: endDateObj)
                 
-                // 如果跨日期，显示结束日期时间
+                // 如果跨日期，下排显示：开始时间 - 结束时间
                 if startDay != endDay {
-                    let df = DateFormatter()
-                    df.locale = locale
-                    df.dateFormat = "M月d日 EEE a h:mm"
-                    return df.string(from: endDateTime)
+                    let tf = DateFormatter()
+                    tf.locale = locale
+                    tf.dateFormat = "a h:mm"
+                    let startTimeString = tf.string(from: startDateTime)
+                    let endTimeString = tf.string(from: endDateTime)
+                    return "\(startTimeString) - \(endTimeString)"
                 } else {
                     // 不跨日期时，显示时间范围
                     let tf = DateFormatter()

@@ -259,6 +259,16 @@ struct CalendarView: View {
             allEvents.append(contentsOf: myOwnEvents)
             print("✅ 从 users/\(myId)/events 加载了 \(myOwnEvents.count) 个个人事件")
             
+            //    4.1b time_items：新集合（event/suggestion），漸進式遷移
+            let cal = Calendar.current
+            let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: currentMonth)) ?? currentMonth
+            let monthEnd = cal.date(byAdding: .month, value: 1, to: monthStart) ?? currentMonth
+            let rangeEnd = cal.date(byAdding: .day, value: 7, to: monthEnd) ?? monthEnd
+            let timeItems = (try? await TimeItemService.shared.fetchRanged(rangeStart: monthStart, rangeEnd: rangeEnd)) ?? []
+            let timeItemEvents = timeItems.compactMap { Event.from(timeItem: $0, creatorOpenid: myId) }
+            allEvents.append(contentsOf: timeItemEvents)
+            print("✅ 从 time_items 加载了 \(timeItemEvents.count) 个时间项")
+            
             //    4.2 好友公开行程：从每个好友的 users/{friendId}/events 拉取（openChecked == 1）
             // 修改内容：使用并行查询代替串行循环，提升性能
             var friendSharedEvents: [Event] = []

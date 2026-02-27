@@ -171,6 +171,14 @@ extension BudgetLevel {
 struct AIPlannerView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
     @Environment(\.dismiss) var dismiss
+    @ObservedObject var themeManager = QuickThemeManager.shared
+    
+    /// 自定義主題（從快速主題進入時傳入）
+    private let customTheme: QuickTheme?
+    
+    init(customTheme: QuickTheme? = nil) {
+        self.customTheme = customTheme
+    }
     
     // 步骤控制
     @State private var currentStep: PlanningStep = .step1
@@ -254,6 +262,107 @@ struct AIPlannerView: View {
     // 目的地历史记录（使用 @AppStorage 持久化）
     @AppStorage("destinationHistory") private var destinationHistoryData: Data = Data()
     
+    // 主題專屬表單模式：當 customTheme 有 formQuestions 時使用
+    @State private var themeFormAnswers: [String: String] = [:]
+    @State private var themeFormStartDate: Date = Date()
+    @State private var themeFormDurationDays: Int = 7  // 計劃時長（天），用於非旅行主題
+    
+    // AI 生成付費開關（預設關閉，開啟後需單獨付費）
+    @State private var enableAIGeneration: Bool = false
+    
+    // 菜單欄：編輯、分享
+    @State private var showEditThemeSheet = false
+    @State private var showShareSheet = false
+    
+    /// 更新主題表單答案（強制觸發 SwiftUI 更新）
+    private func updateThemeFormAnswer(_ id: String, value: String) {
+        var copy = themeFormAnswers
+        copy[id] = value
+        themeFormAnswers = copy
+    }
+    
+    /// 是否使用主題專屬表單（有 formQuestions 時為 true）
+    private var useThemeFormMode: Bool {
+        guard let theme = customTheme,
+              let questions = theme.formQuestions,
+              !questions.isEmpty else { return false }
+        return true
+    }
+    
+    /// 是否顯示固定「計劃開始日期」區塊（當 formQuestions 無 plan_start_date/start_date 時顯示）
+    private var showFixedPlanDate: Bool {
+        guard let q = customTheme?.formQuestions else { return true }
+        return !ThemeFormReservedId.hasDateQuestion(in: q)
+    }
+    
+    /// 是否顯示固定「計劃時長」區塊（當 formQuestions 無 duration 相關問題時顯示）
+    private var showFixedPlanDuration: Bool {
+        guard let q = customTheme?.formQuestions else { return true }
+        return !ThemeFormReservedId.hasDurationQuestion(in: q)
+    }
+    
+    /// 從 themeFormAnswers 解析計劃開始日期（當 formQuestions 含 plan_start_date/start_date 時）
+    private var themeFormResolvedStartDate: Date {
+        guard let q = customTheme?.formQuestions else { return themeFormStartDate }
+        guard ThemeFormReservedId.hasDateQuestion(in: q) else { return themeFormStartDate }
+        for id in ThemeFormReservedId.dateIds {
+            if let s = themeFormAnswers[id], let d = ISO8601DateFormatter().date(from: s) {
+                return d
+            }
+        }
+        return themeFormStartDate
+    }
+    
+    /// 從 themeFormAnswers 解析計劃時長（天數）
+    private var themeFormResolvedDurationDays: Int {
+        guard let q = customTheme?.formQuestions else { return themeFormDurationDays }
+        guard ThemeFormReservedId.hasDurationQuestion(in: q) else { return themeFormDurationDays }
+        for id in ThemeFormReservedId.durationDayIds {
+            if let s = themeFormAnswers[id], let v = Int(s), v > 0 { return v }
+        }
+        for id in ThemeFormReservedId.durationWeekIds {
+            if let s = themeFormAnswers[id], let v = Int(s), v > 0 { return v * 7 }
+        }
+        return themeFormDurationDays
+    }
+    
+    /// 建立 NPI 並校驗（禁止直接拼接原始表單到 prompt）
+    private func buildAndValidateNPI() -> (npi: NormalizedPlanningInput?, errors: [String]?) {
+        guard let theme = customTheme, let questions = theme.formQuestions, !questions.isEmpty else {
+            return (nil, ["無表單問題"])
+        }
+        let npi = NPIMapper.mapToNPI(
+            formAnswers: themeFormAnswers,
+            formQuestions: questions,
+            themeTitle: theme.title,
+            themeKey: theme.key,
+            planType: .itinerary,
+            fixedStartDate: themeFormResolvedStartDate,
+            fixedDurationDays: themeFormResolvedDurationDays
+        )
+        let errors = NPIMapper.validateNPI(npi)
+        let validNPI = errors.isEmpty ? npi : nil
+        _ = NPIMapper.buildGenerationLog(
+            themeKey: theme.key,
+            npi: npi,
+            rawFormAnswersCount: themeFormAnswers.count,
+            validationErrors: errors
+        )
+        return (validNPI, errors.isEmpty ? nil : errors)
+    }
+    
+    /// 分享內容：行程主題與目的地
+    private var shareText: String {
+        var parts: [String] = []
+        if !tripTheme.isEmpty {
+            parts.append("行程主題：\(tripTheme)")
+        }
+        if !destination.isEmpty {
+            parts.append("目的地：\(destination)")
+        }
+        return parts.isEmpty ? "行程規劃" : parts.joined(separator: "\n")
+    }
+    
     // 计算属性：从历史记录中获取快速目的地选项（只显示城市名，最多4个）
     private var quickDestinations: [String] {
         guard let history = try? JSONDecoder().decode([String].self, from: destinationHistoryData) else {
@@ -288,7 +397,11 @@ struct AIPlannerView: View {
                         VStack(spacing: 24) {
                             switch currentStep {
                             case .step1:
-                                step1View
+                                if useThemeFormMode {
+                                    themeFormStepView
+                                } else {
+                                    step1View
+                                }
                             case .step2:
                                 step2View
                             case .step3:
@@ -335,12 +448,22 @@ struct AIPlannerView: View {
                     }
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if currentStep == .step1 {
-                        Button("取消") {
-                            dismiss()
+                // 僅自訂主題顯示右上角選單（編輯、分享），系統自帶主題不顯示
+                if customTheme != nil, customTheme?.isBuiltIn == false {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        if currentStep == .step1 {
+                            Menu {
+                                Button(action: { showEditThemeSheet = true }) {
+                                    Label("common.edit".localized(), systemImage: "pencil")
+                                }
+                                Button(action: { showShareSheet = true }) {
+                                    Label("event_ui.share".localized(), systemImage: "square.and.arrow.up")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
+                                    .font(.system(size: 20))
+                            }
                         }
-                        .foregroundColor(.blue)
                     }
                 }
             }
@@ -349,6 +472,35 @@ struct AIPlannerView: View {
                 if let cachedCountry = LocationCacheManager.shared.loadUserCountry() {
                     userCountryName = cachedCountry
                 }
+            }
+            .onAppear {
+                if let theme = customTheme {
+                    tripTheme = theme.title
+                    // 主題表單模式：初始化預設值
+                    if let questions = theme.formQuestions {
+                        var updated = themeFormAnswers
+                        for q in questions {
+                            if updated[q.id] == nil, let dv = q.defaultValue, !dv.isEmpty {
+                                updated[q.id] = dv
+                            } else if updated[q.id] == nil, q.type == .number, let mv = q.minValue {
+                                updated[q.id] = "\(mv)"
+                            }
+                        }
+                        themeFormAnswers = updated
+                    }
+                }
+            }
+            .sheet(isPresented: $showEditThemeSheet) {
+                if let theme = customTheme, !theme.isBuiltIn {
+                    CreateTripTemplateView()
+                        .environmentObject(userManager)
+                } else {
+                    QuickThemeManagementView()
+                        .environmentObject(userManager)
+                }
+            }
+            .sheet(isPresented: $showShareSheet) {
+                ShareSheet(activityItems: [shareText])
             }
             .sheet(isPresented: $showLocationPicker) {
                 NavigationView {
@@ -412,12 +564,17 @@ struct AIPlannerView: View {
                         plan: plan,
                         customTitle: tripTheme.isEmpty ? nil : tripTheme,  // 传递用户填写的标题
                         onEdit: { planToEdit in
-                            // 编辑功能：打開 PlanEditView（PlanEditView 會立即顯示載入中，再非同步載入行程）
+                            // 僅「編輯整個行程」按鈕：切換到 PlanEditView
                             self.planToEdit = planToEdit
                             generatedPlan = nil
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                 showPlanEditView = true
                             }
+                        },
+                        onPlanUpdated: { updatedPlan in
+                            // block 編輯：僅同步 plan，不切換視圖
+                            self.planToEdit = updatedPlan
+                            generatedPlan = updatedPlan
                         },
                         onAddToCalendar: nil,  // 不再需要这个功能
                         onSaveToTemplate: nil,  // 已自动保存，不需要保存按钮
@@ -562,8 +719,11 @@ struct AIPlannerView: View {
         .padding(.top, 4)
                             }
     
-    // 修复：统一进度显示，改为 4 步，进度按 25/50/75/100 走
+    // 修复：统一进度显示，改为 4 步，进度按 25/50/75/100 走（主題表單模式為 2 步）
     private var progressPercentage: Double {
+        if useThemeFormMode {
+            return currentStep == .step1 ? 50.0 : 100.0
+        }
         switch currentStep {
         case .step1: return 25.0
         case .step2: return 50.0
@@ -572,8 +732,11 @@ struct AIPlannerView: View {
         }
     }
     
-    // 修复：统一步骤文本，显示为 4/4
+    // 修复：统一步骤文本（主題表單模式為 2 步）
     private var stepDisplayText: String {
+        if useThemeFormMode {
+            return currentStep == .step1 ? "步驟 1/2" : "步驟 2/2"
+        }
         switch currentStep {
         case .step1: return "步驟 1/4"
         case .step2: return "步驟 2/4"
@@ -582,18 +745,184 @@ struct AIPlannerView: View {
         }
     }
     
+    // MARK: - 主題專屬表單（當 customTheme 有 formQuestions 時顯示）
+    private var themeFormStepView: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(themeManager.welcomeTitle(for: customTheme))
+                    .font(.system(size: 28, weight: .bold))
+                Text(themeManager.welcomeSubtitle(for: customTheme))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            // 固定：計劃開始日期（僅當 formQuestions 未包含 plan_start_date/start_date 時顯示）
+            if showFixedPlanDate {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("ai_planner.plan_start_date".localized())
+                        .font(.headline)
+                    DatePicker("", selection: $themeFormStartDate, displayedComponents: .date)
+                        .datePickerStyle(.graphical)
+                        .labelsHidden()
+                }
+                .padding()
+                .background(Color(UIColor.systemBackground))
+                .cornerRadius(20)
+            }
+            
+            // 固定：計劃時長（僅當 formQuestions 未包含 duration 相關問題時顯示）
+            if showFixedPlanDuration {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("ai_planner.plan_duration".localized())
+                        .font(.headline)
+                    HStack {
+                        Button(action: { if themeFormDurationDays > 1 { themeFormDurationDays -= 1 } }) {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(themeFormDurationDays > 1 ? .blue : .gray)
+                        }
+                        .disabled(themeFormDurationDays <= 1)
+                        Text("ai_planner.days".localized(with: themeFormDurationDays))
+                            .font(.system(size: 18, weight: .semibold))
+                            .frame(minWidth: 60)
+                        Button(action: { if themeFormDurationDays < 365 { themeFormDurationDays += 1 } }) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(themeFormDurationDays < 365 ? .blue : .gray)
+                        }
+                        .disabled(themeFormDurationDays >= 365)
+                    }
+                    .padding()
+                    .background(Color(UIColor.systemBackground))
+                    .cornerRadius(20)
+                }
+            }
+            
+            // 動態：主題專屬問題
+            if let questions = customTheme?.formQuestions {
+                ForEach(questions) { q in
+                    themeFormQuestionView(question: q)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func themeFormQuestionView(question: ThemeFormQuestion) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(question.label)
+                .font(.headline)
+            
+            switch question.type {
+            case .text:
+                TextField(question.placeholder ?? "", text: Binding(
+                    get: { themeFormAnswers[question.id] ?? question.defaultValue ?? "" },
+                    set: { updateThemeFormAnswer(question.id, value: $0) }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .padding()
+                .background(Color(UIColor.systemBackground))
+                .cornerRadius(12)
+                
+            case .number:
+                let minV = question.minValue ?? 0
+                let maxV = question.maxValue ?? 999
+                let binding = Binding(
+                    get: { Int(themeFormAnswers[question.id] ?? question.defaultValue ?? "\(minV)") ?? minV },
+                    set: { updateThemeFormAnswer(question.id, value: "\($0)") }
+                )
+                HStack {
+                    Button(action: {
+                        let v = binding.wrappedValue
+                        if v > minV { binding.wrappedValue = v - 1 }
+                    }) {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(binding.wrappedValue > minV ? .blue : .gray)
+                    }
+                    .disabled(binding.wrappedValue <= minV)
+                    Text("\(binding.wrappedValue) \(question.unit ?? "")")
+                        .font(.system(size: 18, weight: .semibold))
+                        .frame(minWidth: 80)
+                    Button(action: {
+                        let v = binding.wrappedValue
+                        if v < maxV { binding.wrappedValue = v + 1 }
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(binding.wrappedValue < maxV ? .blue : .gray)
+                    }
+                    .disabled(binding.wrappedValue >= maxV)
+                }
+                .padding()
+                .background(Color(UIColor.systemBackground))
+                .cornerRadius(12)
+                
+            case .select:
+                if let options = question.options {
+                    Picker(question.label, selection: Binding(
+                        get: { themeFormAnswers[question.id] ?? question.defaultValue ?? "" },
+                        set: { updateThemeFormAnswer(question.id, value: $0) }
+                    )) {
+                        Text("--").tag("")
+                        ForEach(options, id: \.self) { opt in
+                            Text(opt).tag(opt)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+                
+            case .multiSelect:
+                if let options = question.options {
+                    let selected = Set((themeFormAnswers[question.id] ?? "").split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        ForEach(options, id: \.self) { opt in
+                            Button(action: {
+                                var s = selected
+                                if s.contains(opt) { s.remove(opt) } else { s.insert(opt) }
+                                updateThemeFormAnswer(question.id, value: s.sorted().joined(separator: ", "))
+                            }) {
+                                Text(opt)
+                                    .font(.subheadline)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(selected.contains(opt) ? Color.blue : Color(.systemGray6))
+                                    .foregroundColor(selected.contains(opt) ? .white : .primary)
+                                    .cornerRadius(12)
+                            }
+                        }
+                    }
+                }
+                
+            case .date:
+                let binding = Binding(
+                    get: {
+                        let s = themeFormAnswers[question.id]
+                        return s.flatMap { ISO8601DateFormatter().date(from: $0) } ?? Date()
+                    },
+                    set: {
+                        updateThemeFormAnswer(question.id, value: ISO8601DateFormatter().string(from: $0))
+                    }
+                )
+                DatePicker(question.label, selection: binding, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+            }
+        }
+    }
+    
     // MARK: - 步骤1：基本信息
     private var step1View: some View {
         VStack(alignment: .leading, spacing: 18) {
-            // 标题和副标题
+            // 標題和副標題（依主題顯示專屬文案）
             VStack(alignment: .leading, spacing: 8) {
-                Text("ai_planner.tell_us_your_plan".localized())
+                Text(themeManager.welcomeTitle(for: customTheme))
                     .font(.system(size: 28, weight: .bold))
                 
-                Text("ai_planner.start_with_basics".localized())
+                Text(themeManager.welcomeSubtitle(for: customTheme))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-    }
+            }
     
             // 主题输入
             VStack(alignment: .leading, spacing: 8) {
@@ -1404,11 +1733,27 @@ struct AIPlannerView: View {
     private var bottomButtons: some View {
         VStack(spacing: 12) {
             if currentStep == .step1 {
+                // 主題表單模式：顯示 AI 生成開關
+                if useThemeFormMode {
+                    Toggle(isOn: $enableAIGeneration) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("theme.enable_ai_generation".localized())
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Text("theme.ai_generation_premium_hint".localized())
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .tint(.blue)
+                    .padding(.vertical, 8)
+                }
+                
                 Button(action: {
                     goToNextStep()
                 }) {
                 HStack {
-                        Text("ai_planner.next_preferences".localized())
+                        Text(useThemeFormMode ? "ai_planner.start_generate".localized() : "ai_planner.next_preferences".localized())
                     Spacer()
                         Image(systemName: "arrow.right")
                     }
@@ -1450,6 +1795,20 @@ struct AIPlannerView: View {
                     }
                 }
             } else if currentStep == .step3 {
+                // AI 生成付費開關
+                Toggle(isOn: $enableAIGeneration) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("theme.enable_ai_generation".localized())
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Text("theme.ai_generation_premium_hint".localized())
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .tint(.blue)
+                .padding(.vertical, 8)
+                
                 HStack(spacing: 12) {
                     Button(action: {
                         goToPreviousStep()
@@ -1485,7 +1844,10 @@ struct AIPlannerView: View {
     }
     
     private var canProceedToStep2: Bool {
-        !destination.isEmpty && travelDays > 0
+        if useThemeFormMode {
+            return themeFormResolvedDurationDays > 0
+        }
+        return !destination.isEmpty && travelDays > 0
     }
     
     // MARK: - 辅助视图
@@ -2218,23 +2580,24 @@ struct AIPlannerView: View {
         withAnimation {
             switch currentStep {
             case .step1:
-                currentStep = .step2
-                // 当从步骤1进入步骤2时，检查是否需要加载周边特色
-                // 如果目的地改变或周边特色为空，则重新加载
-                if !destination.isEmpty {
-                    if destination != lastLoadedDestination || (surroundingAttractions.isEmpty && !isLoadingSurroundingFeatures) {
-                        loadSurroundingFeatures()
+                if useThemeFormMode {
+                    currentStep = .step4
+                    startGeneration()
+                } else {
+                    currentStep = .step2
+                    if !destination.isEmpty {
+                        if destination != lastLoadedDestination || (surroundingAttractions.isEmpty && !isLoadingSurroundingFeatures) {
+                            loadSurroundingFeatures()
+                        }
                     }
                 }
             case .step2:
                 currentStep = .step3
-                // 进入步骤3时，再次检查是否需要加载周边特色（防止在步骤2停留时目的地被修改）
                 if !destination.isEmpty && destination != lastLoadedDestination {
                     loadSurroundingFeatures()
                 }
             case .step3:
                 currentStep = .step4
-                // 如果未使用自定义地址且还没有GPS位置，再次尝试获取
                 if !useCustomDepartureLocation && currentGPSLocation == nil && !isLocatingGPS {
                     requestGPSLocation()
                 }
@@ -2253,7 +2616,7 @@ struct AIPlannerView: View {
             case .step3:
                 currentStep = .step2
             case .step4:
-                currentStep = .step3
+                currentStep = useThemeFormMode ? .step1 : .step3
             default:
                 break
             }
@@ -2263,7 +2626,25 @@ struct AIPlannerView: View {
     // MARK: - AI生成
     
     private func startGeneration() {
-        guard !destination.isEmpty, travelDays > 0 else { return }
+        if useThemeFormMode {
+            guard themeFormResolvedDurationDays > 0 else { return }
+        } else {
+            guard !destination.isEmpty, travelDays > 0 else { return }
+        }
+        
+        // 主題分流：非 generateItinerary 不呼叫 AITripGenerator（解決「天安門」問題）
+        if let theme = customTheme, theme.themeMode != .generateItinerary {
+            errorMessage = "theme_mode.no_itinerary".localized()
+            showErrorAlert = true
+            return
+        }
+        
+        // AI 生成為進階功能，需勾選啟用（開啟後需單獨付費，付費邏輯可後接）
+        guard enableAIGeneration else {
+            errorMessage = "theme.ai_generation_premium_hint".localized()
+            showErrorAlert = true
+            return
+        }
         
         currentStep = .step4
         isGenerating = true
@@ -2271,8 +2652,14 @@ struct AIPlannerView: View {
         completedTasks = []
         currentTask = ""
         
-        // 初始化任务列表（更详细的任务，让用户感觉在运作）
-        pendingTasks = [
+        // 初始化任务列表（主題模式用不同文案）
+        let destText = useThemeFormMode ? (customTheme?.title ?? "計劃") : destination
+        pendingTasks = useThemeFormMode ? [
+            "正在分析\(destText)需求",
+            "正在規劃時間安排",
+            "正在優化分配",
+            "正在生成完整計劃"
+        ] : [
             "正在尋找\(destination)附近的優質飯店",
             "正在分析目的地資訊",
             "正在規劃活動安排",
@@ -2289,27 +2676,52 @@ struct AIPlannerView: View {
     }
     
     private func generatePlan() async {
-        // 构建分类结果（使用天数计算日期范围）
         let calendar = Calendar.current
-        let startDate = Date() // 从今天开始
-        let endDate = calendar.date(byAdding: .day, value: travelDays - 1, to: startDate) ?? startDate
-        
+        let startDate: Date
+        let endDate: Date
+        let dest: String
         var slots = ExtractedSlots()
-        slots.destination = SlotInfo(value: destination, confidence: 1.0)
-        slots.dateRange = SlotInfo(value: DateRange(startDate: startDate, endDate: endDate), confidence: 1.0)
-        slots.interestTags = selectedInterests.map { $0.rawValue }
-        slots.budgetLevel = SlotInfo(value: budgetLevel, confidence: 1.0)
-        slots.pace = SlotInfo(value: selectedPace, confidence: 1.0)
         
-        // 转换交通方式
-        if let transport = selectedTransportation {
-            switch transport {
-            case .publicTransport:
-                slots.transportPreference = SlotInfo(value: .publicTransport, confidence: 1.0)
-            case .selfDrive:
-                slots.transportPreference = SlotInfo(value: .taxi, confidence: 0.8) // 使用taxi作为自驾的近似
-            case .charteredCar:
-                slots.transportPreference = SlotInfo(value: .taxi, confidence: 1.0)
+        if useThemeFormMode {
+            let npi = buildAndValidateNPI()
+            guard let validNPI = npi.npi else {
+                await MainActor.run {
+                    errorMessage = npi.errors?.joined(separator: "\n") ?? "表單驗證失敗"
+                    showErrorAlert = true
+                    isGenerating = false
+                }
+                return
+            }
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            startDate = dateFormatter.date(from: validNPI.start_date) ?? themeFormResolvedStartDate
+            endDate = dateFormatter.date(from: validNPI.end_date) ?? calendar.date(byAdding: .day, value: max(1, themeFormResolvedDurationDays) - 1, to: startDate) ?? startDate
+            let defaultCountry = userCountryName ?? "台灣"
+            let defaultCity = (defaultCountry == "中国" || defaultCountry == "中國") ? "北京" : (defaultCountry == "日本") ? "東京" : "台北"
+            dest = validNPI.destination ?? "\(defaultCountry) - \(defaultCity)"
+            slots.destination = SlotInfo(value: dest, confidence: 1.0)
+            slots.dateRange = SlotInfo(value: DateRange(startDate: startDate, endDate: endDate), confidence: 1.0)
+            slots.interestTags = []
+            slots.budgetLevel = SlotInfo(value: budgetLevel, confidence: 1.0)
+            slots.pace = SlotInfo(value: selectedPace, confidence: 1.0)
+        } else {
+            startDate = Date()
+            endDate = calendar.date(byAdding: .day, value: travelDays - 1, to: startDate) ?? startDate
+            dest = destination
+            slots.destination = SlotInfo(value: dest, confidence: 1.0)
+            slots.dateRange = SlotInfo(value: DateRange(startDate: startDate, endDate: endDate), confidence: 1.0)
+            slots.interestTags = selectedInterests.map { $0.rawValue }
+            slots.budgetLevel = SlotInfo(value: budgetLevel, confidence: 1.0)
+            slots.pace = SlotInfo(value: selectedPace, confidence: 1.0)
+            if let transport = selectedTransportation {
+                switch transport {
+                case .publicTransport:
+                    slots.transportPreference = SlotInfo(value: .publicTransport, confidence: 1.0)
+                case .selfDrive:
+                    slots.transportPreference = SlotInfo(value: .taxi, confidence: 0.8)
+                case .charteredCar:
+                    slots.transportPreference = SlotInfo(value: .taxi, confidence: 1.0)
+                }
             }
         }
         
@@ -2320,11 +2732,13 @@ struct AIPlannerView: View {
             riskFlags: []
         )
         
+        let npiForPrompt: NormalizedPlanningInput? = useThemeFormMode ? (buildAndValidateNPI().npi) : nil
+        
         // 修复：统一错误处理，只在外部 catch，apiTask 内部不处理错误
         // 并行执行：任务列表动画 + OpenAI API 调用
         let apiTask = Task {
             // apiTask 内部不 catch，让错误传播到外层统一处理
-            let plan = try await generateAIPoweredPlan(from: classificationResult)
+            let plan = try await generateAIPoweredPlan(from: classificationResult, npi: npiForPrompt)
             await MainActor.run {
                 generatedPlan = plan
             }
@@ -2445,7 +2859,7 @@ struct AIPlannerView: View {
         }
     }
     
-    private func generateAIPoweredPlan(from result: ClassificationResult) async throws -> PlanResult {
+    private func generateAIPoweredPlan(from result: ClassificationResult, npi: NormalizedPlanningInput? = nil) async throws -> PlanResult {
         guard let destination = result.slots.destination.value else {
             throw PlanGenerationError.missingDestination
         }
@@ -2475,13 +2889,20 @@ struct AIPlannerView: View {
             departureLocation = currentGPSLocation
         }
         
+        // 合併主題 AI 指令與 NPI（禁止直接拼接原始表單答案）
+        var customInstructions = customTheme?.aiInstruction ?? ""
+        if let npiInput = npi {
+            let npiJson = NPIMapper.npiToPromptJSON(npiInput)
+            customInstructions = (customInstructions.isEmpty ? "" : customInstructions + "\n\n") + "【標準輸入 NPI】\n\(npiJson)"
+        }
+        
         let aiPlan = try await AITripGenerator.shared.generateAIItinerary(
             destination: destination,
             startDate: dateRange.startDate,
             endDate: dateRange.endDate,
             durationDays: numberOfDays,
             interestTags: result.slots.interestTags,
-            pace: selectedPace,  // 使用表單選擇的節奏（輕鬆/緊湊）
+            pace: selectedPace,
             walkingLevel: result.slots.walkingLevel.value,
             transportPreference: result.slots.transportPreference.value,
             selectedAttractions: selectedAttractionNames,
@@ -2490,7 +2911,10 @@ struct AIPlannerView: View {
             accommodationAddress: accommodationAddressString,
             accommodationType: accommodationTypeString,
             adults: adults,
-            children: children
+            children: children,
+            customAIInstructions: customInstructions.isEmpty ? nil : customInstructions,
+            themeKey: customTheme != nil ? "custom_\(customTheme!.key)" : "travel_planning",
+            themePromptPrefix: customTheme?.aiPromptPrefix
         )
         
         let context = AITripGenerator.PlanConversionContext(
@@ -2510,6 +2934,7 @@ struct AIPlannerView: View {
     private func convertAndSavePlan(_ plan: PlanResult) async {
         // 已经在 MainActor 上，不需要再包 MainActor.run
         isGenerating = false
+        ActivityRecorder.recordAIUsed()
         
         // 保存到模板
         savePlanToTemplate(plan, title: nil)

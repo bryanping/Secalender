@@ -51,6 +51,8 @@ final class AITripGenerator {
     private init() {}
     
     /// 使用OpenAI生成包含真实地点的行程
+    /// - Parameter themeKey: 主題識別（weekend_flash, deep_culture, travel_planning, enrich_trip 或自訂 key），用於選擇專屬提示詞
+    /// - Parameter themePromptPrefix: 主題專屬提示詞（優先於 themeKey 的內建提示）。若提供則直接使用，確保行程符合主題（如寵物餵養→寵物相關景點）。
     func generateAIItinerary(
         destination: String,
         startDate: Date,
@@ -67,7 +69,10 @@ final class AITripGenerator {
         accommodationType: String? = nil,
         hasOtherOption: Bool = false,
         adults: Int? = nil,
-        children: Int? = nil
+        children: Int? = nil,
+        customAIInstructions: String? = nil,
+        themeKey: String? = nil,
+        themePromptPrefix: String? = nil
     ) async throws -> AITripPlan {
         
         // 检查 OpenAI 开关
@@ -86,8 +91,8 @@ final class AITripGenerator {
         let startDateString = dateFormatter.string(from: startDate)
         let endDateString = dateFormatter.string(from: endDate)
         
-        // 构建详细的提示词（使用验证后的目的地）
-        let prompt = buildPrompt(
+        // 构建详细的提示词（使用验证后的目的地，依 themeKey 加入主題專屬說明）
+        var prompt = buildPrompt(
             destination: validatedDestination,
             startDate: startDateString,
             endDate: endDateString,
@@ -106,11 +111,27 @@ final class AITripGenerator {
             children: children
         )
         
-        print("🤖 [AITripGenerator] 提示词构建完成，长度: \(prompt.count) 字符")
+        // 依主題加入專屬提示詞前綴（優先使用 themePromptPrefix，否則用 themeKey 的內建提示）
+        let themePrefix: String? = if let custom = themePromptPrefix, !custom.trimmingCharacters(in: .whitespaces).isEmpty {
+            custom
+        } else {
+            buildThemeSpecificPromptPrefix(themeKey: themeKey, durationDays: durationDays)
+        }
+        if let prefix = themePrefix {
+            prompt = prefix + "\n\n" + prompt
+            print("🤖 [AITripGenerator] 已加入主題專屬提示詞")
+        }
+        
+        var finalPrompt = prompt
+        if let custom = customAIInstructions, !custom.trimmingCharacters(in: .whitespaces).isEmpty {
+            finalPrompt += "\n\n【自定義行程指令】\n\(custom)"
+        }
+        
+        print("🤖 [AITripGenerator] 提示词构建完成，长度: \(finalPrompt.count) 字符")
         print("🤖 [AITripGenerator] 调用 OpenAIManager.generateStructuredItinerary()...")
         
         // 调用OpenAI API（这里是关键，必须使用OpenAI）
-        let aiPlanJson = try await OpenAIManager.shared.generateStructuredItinerary(prompt: prompt)
+        let aiPlanJson = try await OpenAIManager.shared.generateStructuredItinerary(prompt: finalPrompt)
         
         print("✅ [AITripGenerator] OpenAI API 调用成功，响应长度: \(aiPlanJson.count) 字符")
         
@@ -464,6 +485,41 @@ final class AITripGenerator {
         )
         
         return prompt
+    }
+    
+    /// 依主題 key 建構專屬提示詞前綴（未來可從 Firebase 載入完整提示詞庫）
+    private func buildThemeSpecificPromptPrefix(themeKey: String?, durationDays: Int) -> String? {
+        guard let key = themeKey else { return nil }
+        switch key {
+        case "weekend_flash":
+            return """
+            【主題：週末快閃一日遊】
+            - 一日遊、周邊 6 選、輕鬆節奏、交通便利
+            - 優先安排距離近、可當日往返的景點
+            """
+        case "deep_culture":
+            return """
+            【主題：深度文化之旅】
+            - 歷史藝術、深度文化體驗
+            - 優先安排博物館、歷史建築、藝術空間等文化景點
+            """
+        case "enrich_trip":
+            return """
+            【主題：充實行程】
+            - 美食、旅店、景點、休閒娛樂綜合規劃
+            - 平衡各類體驗，讓行程豐富多元
+            """
+        case "travel_planning":
+            return nil  // 使用預設完整旅遊行程 prompt，無需額外前綴
+        default:
+            if key.hasPrefix("custom_") {
+                return """
+                【自訂主題】
+                - 請依用戶填寫的 AI 指令與表單資訊規劃
+                """
+            }
+            return nil
+        }
     }
     
     /// 根据语言环境构建本地化的 prompt

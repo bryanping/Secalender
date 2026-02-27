@@ -14,6 +14,8 @@
   pod 'Firebase/Core'
   pod 'Firebase/Auth'
   pod 'Firebase/Firestore'
+  pod 'Firebase/Functions'
+  pod 'Firebase/Storage'
   pod 'GoogleSignIn'
   # GoogleMaps 和 GooglePlaces 已通过 Swift Package Manager 安装
   # 使用官方仓库：https://github.com/googlemaps/ios-maps-sdk

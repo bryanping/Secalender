@@ -12,43 +12,40 @@ import FirebaseFirestore
 struct MyFriendListView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
     @State private var friends: [FriendEntry] = []
+    @State private var friendStats: [String: FriendCardStats] = [:]
 
     var body: some View {
-        List {
-            ForEach(friends, id: \.id) { friend in
-                HStack(spacing: 12) {
-                    if let urlStr = friend.photoUrl, let url = URL(string: urlStr) {
-                        AsyncImage(url: url) { image in
-                            image.resizable()
-                                 .scaledToFill()
-                        } placeholder: {
-                            Circle().fill(Color.gray.opacity(0.3))
-                        }
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                    } else {
-                        Circle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 40, height: 40)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(friend.alias ?? friend.email ?? friend.name ?? "friends.unknown".localized())
-                            .font(.headline)
-                        if let email = friend.email {
-                            Text(email)
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                        }
-                    }
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(friends, id: \.id) { friend in
+                    FriendCard(
+                        friend: friend,
+                        stats: friendStats[friend.id] ?? FriendCardStats(),
+                        onViewProfile: { showFriendDetail(friend) },
+                        onCompareAvailability: { showCompareSlots(friend) },
+                        onInviteEvent: { showInviteEvent(friend) }
+                    )
                 }
-                .padding(.vertical, 6)
             }
+            .padding()
         }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("friends.my_friends".localized())
         .onAppear {
             loadMyFriends()
         }
+    }
+
+    private func showFriendDetail(_ friend: FriendEntry) {
+        // 導航由 sheet 或 NavigationLink 處理，此處可擴展
+    }
+
+    private func showCompareSlots(_ friend: FriendEntry) {
+        // 比對空檔：差異化功能，待實作
+    }
+
+    private func showInviteEvent(_ friend: FriendEntry) {
+        // 邀請活動：已有流程，可導向 EventInvitationsView 或 InviteFriendsView
     }
 
     func loadMyFriends() {

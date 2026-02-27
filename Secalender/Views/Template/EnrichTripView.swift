@@ -158,14 +158,7 @@ struct EnrichTripView: View {
                     }
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if currentStep == .step1 {
-                        Button("common.cancel".localized()) {
-                            dismiss()
-                        }
-                        .foregroundColor(.blue)
-                    }
-                }
+                // 系統自帶主題：不顯示右上角選單
             }
             .sheet(isPresented: $showLocationPicker) {
                 LocationPickerView(

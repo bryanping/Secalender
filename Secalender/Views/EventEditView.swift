@@ -198,12 +198,14 @@ struct EventEditView: View {
                         icon: "checkmark.circle.fill",
                         style: .primary
                     ) {
+                        hideKeyboard()
                         updateEvent()
                     }
                     
                     // 如果不是智能行程，显示转换为智能行程的按钮
                     if !viewModel.event.isAiEvent {
                         Button(action: {
+                            hideKeyboard()
                             convertToAiEvent()
                         }) {
                             HStack {
@@ -224,6 +226,7 @@ struct EventEditView: View {
                         icon: "trash.fill",
                         style: .destructive
                     ) {
+                        hideKeyboard()
                         showDeleteConfirmation = true
                     }
                 }
@@ -231,6 +234,8 @@ struct EventEditView: View {
             }
             .padding(.bottom, 80) // 为底部按钮留出空间
         }
+        .scrollDismissesKeyboard(.interactively)
+        .dismissKeyboardOnTap()
         .background(Color(.systemGroupedBackground))
         .onAppear {
             guard !hasInitialized else { return }
@@ -401,6 +406,7 @@ struct EventEditView: View {
         }
         
         // 立即调用完成回调和关闭页面（不等待网络）
+        hideKeyboard()
         onComplete?()
         dismiss()
         

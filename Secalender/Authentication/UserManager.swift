@@ -280,6 +280,11 @@ final class UserManager {
         try await Firestore.firestore().collection("users").document(userId).updateData(["gender": gender])
     }
     
+    /// 更新用户头像 URL
+    func updatePhotoUrl(for userId: String, to photoUrl: String) async throws {
+        try await Firestore.firestore().collection("users").document(userId).updateData(["photo_url": photoUrl])
+    }
+    
     /// 根据用户ID查找用户
     func getUserByCode(userCode: String) async throws -> DBUser? {
         let snapshot = try await Firestore.firestore()

@@ -11,71 +11,263 @@ import SwiftUI
 import UIKit
 #endif
 
+/// 模版市集主分類：主題 vs 行程
+enum TemplateStoreMainTab: Int, CaseIterable, Hashable {
+    case themes = 0      // 精選主題
+    case itineraries = 1 // 精選行程
+}
+
 struct TemplateStoreView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
     @StateObject private var vm = TemplateStoreViewModel()
+    @State private var selectedMainTab: TemplateStoreMainTab = .themes
+    @State private var isSearchExpanded = false
+    @FocusState private var isSearchFocused: Bool
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                searchBar
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 12)
+        VStack(spacing: 0) {
+            searchAndFilterBar
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 12)
+            
+            // 主題／行程切換（可左右滑動）
+            mainTabPicker
+                .padding(.bottom, 12)
+            
+            TabView(selection: $selectedMainTab) {
+                mainTabContent(for: .themes)
+                    .tag(TemplateStoreMainTab.themes)
                 
-                categoryTabs
-                    .padding(.bottom, 16)
-                
-                if vm.isLoading && vm.templates.isEmpty {
-                    loadingView
-                } else if let err = vm.errorMessage, !err.isEmpty {
-                    errorView
-                } else if vm.selectedCategory == .creators {
-                    creatorsSection
-                } else {
-                    featuredSection
-                    templatesGridSection
-                }
+                mainTabContent(for: .itineraries)
+                    .tag(TemplateStoreMainTab.itineraries)
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
         }
         .background(Color(.systemGroupedBackground))
         .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 80) }
+        .dismissKeyboardOnTap()
         .task(id: userManager.userOpenId) {
             let uid = userManager.userOpenId
             guard !uid.isEmpty else { return }
-            vm.load(userId: uid)
+            await vm.load(userId: uid)
         }
         .refreshable {
-            vm.refresh(userId: userManager.userOpenId)
+            await vm.refresh(userId: userManager.userOpenId)
         }
     }
 }
 
-// MARK: - Search Bar
+// MARK: - Search & Filter Bar（放大鏡點選後展開，如快速主題）
 private extension TemplateStoreView {
-    var searchBar: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
-                .font(.system(size: 16))
-            
-            TextField("template_store.search_placeholder".localized(), text: $vm.searchText)
-                .textFieldStyle(.plain)
-                .font(.system(size: 15))
-            
-            if !vm.searchText.isEmpty {
-                Button(action: { vm.searchText = "" }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+    @ViewBuilder
+    var searchAndFilterBar: some View {
+        VStack(spacing: 0) {
+            // 收合時：分類標籤 + 放大鏡按鈕
+            HStack(spacing: 8) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(StoreTemplateCategory.allCases, id: \.self) { category in
+                            categoryChip(category)
+                        }
+                    }
+                    .padding(.horizontal, 2)
+                }
+                
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        isSearchExpanded = true
+                        isSearchFocused = true
+                    }
+                }) {
+                    Image(systemName: "magnifyingglass")
                         .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                        .frame(width: 36, height: 36)
+                        .background(Color(.systemGray6))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.vertical, 4)
+            
+            // 展開時：搜尋欄 + 篩選（國家、天數）
+            if isSearchExpanded {
+                VStack(spacing: 12) {
+                    HStack(spacing: 10) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.secondary)
+                            TextField("template_store.search_placeholder".localized(), text: $vm.searchText)
+                                .focused($isSearchFocused)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 15))
+                        }
+                        .padding(10)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(10)
+                        
+                        Button(action: {
+                            hideKeyboard()
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                isSearchExpanded = false
+                                vm.searchText = ""
+                                isSearchFocused = false
+                            }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    // 國家篩選
+                    countryFilterRow
+                    
+                    // 天數篩選
+                    daysFilterRow
+                }
+                .padding(.top, 8)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+    
+    func categoryChip(_ category: StoreTemplateCategory) -> some View {
+        let title: String = {
+            switch category {
+            case .all: return "template_store.category.all".localized()
+            case .popular: return "template_store.category.popular".localized()
+            case .newArrivals: return "template_store.category.new".localized()
+            case .creators: return "template_store.category.creators".localized()
+            case .themes: return "template_store.category.themes".localized()
+            case .japan: return "template_store.category.japan".localized()
+            case .taiwan: return "template_store.category.taiwan".localized()
+            case .korea: return "template_store.category.korea".localized()
+            case .europe: return "template_store.category.europe".localized()
+            }
+        }()
+        let isSelected = vm.selectedCategory == category
+        return Button(action: { vm.selectedCategory = category }) {
+            Text(title)
+                .font(.system(size: 14, weight: isSelected ? .semibold : .medium))
+                .foregroundColor(isSelected ? .white : .primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(isSelected ? Color.blue : Color(.systemGray6))
+                .cornerRadius(16)
+        }
+        .buttonStyle(.plain)
+    }
+    
+    var countryFilterRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("template_store.filter.country".localized())
+                .font(.caption)
+                .foregroundColor(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(TemplateCountryFilter.allCases, id: \.self) { opt in
+                        Button(action: { vm.selectedCountry = opt }) {
+                            Text(countryFilterTitle(opt))
+                                .font(.system(size: 13, weight: vm.selectedCountry == opt ? .semibold : .medium))
+                                .foregroundColor(vm.selectedCountry == opt ? .white : .primary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(vm.selectedCountry == opt ? Color.blue : Color(.systemGray6))
+                                .cornerRadius(14)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+    }
+    
+    var daysFilterRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("template_store.filter.days".localized())
+                .font(.caption)
+                .foregroundColor(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(TemplateDaysFilter.allCases, id: \.self) { opt in
+                        Button(action: { vm.selectedDays = opt }) {
+                            Text(daysFilterTitle(opt))
+                                .font(.system(size: 13, weight: vm.selectedDays == opt ? .semibold : .medium))
+                                .foregroundColor(vm.selectedDays == opt ? .white : .primary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(vm.selectedDays == opt ? Color.blue : Color(.systemGray6))
+                                .cornerRadius(14)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+    
+    func countryFilterTitle(_ filter: TemplateCountryFilter) -> String {
+        switch filter {
+        case .all: return "template_store.filter.all".localized()
+        case .japan: return "日本"
+        case .taiwan: return "台灣"
+        case .usa: return "美國"
+        case .france: return "法國"
+        case .italy: return "義大利"
+        case .spain: return "西班牙"
+        case .uk: return "英國"
+        case .korea: return "韓國"
+        }
+    }
+    
+    func daysFilterTitle(_ filter: TemplateDaysFilter) -> String {
+        switch filter {
+        case .all: return "template_store.filter.all".localized()
+        case .oneToTwo: return "template_store.filter.days_1_2".localized()
+        case .threeToFour: return "template_store.filter.days_3_4".localized()
+        case .fivePlus: return "template_store.filter.days_5_plus".localized()
+        }
+    }
+}
+
+// MARK: - Main Tab Picker（精選主題／精選行程）
+private extension TemplateStoreView {
+    var mainTabPicker: some View {
+        Picker("", selection: $selectedMainTab) {
+            ForEach(TemplateStoreMainTab.allCases, id: \.self) { tab in
+                Text(mainTabTitle(for: tab)).tag(tab)
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, 16)
+    }
+    
+    func mainTabTitle(for tab: TemplateStoreMainTab) -> String {
+        switch tab {
+        case .themes: return "template_store.main_tab.themes".localized()
+        case .itineraries: return "template_store.main_tab.itineraries".localized()
+        }
+    }
+    
+    @ViewBuilder
+    func mainTabContent(for tab: TemplateStoreMainTab) -> some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                if vm.isLoading && vm.templates.isEmpty {
+                    loadingView
+                } else if let err = vm.errorMessage, !err.isEmpty {
+                    errorView
+                } else if tab == .themes {
+                    themesSection
+                } else {
+                    itinerariesSection
+                }
+            }
+        }
+        .scrollDismissesKeyboard(.interactively)
     }
 }
 
@@ -99,6 +291,7 @@ private extension TemplateStoreView {
             case .popular: return "template_store.category.popular".localized()
             case .newArrivals: return "template_store.category.new".localized()
             case .creators: return "template_store.category.creators".localized()
+            case .themes: return "template_store.category.themes".localized()
             case .japan: return "template_store.category.japan".localized()
             case .taiwan: return "template_store.category.taiwan".localized()
             case .korea: return "template_store.category.korea".localized()
@@ -132,6 +325,163 @@ private extension TemplateStoreView {
                 )
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Themes Section（精選主題、熱門主題、最新主題）
+private extension TemplateStoreView {
+    @ViewBuilder
+    var themesSection: some View {
+        if !vm.searchText.isEmpty {
+            searchResultsSection(for: .themes)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                sectionBlock(titleKey: "template_store.section.featured_themes", templates: vm.featuredTemplates(for: .themes), isHorizontal: true)
+                sectionBlock(titleKey: "template_store.section.popular_themes", templates: vm.popularTemplates(for: .themes), isHorizontal: false)
+                sectionBlock(titleKey: "template_store.section.new_themes", templates: vm.newTemplates(for: .themes), isHorizontal: false)
+            }
+        }
+    }
+}
+
+// MARK: - Itineraries Section（精選行程、熱門行程、最新行程）
+private extension TemplateStoreView {
+    @ViewBuilder
+    var itinerariesSection: some View {
+        if !vm.searchText.isEmpty {
+            searchResultsSection(for: .itineraries)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                sectionBlock(titleKey: "template_store.section.featured_itineraries", templates: vm.featuredTemplates(for: .itineraries), isHorizontal: true)
+                sectionBlock(titleKey: "template_store.section.popular_itineraries", templates: vm.popularTemplates(for: .itineraries), isHorizontal: false)
+                sectionBlock(titleKey: "template_store.section.new_itineraries", templates: vm.newTemplates(for: .itineraries), isHorizontal: false)
+            }
+        }
+    }
+}
+
+// MARK: - Section Block（App Store 風格：標題＋箭頭、橫滑提示、卡片／列表）
+private extension TemplateStoreView {
+    @ViewBuilder
+    func sectionBlock(titleKey: String, templates: [StoreTemplate], isHorizontal: Bool) -> some View {
+        if !templates.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                // App Store 風格：區塊標題＋右箭頭（＞）
+                HStack(spacing: 4) {
+                    Text(titleKey.localized())
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 16)
+                
+                // 橫向滾動區塊：顯示「向左滑動，查看更多」提示
+                if isHorizontal {
+                    Text("template_store.swipe_hint".localized())
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 16)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(templates) { template in
+                                appStoreStyleRow(template)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
+                } else {
+                    LazyVGrid(columns: [
+                        GridItem(.flexible(), spacing: 12),
+                        GridItem(.flexible(), spacing: 12)
+                    ], spacing: 12) {
+                        ForEach(templates) { template in
+                            NavigationLink(destination: detailDestination(template)) {
+                                templateCard(template)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+            }
+            .padding(.bottom, 24)
+        }
+    }
+    
+    /// App Store 風格列表列：圖標左、標題＋描述中、取得按鈕右
+    func appStoreStyleRow(_ template: StoreTemplate) -> some View {
+        NavigationLink(destination: detailDestination(template)) {
+            HStack(spacing: 12) {
+                // 左側圖標（圓角方形）
+                coverPlaceholder(template)
+                    .frame(width: 64, height: 64)
+                    .cornerRadius(12)
+                    .clipped()
+                
+                // 中間：標題＋描述
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(template.title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                    Text(template.description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                // 右側：取得按鈕
+                Text(vm.isPurchased(template) ? "template_store.opened".localized() : "template_store.get".localized())
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.blue)
+                    .cornerRadius(8)
+            }
+            .padding(12)
+            .frame(width: 280)
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+    
+    @ViewBuilder
+    func searchResultsSection(for tab: TemplateStoreMainTab) -> some View {
+        let filtered = vm.filteredTemplates(for: tab)
+        VStack(alignment: .leading, spacing: 16) {
+            Text("template_store.results_count".localized(with: filtered.count))
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 16)
+            
+            if filtered.isEmpty {
+                emptyStateView
+            } else {
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 12),
+                    GridItem(.flexible(), spacing: 12)
+                ], spacing: 12) {
+                    ForEach(filtered) { template in
+                        NavigationLink(destination: detailDestination(template)) {
+                            templateCard(template)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
+            }
+        }
     }
 }
 
@@ -240,33 +590,8 @@ private extension TemplateStoreView {
     }
 }
 
-// MARK: - Featured Section
+// MARK: - Featured Card & Template Card
 private extension TemplateStoreView {
-    @ViewBuilder
-    var featuredSection: some View {
-        if !vm.featuredTemplates.isEmpty && vm.searchText.isEmpty && vm.selectedCategory == .all {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("template_store.featured".localized())
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                    .padding(.horizontal, 16)
-                
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(vm.featuredTemplates) { template in
-                            NavigationLink(destination: detailDestination(template)) {
-                                featuredCard(template)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                }
-            }
-            .padding(.bottom, 24)
-        }
-    }
-    
     func featuredCard(_ template: StoreTemplate) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             coverPlaceholder(template)
@@ -303,42 +628,8 @@ private extension TemplateStoreView {
     }
 }
 
-// MARK: - Templates Grid
+// MARK: - Template Card
 private extension TemplateStoreView {
-    var templatesGridSection: some View {
-        LazyVStack(alignment: .leading, spacing: 16) {
-            if !vm.searchText.isEmpty || vm.selectedCategory != .all {
-                Text("template_store.results_count".localized(with: vm.filteredTemplates.count))
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 16)
-            } else {
-                Text("template_store.popular".localized())
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                    .padding(.horizontal, 16)
-            }
-            
-            if vm.filteredTemplates.isEmpty {
-                emptyStateView
-            } else {
-                LazyVGrid(columns: [
-                    GridItem(.flexible(), spacing: 12),
-                    GridItem(.flexible(), spacing: 12)
-                ], spacing: 12) {
-                    ForEach(vm.filteredTemplates) { template in
-                        NavigationLink(destination: detailDestination(template)) {
-                            templateCard(template)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 24)
-            }
-        }
-    }
-    
     func templateCard(_ template: StoreTemplate) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             coverPlaceholder(template)

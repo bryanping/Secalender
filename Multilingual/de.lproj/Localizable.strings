@@ -70,6 +70,10 @@
 "ai_planner.select_city" = "Stadt auswählen - %@";
 "ai_planner.no_city_data" = "Keine Städtedaten verfügbar";
 "ai_planner.no_matching_city" = "Keine passenden Städte gefunden";
+"ai_planner.theme_form_subtitle" = "Füllen Sie die folgenden Informationen aus, damit die KI Ihren Zeitplan plant";
+"custom_theme.welcome_title" = "Erzählen Sie uns von Ihrem %@ Plan";
+"theme.enable_ai_generation" = "KI-Generierung aktivieren";
+"theme.ai_generation_premium_hint" = "KI-Generierung ist eine Premium-Funktion, erfordert separate Zahlung";
 
 // MARK: - Transportation Types
 "transport.public_transport" = "Öffentlicher Verkehr";
@@ -205,6 +209,8 @@
 "friends.add_friend_hint" = "Tippen Sie auf + oben rechts, um Freunde hinzuzufügen";
 "groups.no_groups" = "Noch keine Gruppen";
 "groups.create_group_hint" = "Tippen Sie auf + oben rechts, um eine Gruppe zu erstellen";
+"groups.followed_communities" = "Gefolgte Communities";
+"groups.latest_public_trips" = "Neueste öffentliche & Community-Reisen";
 "friends.unknown" = "Unbekannter Freund";
 "friends.delete" = "Freund löschen";
 "friends.delete_confirmation" = "Möchten Sie diesen Freund wirklich löschen?";
@@ -274,6 +280,7 @@
 "event_create.cancel_multi_day" = "Mehrtägige Reise abbrechen";
 "event_create.create_trip" = "Reise erstellen";
 "event_create.save" = "Speichern";
+"event_create.export_to_template" = "Als Vorlage exportieren";
 "event_create.cancel" = "Abbrechen";
 "event_create.selected_events" = "%d Reisen ausgewählt";
 "event_create.title_placeholder" = "z.B. Ankunft am Flughafen Berlin Brandenburg";
@@ -403,6 +410,12 @@
 "profile.signature_hint" = "Zeigen Sie Ihre Persönlichkeit, bis zu 6 Zeilen";
 "profile.max_tags_exceeded" = "Maximal 6 Tags erlaubt";
 "profile.id_invalid" = "Benutzer-ID ist ungültig oder Format ist falsch";
+"profile.save" = "Speichern";
+"profile.change_avatar_hint" = "Tippen zum Ändern des Profilbildes";
+"profile.bind_social_accounts" = "Social-Media-Konten verknüpfen";
+"profile.bound" = "Verknüpft";
+"profile.unbound" = "Nicht verknüpft";
+"profile.quick_share" = "Schnell teilen";
 
 // MARK: - Member View
 "member.friends" = "Freunde";
@@ -419,6 +432,33 @@
 "member.title" = "Funktionen";
 "member.default_user" = "Benutzer";
 "member.user_id" = "Benutzer-ID";
+"member.revenue_management" = "Einnahmenverwaltung";
+
+// MARK: - Business Center Detail
+"business.total_revenue_title" = "Gesamteinnahmen (TWD)";
+"business.withdraw" = "Auszahlen";
+"business.income_details" = "Einnahmen & Ausgaben";
+"business.ai_quota_title" = "KI-Kontingent";
+"business.purchase_quota" = "Kaufen";
+"business.ai_quota_remaining" = "Verbleibend";
+"business.ai_quota_estimate" = "~%d Reisepläne verbleibend";
+"business.template_sales_trend" = "Vorlagen-Verkaufstrend";
+"business.week_mon" = "Mo";
+"business.week_tue" = "Di";
+"business.week_wed" = "Mi";
+"business.week_thu" = "Do";
+"business.week_fri" = "Fr";
+"business.week_sat" = "Sa";
+"business.week_today" = "Heute";
+"business.creator_benefits" = "Creator-Vorteile";
+"business.creator_level_gold" = "Gold";
+"business.commission_ratio" = "Provisionssatz";
+"business.recommendation_weight" = "Empfehlungsgewichtung";
+"business.fast_support" = "Prioritäts-Support";
+"business.account_settings" = "Kontoeinstellungen";
+"business.tax_info" = "Steuerinformationen";
+"business.account_settings_hint" = "Zahlung & Konto einrichten";
+"business.tax_info_hint" = "Steuerinformationen für Compliance";
 
 // MARK: - Community
 "community.title" = "Community-Interaktion";
@@ -438,7 +478,17 @@
 
 // MARK: - Template Names
 "weekend_flash.template_name" = "Wochenend-Flash";
+"weekend_flash.welcome_title" = "Erzählen Sie uns von Ihrem Wochenend-Plan";
+"weekend_flash.welcome_subtitle" = "Wählen Sie Ort und Umgebung, wir planen Ihren Tagesausflug";
+"travel_planning.template_name" = "Reiseplanung";
+"travel_planning.welcome_title" = "Erzählen Sie uns von Ihrer Reise";
+"travel_planning.welcome_subtitle" = "Beginnen wir mit den Grundlagen für Ihre perfekte Reiseroute";
 "deep_culture.template_name" = "Tiefe Kultur";
+"deep_culture.welcome_title" = "Erzählen Sie uns von Ihrem Kulturplan";
+"deep_culture.welcome_subtitle" = "Wählen Sie historische und künstlerische Sehenswürdigkeiten";
+"enrich_trip.template_name" = "Reise bereichern";
+"enrich_trip.welcome_title" = "Erzählen Sie uns von Ihrem Bereicherungsplan";
+"enrich_trip.welcome_subtitle" = "Grundinformationen eingeben, Umgebung durchsuchen";
 
 // MARK: - Welcome Additional
 "welcome.quick_themes" = "Schnelle Themen";
@@ -469,6 +519,17 @@
 
 // MARK: - Template Store
 "template_store.popular" = "Beliebte Empfehlungen";
+"template_store.main_tab.themes" = "Themen";
+"template_store.main_tab.itineraries" = "Reisen";
+"template_store.section.featured_themes" = "Empfohlene Themen";
+"template_store.section.featured_itineraries" = "Empfohlene Reisen";
+"template_store.section.popular_themes" = "Beliebte Themen";
+"template_store.section.popular_itineraries" = "Beliebte Reisen";
+"template_store.section.new_themes" = "Neue Themen";
+"template_store.section.new_itineraries" = "Neue Reisen";
+"template_store.swipe_hint" = "Nach links wischen für mehr";
+"template_store.get" = "Holen";
+"template_store.opened" = "Öffnen";
 "template_store.tags" = "Tags";
 
 // MARK: - Multi Event
