@@ -35,8 +35,15 @@ struct Event: Identifiable, Codable {
     var travelTime: String?            // 路程時間
     var invitees: [String]?            // 邀請對象
     var aiEvent: Int? = 0              // 智能行程标识：0=普通行程，1=智能行程（AI生成）
-    
-    // 兼容 SwiftUI ForEach
+    var tags: [String]?                // 事件標籤，用於分類與搜尋
+
+    // MARK: - 同步欄位（Local First，對應 OFFLINE_SYNC_DESIGN.md）
+    var syncStatusRaw: String?        // SyncStatus.rawValue，可選以相容舊快取
+    var updatedAtSync: Date?          // 本地最後修改時間（用於衝突判定）
+    var serverUpdatedAt: Date?        // 伺服器版本時間
+    var syncVersion: Int?             // 版本號
+    var deviceId: String?             // 來源裝置
+    var lastEditorId: String?         // 最後修改者
     var uuid: UUID { UUID() }
     
     init(
@@ -64,7 +71,14 @@ struct Event: Identifiable, Codable {
         travelTime: String? = nil,
         groupId: String? = nil,
         invitees: [String]? = nil,
-        aiEvent: Int? = 0
+        aiEvent: Int? = 0,
+        tags: [String]? = nil,
+        syncStatusRaw: String? = nil,
+        updatedAtSync: Date? = nil,
+        serverUpdatedAt: Date? = nil,
+        syncVersion: Int? = nil,
+        deviceId: String? = nil,
+        lastEditorId: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -91,7 +105,13 @@ struct Event: Identifiable, Codable {
         self.groupId = groupId
         self.invitees = invitees
         self.aiEvent = aiEvent
-        
+        self.tags = tags
+        self.syncStatusRaw = syncStatusRaw
+        self.updatedAtSync = updatedAtSync
+        self.serverUpdatedAt = serverUpdatedAt
+        self.syncVersion = syncVersion
+        self.deviceId = deviceId
+        self.lastEditorId = lastEditorId
     }
     
     // MARK: - Custom Decoding
@@ -99,7 +119,8 @@ struct Event: Identifiable, Codable {
         case id, title, creatorOpenid, color, date, startTime, endTime, endDate
         case destination, mapObj, openChecked, personChecked, personNumber
         case sponsorType, category, createTime, deleted, information, groupId
-        case isAllDay, repeatType, calendarComponent, travelTime, invitees, aiEvent
+        case isAllDay, repeatType, calendarComponent, travelTime, invitees, aiEvent, tags
+        case syncStatusRaw, updatedAtSync, serverUpdatedAt, syncVersion, deviceId, lastEditorId
     }
     
     init(from decoder: Decoder) throws {
@@ -139,6 +160,13 @@ struct Event: Identifiable, Codable {
         travelTime = try container.decodeIfPresent(String.self, forKey: .travelTime)
         invitees = try container.decodeIfPresent([String].self, forKey: .invitees)
         aiEvent = try container.decodeIfPresent(Int.self, forKey: .aiEvent) ?? 0
+        tags = try container.decodeIfPresent([String].self, forKey: .tags)
+        syncStatusRaw = try container.decodeIfPresent(String.self, forKey: .syncStatusRaw)
+        updatedAtSync = try container.decodeIfPresent(Date.self, forKey: .updatedAtSync)
+        serverUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .serverUpdatedAt)
+        syncVersion = try container.decodeIfPresent(Int.self, forKey: .syncVersion)
+        deviceId = try container.decodeIfPresent(String.self, forKey: .deviceId)
+        lastEditorId = try container.decodeIfPresent(String.self, forKey: .lastEditorId)
     }
     
     func encode(to encoder: Encoder) throws {
@@ -169,6 +197,13 @@ struct Event: Identifiable, Codable {
         try container.encodeIfPresent(travelTime, forKey: .travelTime)
         try container.encodeIfPresent(invitees, forKey: .invitees)
         try container.encodeIfPresent(aiEvent, forKey: .aiEvent)
+        try container.encodeIfPresent(tags, forKey: .tags)
+        try container.encodeIfPresent(syncStatusRaw, forKey: .syncStatusRaw)
+        try container.encodeIfPresent(updatedAtSync, forKey: .updatedAtSync)
+        try container.encodeIfPresent(serverUpdatedAt, forKey: .serverUpdatedAt)
+        try container.encodeIfPresent(syncVersion, forKey: .syncVersion)
+        try container.encodeIfPresent(deviceId, forKey: .deviceId)
+        try container.encodeIfPresent(lastEditorId, forKey: .lastEditorId)
     }
 }
 
@@ -318,6 +353,15 @@ extension Event {
     var isOpenChecked: Bool { self.openChecked == 1 }
     var isPersonChecked: Bool { self.personChecked == 1 }
     var isAiEvent: Bool { (self.aiEvent ?? 0) == 1 }  // 是否为智能行程
+
+    /// 同步狀態（由 syncStatusRaw 解析，無則視為 .synced）
+    var syncStatus: SyncStatus {
+        get {
+            guard let raw = syncStatusRaw, let s = SyncStatus(rawValue: raw) else { return .synced }
+            return s
+        }
+        set { syncStatusRaw = newValue.rawValue }
+    }
     
     /// 推断是否有结束时间（用于 UI 显示）
     /// isHasEnd 是一个 UI 状态，不需要存储到 Firebase
@@ -337,6 +381,20 @@ extension Event {
         }
         return false
     }
+}
+
+// MARK: - 事件標籤預設選項（用於建立/編輯/搜尋）
+enum EventTagPresets {
+    static let defaultTags: [(key: String, localizedKey: String)] = [
+        ("work", "event_tags.work"),
+        ("travel", "event_tags.travel"),
+        ("sport", "event_tags.sport"),
+        ("meetup", "event_tags.meetup"),
+        ("study", "event_tags.study"),
+        ("other", "event_tags.other")
+    ]
+    
+    static var tagKeys: [String] { defaultTags.map(\.key) }
 }
 
 private let dateFormatter: DateFormatter = {

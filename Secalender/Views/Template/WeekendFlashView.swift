@@ -856,7 +856,6 @@ struct WeekendFlashView: View {
         let destination = city
         
         // 固定为一日游
-        let calendar = Calendar.current
         let startDate = Date()
         let endDate = startDate
         
@@ -1025,7 +1024,7 @@ struct WeekendFlashView: View {
         // 后台同步 Firebase
         Task {
             do {
-                try await EventManager.shared.fetchEvents()
+                _ = try await EventManager.shared.fetchEvents()
                 let updatedEvents = EventCacheManager.shared.loadEvents(for: userManager.userOpenId)
                 await MainActor.run {
                     allEvents = updatedEvents.filter { $0.deleted != 1 }

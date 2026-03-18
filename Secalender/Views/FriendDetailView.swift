@@ -30,58 +30,129 @@ struct FriendDetailView: View {
     @State private var sharedEvents: [Event] = []
     @State private var isLoadingEvents = false
     
+    // 好友介面 2.0：分享活動按鈕、行程/主題/模板分頁
+    @State private var showShareActivitySheet = false
+    enum DetailTab: String, CaseIterable {
+        case trips
+        case themes
+        case templates
+        var titleKey: String {
+            switch self {
+            case .trips: return "friend_detail.tab_trips"
+            case .themes: return "friend_detail.tab_themes"
+            case .templates: return "friend_detail.tab_templates"
+            }
+        }
+    }
+    @State private var selectedTab: DetailTab = .trips
+    
     var body: some View {
-        NavigationView {
-            ScrollView {
+        ScrollView {
                 VStack(spacing: 24) {
                     if isLoading {
-                        ProgressView("加载中...")
+                        ProgressView("friends.loading".localized())
                             .frame(maxWidth: .infinity, minHeight: 400)
                     } else if let info = friendInfo {
-                        // 第一栏：头像、名称、昵称、ID、地区
                         friendBasicInfoSection(info: info)
                         
-                        // 第二栏：朋友资料
+                        // 主操作：分享活動（取代發送訊息）
+                        Button {
+                            showShareActivitySheet = true
+                        } label: {
+                            Text("event_share_action.share_event".localized())
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color(.systemGray5))
+                                .cornerRadius(12)
+                        }
+                        .buttonStyle(.plain)
+                        
                         friendDataSection(info: info)
                         
-                        // 第三栏：你有权限看的朋友行程
-                        sharedEventsSection()
-                        
-                        // 第四栏：过往行程轨迹分享（占位）
-                        trajectorySection()
+                        // 分頁：行程 / 主題 / 模板
+                        VStack(alignment: .leading, spacing: 12) {
+                            Picker("", selection: $selectedTab) {
+                                ForEach(DetailTab.allCases, id: \.self) { tab in
+                                    Text(tab.titleKey.localized()).tag(tab)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            
+                            switch selectedTab {
+                            case .trips:
+                                sharedEventsSection()
+                            case .themes:
+                                friendThemesPlaceholder()
+                            case .templates:
+                                friendTemplatesPlaceholder()
+                            }
+                        }
                     } else {
-                        Text("加载失败")
+                        Text("friend_detail.load_failed".localized())
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, minHeight: 400)
                     }
                 }
                 .padding()
             }
-            .navigationTitle("好友详情")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("关闭") {
-                        dismiss()
-                    }
-                }
+        .navigationTitle("friend_detail.title".localized())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 if isEditing {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("保存") {
-                            Task {
-                                await saveFriendData()
-                            }
+                    HStack(spacing: 12) {
+                        Button("friend_detail.save".localized()) {
+                            Task { await saveFriendData() }
+                        }
+                        Button("common.cancel".localized()) {
+                            isEditing = false
                         }
                     }
+                } else if friendInfo != nil {
+                    Menu {
+                        Button {
+                            isEditing = true
+                        } label: {
+                            Label("friend_detail.edit_friend_profile".localized(), systemImage: "pencil")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                    }
                 }
             }
-            .task {
-                await loadFriendDetail()
-            }
-            .alert("保存成功", isPresented: $showSaveAlert) {
-                Button("确定", role: .cancel) {}
-            }
         }
+        .task {
+            await loadFriendDetail()
+        }
+        .sheet(isPresented: $showShareActivitySheet) {
+            ShareActivitiesToFriendSheet(
+                friendId: friendId,
+                friendName: friendInfo?.name ?? friendInfo?.email ?? ""
+            )
+            .environmentObject(userManager)
+        }
+        .alert("friend_detail.save_success".localized(), isPresented: $showSaveAlert) {
+            Button("common.confirm".localized(), role: .cancel) {}
+        }
+    }
+    
+    @ViewBuilder
+    private func friendThemesPlaceholder() -> some View {
+        Text("friend_detail.themes_placeholder".localized())
+            .foregroundColor(.secondary)
+            .frame(maxWidth: .infinity)
+            .padding()
+    }
+    
+    @ViewBuilder
+    private func friendTemplatesPlaceholder() -> some View {
+        Text("friend_detail.templates_placeholder".localized())
+            .foregroundColor(.secondary)
+            .frame(maxWidth: .infinity)
+            .padding()
     }
     
     // MARK: - 第一栏：基本信息
@@ -157,18 +228,9 @@ struct FriendDetailView: View {
     @ViewBuilder
     private func friendDataSection(info: FriendDetailInfo) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("朋友资料")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                Spacer()
-                Button {
-                    isEditing.toggle()
-                } label: {
-                    Image(systemName: isEditing ? "checkmark" : "pencil")
-                        .foregroundColor(.blue)
-                }
-            }
+            Text("friend_detail.friend_profile".localized())
+                .font(.headline)
+                .fontWeight(.semibold)
             
             VStack(spacing: 12) {
                 // 备注名
@@ -247,7 +309,7 @@ struct FriendDetailView: View {
     @ViewBuilder
     private func sharedEventsSection() -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("你有权限看的朋友行程")
+            Text("friend_detail.shared_trips".localized())
                 .font(.headline)
                 .fontWeight(.semibold)
             
@@ -256,7 +318,7 @@ struct FriendDetailView: View {
                     .frame(maxWidth: .infinity)
                     .padding()
             } else if sharedEvents.isEmpty {
-                Text("暂无行程")
+                Text("friend_detail.no_trips".localized())
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding()
@@ -297,37 +359,47 @@ struct FriendDetailView: View {
     
     // MARK: - 数据加载
     private func loadFriendDetail() async {
-        isLoading = true
-        defer { isLoading = false }
+        await MainActor.run { isLoading = true }
+        defer { Task { @MainActor in self.isLoading = false } }
         
         do {
             let db = Firestore.firestore()
             let currentUserId = userManager.userOpenId
             
-            // 1. 获取好友基本信息
-            let userSnapshot = try await db.collection("users")
-                .whereField("openid", isEqualTo: friendId)
-                .limit(to: 1)
-                .getDocuments()
-            
-            guard let userDoc = userSnapshot.documents.first else {
-                errorMessage = "找不到好友信息"
+            // 1. 获取好友基本信息（先以 document ID = 用戶 UID 讀取，與 UserManager/EditProfileView 一致）
+            var userData: [String: Any]?
+            let docSnapshot = try await db.collection("users").document(friendId).getDocument()
+            if docSnapshot.exists, let data = docSnapshot.data() {
+                userData = data
+            }
+            if userData == nil {
+                let userSnapshot = try await db.collection("users")
+                    .whereField("openid", isEqualTo: friendId)
+                    .limit(to: 1)
+                    .getDocuments()
+                if let first = userSnapshot.documents.first {
+                    userData = first.data()
+                }
+            }
+            guard let userData = userData else {
+                await MainActor.run { errorMessage = "找不到好友信息" }
                 return
             }
             
-            let userData = userDoc.data()
-            
-            // 2. 获取朋友关系数据（备注名、电话、新增时间等）
-            let friendDoc = try await db.collection("friends")
-                .whereField("owner", isEqualTo: currentUserId)
-                .whereField("friend", isEqualTo: friendId)
-                .limit(to: 1)
-                .getDocuments()
-            
-            let friendData = friendDoc.documents.first?.data() ?? [:]
+            // 2. 获取朋友关系数据（备注名、电话、新增时间等）；失败时仍用用户资料显示
+            var friendData: [String: Any] = [:]
+            do {
+                let friendDoc = try await db.collection("friends")
+                    .whereField("owner", isEqualTo: currentUserId)
+                    .whereField("friend", isEqualTo: friendId)
+                    .limit(to: 1)
+                    .getDocuments()
+                friendData = friendDoc.documents.first?.data() ?? [:]
+            } catch {
+                print("加载朋友关系失败（使用默认）: \(error.localizedDescription)")
+            }
             let sinceTimestamp = friendData["since"] as? Timestamp
             let addedDate = sinceTimestamp?.dateValue() ?? Date()
-            
             let dateFormatter = DateFormatter()
             dateFormatter.dateFormat = "yyyy年MM月dd日"
             let addedDateText = dateFormatter.string(from: addedDate)
@@ -335,7 +407,7 @@ struct FriendDetailView: View {
             await MainActor.run {
                 friendInfo = FriendDetailInfo(
                     id: friendId,
-                    name: userData["name"] as? String ?? userData["displayName"] as? String,
+                    name: (userData["name"] as? String) ?? (userData["displayName"] as? String) ?? (userData["display_name"] as? String),
                     alias: userData["alias"] as? String,
                     email: userData["email"] as? String,
                     photoUrl: userData["photo_url"] as? String ?? userData["photoUrl"] as? String,

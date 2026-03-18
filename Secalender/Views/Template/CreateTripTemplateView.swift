@@ -426,7 +426,6 @@ struct CreateTripTemplateView: View {
     @ViewBuilder
     private func formQuestionCardEventStyle(index: Int, question: ThemeFormQuestion) -> some View {
         let label = formQuestions[safe: index]?.label ?? question.label
-        let desc = formQuestions[safe: index]?.description ?? question.description ?? ""
         
         EventFormCard(icon: iconForQuestionType(question.type), title: label.isEmpty ? "quick_theme.question_label_placeholder".localized() : label, iconColor: .blue) {
             VStack(alignment: .leading, spacing: 16) {

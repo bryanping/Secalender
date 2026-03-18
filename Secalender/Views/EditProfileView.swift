@@ -114,16 +114,11 @@ struct EditProfileView: View {
     
     @ViewBuilder
     private var avatarImage: some View {
-        if let photoUrl = userManager.photoUrl, let url = URL(string: photoUrl) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let img): img.resizable().scaledToFill()
-                default: avatarPlaceholder
-                }
-            }
-        } else {
-            avatarPlaceholder
-        }
+        LocalUserAvatarView(
+            userId: userManager.userOpenId,
+            remotePhotoUrl: userManager.photoUrl,
+            placeholder: { avatarPlaceholder }
+        )
     }
     
     private var avatarPlaceholder: some View {
@@ -389,6 +384,7 @@ struct EditProfileView: View {
         
         do {
             let urlString = try await AvatarUploadService.uploadAvatar(imageData: imageData, userId: userManager.userOpenId)
+            LocalAvatarCache.saveAvatar(imageData, forUserId: userManager.userOpenId)
             try await UserManager.shared.updatePhotoUrl(for: userManager.userOpenId, to: urlString)
             userManager.refresh()
         } catch {

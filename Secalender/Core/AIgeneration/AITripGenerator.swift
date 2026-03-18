@@ -169,7 +169,6 @@ final class AITripGenerator {
         
         // 验证国家是否在支持列表中
         if let countryName = country {
-            let allCountries = dataManager.getAllCountries()
             // 使用模糊匹配（支持简繁体）
             let matchedCountries = dataManager.searchCountries(countryName)
             if matchedCountries.isEmpty {
@@ -702,12 +701,13 @@ final class AITripGenerator {
         var prompt = """
         请为\(destination)规划一套**第一次来也适用、节奏合理、不走马看花**的\(durationDays)天行程规划。
         
-        【核心原则】
-        - 重点放在：城市记忆 + 现代风貌 + 生活感
-        - 每天要有明确的主题和关键词（如"经典城市记忆"、"租界文化"、"现代高度"）
-        - 不是"景点城市"，而是"结构城市" - 要理解城市的骨架和逻辑
-        - 行程设计不是塞满，而是"感受转换"，让记忆会留下来
-        - 每天一个主轴，避免来回折返
+        【核心原則】
+        - 重點放在：城市記憶 + 現代風貌 + 生活感
+        - 每天要有明確的主題和關鍵詞（如「經典城市記憶」「租界文化」「現代高度」）
+        - **細分可玩點**：每個活動必須是單一、具體的點位，不要用大區域或街區概括
+        - 不是「景點城市」，而是「結構城市」— 要理解城市的骨架和邏輯
+        - 行程設計不是塞滿，而是「感受轉換」，讓記憶會留下來
+        - 每天一個主軸，避免來回折返
         
         【用户需求】
         """
@@ -742,15 +742,15 @@ final class AITripGenerator {
             prompt += "\n- 用户自定义兴趣/类型标签：\(customTags.joined(separator: "、"))。这些可能为模糊描述（如「文青咖啡」「网红店」），请理解为目的地周边符合该描述的真实知名景点，安排具体行程时选择该类型的优质地点，避免因标签命名不明确导致行程偏差。"
         }
         
-        // 根据节奏给出更具体的指导
+        // 根据节奏给出更具体的指导（以「具體可玩點」為單位，非大區塊）
         let paceGuidance: String
         switch pace {
         case .relaxed:
-            paceGuidance = "轻松节奏：每天3-4个主要区块，留足时间深度体验，不走马看花"
+            paceGuidance = "輕鬆節奏：每天 4–5 個具體可玩點（不含餐飲），每個點 45–90 分鐘，留足時間深度體驗"
         case .moderate:
-            paceGuidance = "中等节奏：每天4-5个主要区块，平衡体验和效率"
+            paceGuidance = "中等節奏：每天 5–6 個具體可玩點（不含餐飲），每個點 30–75 分鐘，平衡體驗與效率"
         case .tight:
-            paceGuidance = "紧凑节奏：每天5-6个主要区块，高效但不过度疲劳"
+            paceGuidance = "緊湊節奏：每天 6–8 個具體可玩點（不含餐飲），每個點 25–60 分鐘，高效但不過度疲勞"
         }
         prompt += "\n- 节奏要求：\(paceGuidance)"
         
@@ -854,10 +854,13 @@ final class AITripGenerator {
         
         【规划要求 - 向 ChatGPT 顶级行程看齐】
         
-        1. **具体地点名称**（最重要！）
-           - 必须提供真实存在的具体地点名称（如"外滩"、"武康路"、"豫园"、"陆家嘴"）
-           - 绝对不要使用泛泛的"景点参观"、"文化体验"等模板化名称
-           - 每个地点都要有详细地址
+        1. **細分可玩點**（最重要！）
+           - 每個活動必須是**單一、具體的可玩點**，不要用大區域或街區概括
+           - 錯誤範例：用「外灘」概括整片區域、「武康路」概括整條街、「豫園商圈」概括整個商圈
+           - 正確範例：細分為「外灘觀景台」「外灘歷史建築群」「武康大樓」「武康路網紅咖啡」「豫園九曲橋」「豫園城隍廟」等具體點位
+           - 每個景點活動建議時長 30–90 分鐘，避免單一大區塊超過 2 小時
+           - 必須提供真實存在的具體地點名稱，每個地點都要有詳細地址
+           - 絕對不要使用泛泛的「景點參觀」「文化體驗」等模板化名稱
         
         2. **每天的主题和思路**
            - 每天要有明确的主题（如"经典上海·城市记忆线"、"租界文化·生活美学线"）
@@ -870,10 +873,10 @@ final class AITripGenerator {
            - 包含文化背景、城市理解、生活美学等深度内容
            - 例如："外滩是城市名片，早上人少、建筑细节清楚"、"这是'上海最不像中国、但最上海'的区域"
         
-        4. **路线逻辑**
-           - 考虑地理位置，合理规划路线，减少往返
-           - 一天最多3-4个主要区块，不跨城区来回折返
-           - 每个区块内的活动要连贯，有逻辑
+        4. **路線邏輯與細分**
+           - 考慮地理位置，合理規劃路線，減少往返
+           - 同區域內的多個可玩點可串連，但**每個點必須獨立列為一個 activity**，不要合併成一個大區塊
+           - 不跨城區來回折返，同一區塊內可安排 2–3 個具體點位串連
         
         5. **餐厅和美食**（重要！）
            - **不推荐具体餐厅或地点**：为了节省AI使用，餐饮地点不做AI规划，只预留时间即可
@@ -925,7 +928,7 @@ final class AITripGenerator {
               "daySummary": "这一天行程的深度总结，说明主题和思路",
               "activities": [
                 {
-                  "title": "具体地点名称（如：外滩、武康路、豫园）或餐饮类型（如：午餐、晚餐、早餐）",
+                  "title": "具體可玩點名稱（如：外灘觀景台、武康大樓、豫園九曲橋）或餐飲類型（如：午餐、晚餐、早餐）",
                   "location": "详细地址（如：上海市黄浦区中山东一路）。**重要**：如果是餐饮类型（category包含'餐厅'或'Restaurant'），location必须为null（不是空字符串，必须明确写null）",
                   "description": "深度描述：为什么值得去、有什么特色、如何体验、文化背景。例如：'外滩是城市名片，早上人少、建筑细节清楚，是理解上海历史的最佳起点'。餐饮类型可以简单说明用餐建议",
                   "category": "景点/餐厅/购物/娱乐/文化",
@@ -943,8 +946,9 @@ final class AITripGenerator {
           "generalTips": ["总体建议，如：'上海不是景点城市，是结构城市'、'行程设计不是塞满，而是感受转换'"]
         }
         
-        【关键要求】
-        - 所有地点必须是真实存在的具体名称（如"外滩"、"武康路"、"豫园"），绝对不要用"景点参观"、"文化体验"等模板化名称
+        【關鍵要求】
+        - 每個活動必須是單一、具體的可玩點，不要用大區域概括（如不要用「外灘」概括，應細分為「外灘觀景台」「外灘歷史建築群」等）
+        - 所有地點必須是真實存在的具體名稱，絕對不要用「景點參觀」「文化體驗」等模板化名稱
         - 每个活动都要有"rationale"（思路说明），解释为什么这样安排
         - 描述要有深度、有思考，包含文化背景和城市理解
         - 每天要有明确的主题（dayTheme）和关键词（dayKeywords）
@@ -992,6 +996,7 @@ final class AITripGenerator {
         【Core Principles】
         - Focus on: city memories + modern vibes + local life
         - Each day should have a clear theme and keywords (e.g., "Classic City Memories", "Colonial Culture", "Modern Heights")
+        - **Granular playable points**: Each activity must be a single, specific point—do NOT use broad areas or districts (e.g., split "The Bund" into "Bund Viewing Platform", "Bund Historic Buildings")
         - Not a "sightseeing city", but a "structural city" - understand the city's skeleton and logic
         - Itinerary design is not about filling up, but about "feeling transitions" that create lasting memories
         - One main theme per day, avoid back-and-forth travel
@@ -1030,11 +1035,11 @@ final class AITripGenerator {
         let paceGuidance: String
         switch pace {
         case .relaxed:
-            paceGuidance = "Relaxed pace: 3-4 main blocks per day, plenty of time for deep experiences, not rushed"
+            paceGuidance = "Relaxed pace: 4-5 specific playable points per day (excl. meals), 45-90 min each, plenty of time for deep experiences"
         case .moderate:
-            paceGuidance = "Moderate pace: 4-5 main blocks per day, balanced experience and efficiency"
+            paceGuidance = "Moderate pace: 5-6 specific playable points per day (excl. meals), 30-75 min each, balanced experience and efficiency"
         case .tight:
-            paceGuidance = "Tight pace: 5-6 main blocks per day, efficient but not overly tiring"
+            paceGuidance = "Tight pace: 6-8 specific playable points per day (excl. meals), 25-60 min each, efficient but not overly tiring"
         }
         prompt += "\n- Pace requirement: \(paceGuidance)"
         
@@ -1112,10 +1117,13 @@ final class AITripGenerator {
         
         【Planning Requirements - Match ChatGPT Top Itineraries】
         
-        1. **Specific Location Names** (Most Important!)
-           - Must provide real, specific location names (e.g., "The Bund", "Wukang Road", "Yu Garden", "Lujiazui")
+        1. **Granular Playable Points** (Most Important!)
+           - Each activity must be a **single, specific playable point**—do NOT use broad areas or districts
+           - Bad: "The Bund" (entire area), "Wukang Road" (whole street), "Yu Garden area" (entire district)
+           - Good: "Bund Viewing Platform", "Bund Historic Buildings", "Wukang Building", "Yu Garden Nine-Bend Bridge"
+           - Each attraction: 30-90 min recommended, avoid single blocks exceeding 2 hours
+           - Must provide real, specific location names with detailed address
            - Never use generic names like "sightseeing visit", "cultural experience" etc.
-           - Each location must have detailed address
         
         2. **Daily Themes and Rationale**
            - Each day should have a clear theme (e.g., "Classic Shanghai · City Memory Line", "Colonial Culture · Life Aesthetics Line")
@@ -1128,10 +1136,10 @@ final class AITripGenerator {
            - Include cultural background, city understanding, life aesthetics and other deep content
            - Example: "The Bund is the city's calling card, fewer people in the morning, clear architectural details"
         
-        4. **Route Logic**
+        4. **Route Logic & Granularity**
            - Consider geographic location, plan routes reasonably, reduce back-and-forth
-           - Maximum 3-4 main blocks per day, don't cross districts back and forth
-           - Activities within each block should be coherent and logical
+           - Multiple points in the same area can be chained, but **each point must be a separate activity**—do NOT merge into one broad block
+           - Don't cross districts back and forth; 2-3 specific points can be chained within one area
         
         5. **Restaurants and Food**
            - Recommend specific restaurants or areas (e.g., "People's Square/Nanjing East Road", "Anfu Road/Hengshan Road")
@@ -1160,7 +1168,7 @@ final class AITripGenerator {
               "daySummary": "Deep summary of this day's itinerary, explaining theme and rationale",
               "activities": [
                 {
-                  "title": "Specific location name (e.g., The Bund, Wukang Road, Yu Garden)",
+                  "title": "Specific playable point (e.g., Bund Viewing Platform, Wukang Building, Yu Garden Nine-Bend Bridge)",
                   "location": "Detailed address (e.g., Zhongshan East Road, Huangpu District, Shanghai)",
                   "description": "Deep description: why it's worth visiting, what's special, how to experience, cultural background. Example: 'The Bund is the city's calling card, fewer people in the morning, clear architectural details, the best starting point to understand Shanghai's history'",
                   "category": "Attraction/Restaurant/Shopping/Entertainment/Culture",
@@ -1179,7 +1187,8 @@ final class AITripGenerator {
         }
         
         【Key Requirements】
-        - All locations must be real, specific names (e.g., "The Bund", "Wukang Road", "Yu Garden"), never use generic names like "sightseeing visit", "cultural experience"
+        - Each activity must be a single, specific playable point—do NOT use broad areas (e.g., split "The Bund" into "Bund Viewing Platform", "Bund Historic Buildings")
+        - All locations must be real, specific names, never use generic names like "sightseeing visit", "cultural experience"
         - Each activity must have "rationale" (rationale explanation), explaining why arranged this way
         - Descriptions must be deep and thoughtful, including cultural background and city understanding
         - Each day must have clear theme (dayTheme) and keywords (dayKeywords)
@@ -1631,6 +1640,7 @@ final class AITripGenerator {
         【基本原則】
         - 重点：都市の記憶 + モダンな雰囲気 + ローカルライフ
         - 各日には明確なテーマとキーワードが必要（例：「クラシックな都市の記憶」、「植民地文化」、「モダンな高さ」）
+        - **細分化された遊びポイント**：各活動は単一・具体的なポイントであること。広いエリアや街区で概括しない（例：「外灘」→「外灘展望台」「外灘歴史建築群」に細分）
         - 「観光スポット都市」ではなく「構造都市」- 都市の骨格と論理を理解する
         - 旅程設計は詰め込むことではなく、「感情の転換」を生み出し、記憶を残すこと
         - 1日1つの主軸、往復を避ける
@@ -1652,11 +1662,11 @@ final class AITripGenerator {
         let paceGuidance: String
         switch pace {
         case .relaxed:
-            paceGuidance = "リラックスしたペース：1日3-4つの主要ブロック、深い体験のための十分な時間、急がせない"
+            paceGuidance = "リラックスしたペース：1日4-5つの具体的な遊びポイント（食事除く）、各45-90分、深い体験のための十分な時間"
         case .moderate:
-            paceGuidance = "中程度のペース：1日4-5つの主要ブロック、体験と効率のバランス"
+            paceGuidance = "中程度のペース：1日5-6つの具体的な遊びポイント（食事除く）、各30-75分、体験と効率のバランス"
         case .tight:
-            paceGuidance = "タイトなペース：1日5-6つの主要ブロック、効率的だが過度に疲れない"
+            paceGuidance = "タイトなペース：1日6-8つの具体的な遊びポイント（食事除く）、各25-60分、効率的だが過度に疲れない"
         }
         prompt += "\n- ペース要件：\(paceGuidance)"
         
@@ -1734,10 +1744,12 @@ final class AITripGenerator {
         
         【計画要件 - ChatGPTトップ旅程に合わせる】
         
-        1. **具体的な場所名**（最重要！）
-           - 実在する具体的な場所名を提供する必要があります（例：「外灘」、「武康路」、「豫園」、「陸家嘴」）
-           - 「観光スポット訪問」、「文化体験」などの汎用的なテンプレート名を絶対に使用しないでください
-           - 各場所には詳細な住所が必要です
+        1. **細分化された遊びポイント**（最重要！）
+           - 各活動は**単一・具体的な遊びポイント**である必要があります。広いエリアや街区で概括しないでください
+           - 悪い例：「外灘」でエリア全体、「武康路」で通り全体、「豫園エリア」でエリア全体
+           - 良い例：「外灘展望台」「外灘歴史建築群」「武康大楼」「豫園九曲橋」など具体的なポイント
+           - 各観光スポット：30-90分推奨、単一ブロックが2時間を超えないように
+           - 実在する具体的な場所名と詳細な住所が必要です
         
         2. **毎日のテーマと論理**
            - 各日には明確なテーマが必要（例：「クラシック上海・都市記憶線」、「租界文化・生活美学線」）
@@ -1750,10 +1762,10 @@ final class AITripGenerator {
            - 文化的背景、都市理解、生活美学などの深い内容を含める
            - 例：「外灘は都市の名刺、朝は人が少なく、建築の細部がはっきりしている」
         
-        4. **ルートの論理**
+        4. **ルートの論理と細分化**
            - 地理的位置を考慮し、ルートを合理的に計画し、往復を減らす
-           - 1日最大3-4つの主要ブロック、地区を越えて往復しない
-           - 各ブロック内の活動は一貫性があり、論理的である必要があります
+           - 同エリア内の複数ポイントは連鎖可能だが、**各ポイントは別のactivityとして列挙**。1つの広いブロックにまとめない
+           - 地区を越えて往復しない。同エリア内で2-3の具体的ポイントを連鎖可能
         
         5. **レストランと美食**
            - 具体的なレストランや地域を推奨（例：「人民広場/南京東路」、「安福路/衡山路」）
@@ -1801,7 +1813,8 @@ final class AITripGenerator {
         }
         
         【重要な要件】
-        - すべての場所は実在する具体的な名前である必要があります（例：「外灘」、「武康路」、「豫園」）、「観光スポット訪問」、「文化体験」などの汎用的なテンプレート名を絶対に使用しないでください
+        - 各活動は単一・具体的な遊びポイントであること。広いエリアで概括しない（例：「外灘」→「外灘展望台」「外灘歴史建築群」に細分）
+        - すべての場所は実在する具体的な名前である必要があります。「観光スポット訪問」「文化体験」などの汎用的なテンプレート名を絶対に使用しないでください
         - 各活動には「rationale」（論理の説明）が必要で、なぜこのように配置したかを説明します
         - 説明は深く、思考を含み、文化的背景と都市理解を含む必要があります
         - 各日には明確なテーマ（dayTheme）とキーワード（dayKeywords）が必要です
@@ -2310,7 +2323,7 @@ final class AITripGenerator {
         }
         
         // MARK: - 每日結束：返回住宿（考慮住宿與行程距離）
-        if hasAccommodation && !isLastDay, let lastActivityWithLocation = aiDay.activities.last(where: { $0.location != nil && !($0.location?.isEmpty ?? true) }) {
+        if hasAccommodation && !isLastDay, aiDay.activities.contains(where: { $0.location != nil && !($0.location?.isEmpty ?? true) }) {
             let returnTransitDuration: TimeInterval = 30 * 60
             let returnEnd = currentTime.addingTimeInterval(returnTransitDuration)
             if returnEnd <= dayEnd {

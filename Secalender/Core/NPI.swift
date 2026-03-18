@@ -36,7 +36,8 @@ enum NPIFieldWhitelist {
         "home_tasks_scope", "home_rooms", "home_frequency",
         "move_from", "move_to", "move_items_scope",
         "destination", "sessions_per_week", "daily_time_budget_minutes",
-        "participants", "time_windows"
+        "participants", "time_windows",
+        "city", "trip_goal", "theme_type", "travel_limit_minutes", "culture_type", "surrounding_categories"
     ]
     
     static func isAllowed(_ id: String) -> Bool {
@@ -172,6 +173,7 @@ enum NPIMapper {
                 case "duration_weeks", "plan_duration_weeks": npi.duration_weeks = v
                 case "sessions_per_week", "fit_sessions_per_week", "learn_sessions_per_week": npi.sessions_per_week = v
                 case "daily_time_budget_minutes", "learn_daily_minutes", "fit_session_minutes": npi.daily_time_budget_minutes = v
+                case "travel_limit_minutes": npi.daily_time_budget_minutes = v
                 case "meet_duration_minutes": break // 可擴展
                 default: break
                 }
@@ -190,6 +192,7 @@ enum NPIMapper {
                 case "must_do", "learn_subjects", "fit_sport_type": npi.must_do = arr
                 case "avoid": npi.avoid = arr
                 case "travel_areas", "travel_destination": npi.travel_areas = arr; if let first = arr.first { npi.destination = first }
+                case "theme_type", "culture_type", "surrounding_categories": npi.must_do = arr
                 default: break
                 }
             case .text:
@@ -201,6 +204,10 @@ enum NPIMapper {
                     npi.constraints_text = raw
                 } else if ["travel_destination", "destination"].contains(q.id) {
                     npi.destination = raw
+                } else if q.id == "city" {
+                    npi.destination = raw
+                } else if ["goal", "plan_goal", "trip_goal"].contains(q.id) {
+                    npi.goal = raw
                 } else {
                     if npi.constraints_text != nil {
                         npi.constraints_text! += "\n\(q.id): \(raw)"

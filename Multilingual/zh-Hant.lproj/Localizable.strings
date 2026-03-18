@@ -335,6 +335,28 @@
 "friends.unknown" = "未知好友";
 "friends.delete" = "刪除好友";
 "friends.delete_confirmation" = "確定要刪除這位好友嗎？";
+"friends.open_schedule" = "公開行程";
+"friends.no_events_to_share" = "暫無可分享的行程";
+"friends.public_active_count" = "%d 個公開活動";
+"friends.recently_active" = "最近活躍: ";
+"friends.status_just_now" = "剛剛";
+"friends.status_minutes_ago" = "%d 分鐘前";
+"friends.status_hours_ago" = "%d 小時前";
+"friends.status_yesterday" = "昨天";
+"friends.status_days_ago" = "%d 天前";
+"friend_detail.title" = "個人資料";
+"friend_detail.tab_trips" = "行程";
+"friend_detail.tab_themes" = "主題";
+"friend_detail.tab_templates" = "模板";
+"friend_detail.save" = "保存";
+"friend_detail.save_success" = "保存成功";
+"friend_detail.load_failed" = "加載失敗";
+"friend_detail.shared_trips" = "你有權限看的朋友行程";
+"friend_detail.no_trips" = "暫無行程";
+"friend_detail.themes_placeholder" = "主題功能開發中";
+"friend_detail.templates_placeholder" = "模板功能開發中";
+"friend_detail.edit_friend_profile" = "編輯朋友資料";
+"friend_detail.friend_profile" = "朋友資料";
 
 // MARK: - Friend Card
 "friend_card.public_plans" = "公開行程";
@@ -426,6 +448,15 @@
 "event_create.new_trip" = "新增行程";
 "event_create.no_groups_yet" = "您還沒有可管理的社群";
 "event_create.public_to_friends" = "公開給好友";
+"event_tags.label" = "標籤";
+"event_tags.work" = "工作";
+"event_tags.travel" = "旅行";
+"event_tags.sport" = "運動";
+"event_tags.meetup" = "聚會";
+"event_tags.study" = "學習";
+"event_tags.other" = "其他";
+"event_search.placeholder" = "搜尋標題、地點、備註…";
+"event_search.all_tags" = "全部";
 "event_create.other_settings" = "其他設定";
 "event_create.sync_to_calendar" = "同步到 Apple 行事曆";
 "event_create.invite_friends" = "邀請好友";
@@ -584,6 +615,10 @@
 "member.followers" = "粉絲";
 "member.favorites" = "收藏";
 "member.likes" = "獲讚";
+"profile_page.title" = "個人資料";
+"profile_page.following" = "追蹤中";
+"profile_page.saves" = "Saves";
+"profile_page.my_trips_hint" = "我的行程將顯示在這裡";
 "member.my_qr" = "我的QR";
 "member.qr_hint" = "掃碼加好友 / 看作品";
 "member.share_profile" = "分享個人主頁";
@@ -1076,6 +1111,12 @@
 "weekend_flash.default_attraction_food" = "美食街區";
 "weekend_flash.default_attraction_shopping" = "購物中心";
 "weekend_flash.default_attraction_art" = "藝術空間";
+"weekend_flash.form.start_date" = "計劃日期";
+"weekend_flash.form.duration_days" = "天數（固定 1 天）";
+"weekend_flash.form.destination" = "地點";
+"weekend_flash.form.destination_placeholder" = "城市或區域，如：台北、信義區";
+"weekend_flash.form.travel_limit" = "交通時間上限";
+"weekend_flash.form.theme_type" = "主題（選後產生周邊特色）";
 
 // MARK: - Deep Culture Template
 "deep_culture.select_features" = "選擇歷史藝術特色";
@@ -1093,6 +1134,11 @@
 "deep_culture.completing" = "正在完成您的行程";
 "deep_culture.start_planning" = "開始規劃";
 "deep_culture.ai_creating" = "AI正在為您打造行程...";
+"deep_culture.form.start_date" = "計劃開始日期";
+"deep_culture.form.duration_days" = "天數";
+"deep_culture.form.city" = "當前／目標城市";
+"deep_culture.form.city_placeholder" = "輸入城市，搜尋古蹟、美術館、展覽";
+"deep_culture.form.culture_type" = "類型（古蹟、美術、展覽等）";
 
 // MARK: - Enrich Trip Template
 "enrich_trip.title" = "充實行程";
@@ -1108,6 +1154,11 @@
 "enrich_trip.category.entertainment" = "休閒娛樂";
 "enrich_trip.add_to_trip" = "添加到行程";
 "enrich_trip.select_date" = "選擇日期";
+"enrich_trip.form.start_date" = "計劃開始日期";
+"enrich_trip.form.duration_days" = "天數";
+"enrich_trip.form.trip_goal" = "行程目標或目的地";
+"enrich_trip.form.trip_goal_placeholder" = "填寫目標後，推薦周圍購物、美食、休憩等";
+"enrich_trip.form.surrounding" = "周圍推薦類型";
 "enrich_trip.select_time" = "選擇時間";
 "enrich_trip.add_success" = "已添加到行程";
 "enrich_trip.add_failed" = "添加失敗：%@";

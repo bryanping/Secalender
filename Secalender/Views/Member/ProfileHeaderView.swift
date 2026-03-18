@@ -13,15 +13,10 @@ struct ProfileHeaderView: View {
     @State private var showQRSheet = false
     @State private var showShareSheet = false
     @State private var copiedId = false
-    
-    // 模擬數據（後續接後端）
-    var level: Int { 24 }
-    var isVerified: Bool { true }
-    var isOfficial: Bool { false }
-    var followingCount: Int { 1200 }
-    var followersCount: Int { 850 }
-    var favoritesCount: Int { 3400 }
-    var likesCount: Int { 12000 }
+    @State private var profileStats: UserProfileStats = .empty
+
+    private var level: Int { 24 }
+    private var isOfficial: Bool { false }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -109,15 +104,15 @@ struct ProfileHeaderView: View {
                 .buttonStyle(.plain)
             }
             
-            // Stats pills: 追蹤｜粉絲｜收藏｜總覽（小卡片風格）
+            // Stats pills: 追蹤｜粉絲｜收藏｜總覽（全部接後端）
             HStack(spacing: 0) {
-                statPill(value: followingCount, label: "member.following".localized())
+                statPill(value: profileStats.followingCount, label: "member.following".localized())
                 statDivider
-                statPill(value: followersCount, label: "member.followers".localized())
+                statPill(value: profileStats.followersCount, label: "member.followers".localized())
                 statDivider
-                statPill(value: favoritesCount, label: "member.favorites".localized())
+                statPill(value: profileStats.favoritesCount, label: "member.favorites".localized())
                 statDivider
-                statPill(value: likesCount, label: "member.likes".localized())
+                statPill(value: profileStats.likesCount, label: "member.likes".localized())
             }
             .padding(.vertical, 14)
             .background(Color(.systemGray6))
@@ -133,24 +128,25 @@ struct ProfileHeaderView: View {
         .sheet(isPresented: $showQRSheet) {
             QRCodeSheetView(userName: userManager.displayName ?? "", userCode: userManager.userCode ?? "")
         }
+        .task {
+            guard !userManager.userOpenId.isEmpty else { return }
+            profileStats = await UserProfileStatsService.shared.fetchStats(for: userManager.userOpenId)
+        }
+        .onChange(of: userManager.userOpenId) { _, newValue in
+            guard !newValue.isEmpty else { return }
+            Task {
+                profileStats = await UserProfileStatsService.shared.fetchStats(for: newValue)
+            }
+        }
     }
     
     private var avatarView: some View {
         Group {
-            if let photoUrl = userManager.photoUrl, let url = URL(string: photoUrl) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img):
-                        img.resizable().scaledToFill()
-                    case .failure, .empty:
-                        avatarPlaceholder
-                    @unknown default:
-                        avatarPlaceholder
-                    }
-                }
-            } else {
-                avatarPlaceholder
-            }
+            LocalUserAvatarView(
+                userId: userManager.userOpenId,
+                remotePhotoUrl: userManager.photoUrl,
+                placeholder: { avatarPlaceholder }
+            )
         }
         .frame(width: 72, height: 72)
         .clipShape(Circle())
@@ -160,7 +156,7 @@ struct ProfileHeaderView: View {
         )
         .overlay(
             Group {
-                if isVerified {
+                if profileStats.isVerified {
                     Image(systemName: "checkmark.seal.fill")
                         .font(.caption)
                         .foregroundColor(.white)

@@ -882,7 +882,7 @@ struct EnrichTripView: View {
                 timeFormatter.dateFormat = "HH:mm:ss"
                 
                 // 保存主行程
-                var mainEvent = Event(
+                let mainEvent = Event(
                     title: tripTitle,
                     creatorOpenid: userManager.userOpenId,
                     color: "#FF6280",
@@ -904,7 +904,7 @@ struct EnrichTripView: View {
                 
                 // 保存周边行程
                 for scheduledEvent in scheduledEvents {
-                    var event = Event(
+                    let event = Event(
                         title: scheduledEvent.title,
                         creatorOpenid: userManager.userOpenId,
                         color: "#FF6280",

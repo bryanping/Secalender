@@ -352,14 +352,14 @@ struct EventTimeDisplayView: View {
         let calendar = Calendar.current
         
         guard let startDate = event.dateObj,
-              let startDateTime = event.startDateTime else {
+              event.startDateTime != nil else {
             return event.date
         }
         
         let isAllDay = event.isAllDay ?? false
         
         // 检查是否跨日期
-        if !isAllDay, let endDateObj = event.endDateObj, let _ = event.endDateTime {
+        if !isAllDay, let endDateObj = event.endDateObj, event.endDateTime != nil {
             let startDay = calendar.startOfDay(for: startDate)
             let endDay = calendar.startOfDay(for: endDateObj)
             

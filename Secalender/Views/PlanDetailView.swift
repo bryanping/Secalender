@@ -15,15 +15,19 @@ import UIKit
 struct PlanDetailView: View {
     let plan: PlanResult
     var customTitle: String? = nil  // 用户自定义标题
-    var onEdit: ((PlanResult) -> Void)? = nil           // 僅用於「編輯整個行程」按鈕，切換到 PlanEditView
-    var onPlanUpdated: ((PlanResult) -> Void)? = nil      // block 編輯或 GPS 更新時同步 plan，不切換視圖
+    /// 生成引擎輸出；有值時顯示衝突並提供直接套用 / 存為建議 / scheduler 補時間（一律寫入 time_items）
+    var generationResult: GenerationResult? = nil
+    var onEdit: ((PlanResult) -> Void)? = nil
+    var onPlanUpdated: ((PlanResult) -> Void)? = nil
     var onAddToCalendar: (() -> Void)? = nil
     var onSaveToTemplate: ((String?) -> Void)? = nil
-    var onDismiss: (() -> Void)? = nil  // 关闭时的回调
-    var onSave: (() -> Void)? = nil  // 储存回调
-    var onShare: (() -> Void)? = nil  // 分享回调
+    var onDismiss: (() -> Void)? = nil
+    var onSave: (() -> Void)? = nil
+    var onShare: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var userManager: FirebaseUserManager
+    @State private var isApplying = false
+    @State private var applyError: String? = nil
     
     // 横向滚动相关状态
     @State private var selectedDayIndex: Int = 0  // 当前选中的日期索引
@@ -61,15 +65,13 @@ struct PlanDetailView: View {
                 }
             } else {
                 VStack(spacing: 0) {
-                    // 头部：标题卡片（参考图片）
+                    if let result = generationResult, !result.conflicts.isEmpty {
+                        conflictsBanner(conflicts: result.conflicts)
+                    }
                     headerCardView
-                    
-                    // 日期选择栏
                     if !planDays.isEmpty {
                         daySelectorBar
                     }
-                    
-                    // 行程内容：横向滚动
                     horizontalScrollContentView
                 }
             }
@@ -142,33 +144,178 @@ struct PlanDetailView: View {
             }
         }
         .confirmationDialog("選擇操作", isPresented: $showActionSheet, titleVisibility: .visible) {
+            if generationResult != nil {
+                Button("直接套用") {
+                    applyDirectToTimeItems()
+                }
+                Button("存為建議") {
+                    saveAsSuggestionToTimeItems()
+                }
+                Button("用 scheduler 補時間") {
+                    applyWithScheduler()
+                }
+            } else {
+                Button("加入行程") {
+                    addPlanToCalendar()
+                }
+            }
             Button("儲存") {
                 savePlan()
             }
-            
             Button("分享") {
                 sharePlan()
             }
-            
-            Button("加入行程") {
-                addPlanToCalendar()
-            }
-            
             if onEdit != nil {
                 Button("編輯整個行程") {
                     openPlanEditView()
                 }
             }
-            
             Button("取消", role: .cancel) {}
         }
         .sheet(isPresented: $showShareSheet) {
             ActivityViewController(activityItems: shareItems)
         }
+        .overlay {
+            if isApplying {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                ProgressView("寫入中…")
+                    .tint(.white)
+            }
+        }
+        .alert("套用失敗", isPresented: Binding(get: { applyError != nil }, set: { if !$0 { applyError = nil } })) {
+            Button("確定", role: .cancel) { applyError = nil }
+        } message: {
+            if let msg = applyError { Text(msg) }
+        }
         #endif
     }
     
     
+    // MARK: - 衝突提示橫幅
+    private func conflictsBanner(conflicts: [ConflictInfo]) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange)
+            Text("與現有行程有 \(conflicts.count) 處時間重疊")
+                .font(.subheadline)
+                .foregroundColor(.primary)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.orange.opacity(0.15))
+    }
+
+    // MARK: - 寫入 time_items（生成引擎套用）
+    private func applyDirectToTimeItems() {
+        guard let result = generationResult else { return }
+        isApplying = true
+        applyError = nil
+        Task {
+            do {
+                try await ApplyStrategy.shared.applyDirect(
+                    candidates: result.candidates,
+                    requestId: result.requestId,
+                    themeKey: result.themeKey
+                )
+                await MainActor.run {
+                    isApplying = false
+                    onDismiss?()
+                }
+            } catch {
+                await MainActor.run {
+                    isApplying = false
+                    applyError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func saveAsSuggestionToTimeItems() {
+        guard let result = generationResult else { return }
+        isApplying = true
+        applyError = nil
+        Task {
+            do {
+                try await ApplyStrategy.shared.saveAsSuggestion(
+                    candidates: result.candidates,
+                    requestId: result.requestId,
+                    themeKey: result.themeKey
+                )
+                await MainActor.run {
+                    isApplying = false
+                    onDismiss?()
+                }
+            } catch {
+                await MainActor.run {
+                    isApplying = false
+                    applyError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func applyWithScheduler() {
+        guard let result = generationResult else { return }
+        isApplying = true
+        applyError = nil
+        Task {
+            do {
+                let context = try await ContextProvider.shared.fetchContext(for: buildMinimalRequest(from: result))
+                let scheduled = GenerationSchedulerService.shared.schedule(
+                    untimedCandidates: result.candidates.filter { !$0.hasTime },
+                    rangeStart: context.rangeStart,
+                    rangeEnd: context.rangeEnd,
+                    existingItems: context.existingItems
+                )
+                let merged = result.candidates.map { c in
+                    if c.hasTime { return c }
+                    return scheduled.first(where: { $0.id == c.id }) ?? c
+                }
+                try await ApplyStrategy.shared.applyDirect(
+                    candidates: merged.filter { $0.hasTime },
+                    requestId: result.requestId,
+                    themeKey: result.themeKey
+                )
+                await MainActor.run {
+                    isApplying = false
+                    onDismiss?()
+                }
+            } catch {
+                await MainActor.run {
+                    isApplying = false
+                    applyError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func buildMinimalRequest(from result: GenerationResult) -> GenerateRequest {
+        let start = result.plan?.days.first?.date ?? Date()
+        let end = result.plan?.days.last?.date ?? start
+        var slots = ExtractedSlots()
+        slots.dateRange = SlotInfo(value: DateRange(startDate: start, endDate: end), confidence: 1.0)
+        return GenerateRequest(
+            generateMode: .multiDay,
+            themeKey: nil,
+            themeMode: .generateItinerary,
+            userId: nil,
+            slots: slots,
+            assumptions: [],
+            riskFlags: [],
+            npi: nil,
+            customInstructions: nil,
+            departureLocation: nil,
+            accommodationAddress: nil,
+            accommodationCoordinate: nil,
+            selectedAttractionNames: [],
+            customSurroundingTags: [],
+            adults: 1,
+            children: 0
+        )
+    }
+
     // MARK: - 头部卡片视图（参考图片）
     
     private var headerCardView: some View {
@@ -389,9 +536,6 @@ struct PlanDetailView: View {
     ) -> [TimeBlock] {
         let calendar = Calendar.current
         let dayStart = calendar.startOfDay(for: dayDate)
-        let dayEnd = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: dayStart) ?? dayStart
-        
-        var result: [TimeBlock] = []
         let visibleBlocks = blocks.filter { $0.type == .activity || $0.type == .flex || $0.type == .rest }
         
         // 找到更新的 block
@@ -931,7 +1075,7 @@ struct PlanDetailView: View {
         
         // 添加最后一个行程前的 transit（重新计算）
         if updatedIndex > 0 {
-            let previousBlock = blocks[updatedIndex - 1]
+            _ = blocks[updatedIndex - 1]
             let baseTransitDuration: TimeInterval = 30 * 60
             let bufferRatio: TimeInterval = 0.2
             let maxBufferDuration: TimeInterval = 20 * 60
@@ -1610,12 +1754,11 @@ struct BlockCardView: View {
         let availableApps = MapAppManager.shared.getAvailableMapApps()
         
         if let googleMaps = availableApps.first(where: { $0 == .google }) {
-            MapAppManager.shared.openMapApp(googleMaps, destination: destination)
+            MapAppManager.shared.openMapApp(googleMaps, destination: destination, coordinate: nil, transportType: .automobile)
         } else if let appleMaps = availableApps.first(where: { $0 == .apple }) {
-            MapAppManager.shared.openMapApp(appleMaps, destination: destination)
+            MapAppManager.shared.openMapApp(appleMaps, destination: destination, coordinate: nil, transportType: .automobile)
         } else {
-            // 如果都没有，使用 Apple Maps 作为默认
-            MapAppManager.shared.openMapApp(.apple, destination: destination)
+            MapAppManager.shared.openMapApp(.apple, destination: destination, coordinate: nil, transportType: .automobile)
         }
         #endif
     }

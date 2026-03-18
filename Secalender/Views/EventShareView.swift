@@ -104,7 +104,8 @@ struct EventShareView: View {
         .sheet(isPresented: $showMapAppSelector) {
             MapAppSelectorView(
                 destination: mapAppSelectorDestination,
-                coordinate: mapAppSelectorCoordinate
+                coordinate: mapAppSelectorCoordinate,
+                transportType: mapAppSelectorTransportType
             )
         }
         .sheet(isPresented: $showEditEvent) {
@@ -824,23 +825,15 @@ struct EventShareView: View {
         }
     }
     
+    /// 打开地图并导航到目的地（统一走 MapAppManager，直接跳转第三方 App，不打开网页）
     private func openMapForDestination(_ destination: String) {
-        let encodedDestination = destination.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? destination
-        
-        if isInChina() {
-            let gaodeURL = "iosamap://path?sourceApplication=Secalender&dname=\(encodedDestination)"
-            if let url = URL(string: gaodeURL) {
-                openURL(url)
-            } else if let webUrl = URL(string: "https://uri.amap.com/marker?position=\(encodedDestination)") {
-                openURL(webUrl)
-            }
+        let apps = MapAppManager.shared.getAvailableMapApps()
+        if let google = apps.first(where: { $0 == .google }) {
+            MapAppManager.shared.openMapApp(google, destination: destination, coordinate: nil, transportType: .automobile)
+        } else if let apple = apps.first(where: { $0 == .apple }) {
+            MapAppManager.shared.openMapApp(apple, destination: destination, coordinate: nil, transportType: .automobile)
         } else {
-            let googleMapsURL = "comgooglemaps://?q=\(encodedDestination)"
-            if let url = URL(string: googleMapsURL) {
-                openURL(url)
-            } else if let appleUrl = URL(string: "http://maps.apple.com/?q=\(encodedDestination)") {
-                openURL(appleUrl)
-            }
+            MapAppManager.shared.openMapApp(.apple, destination: destination, coordinate: nil, transportType: .automobile)
         }
     }
     
@@ -969,10 +962,11 @@ struct EventShareView: View {
         checkIfInternationalTrip()
         
         // 从destination获取坐标（需要地理编码）
+        let geocodingFailedText = "event_share.geocoding_failed".localized()
         let geocoder = CLGeocoder()
         geocoder.geocodeAddressString(event.destination) { placemarks, error in
             if let error = error {
-                print("event_share.geocoding_failed".localized() + ": \(error.localizedDescription)")
+                print(geocodingFailedText + ": \(error.localizedDescription)")
                 return
             }
             

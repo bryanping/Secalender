@@ -367,7 +367,7 @@ struct BlockEditView: View {
             
             // 4. 首先尝试从城市资料库获取
             let database = CityAttractionsDatabase.shared
-            var cityAttractions = database.getFilteredAttractions(
+            let cityAttractions = database.getFilteredAttractions(
                 for: cityName,
                 country: countryName,
                 interestTags: interestTags,

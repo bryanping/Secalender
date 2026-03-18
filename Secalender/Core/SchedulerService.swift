@@ -121,7 +121,7 @@ final class SchedulerService {
     
     /// 一鍵套用：將 suggestions 寫入 time_items（type=event），並將關聯 task 標記 done
     func applySuggestions(_ suggestions: [TimeItem]) async throws {
-        for var s in suggestions {
+        for s in suggestions {
             var eventItem = s
             eventItem.type = .event
             eventItem.source = .user

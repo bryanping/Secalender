@@ -18,7 +18,13 @@ final class AppleCalendarManager: ObservableObject {
     private init() {
         Task {
             let status = EKEventStore.authorizationStatus(for: .event)
-            hasPermission = (status == .authorized)
+            let hasAccess: Bool
+            if #available(iOS 17.0, *) {
+                hasAccess = (status == .fullAccess || status == .writeOnly)
+            } else {
+                hasAccess = (status == .authorized)
+            }
+            hasPermission = hasAccess
         }
     }
 
@@ -28,13 +34,22 @@ final class AppleCalendarManager: ObservableObject {
 
         switch status {
         case .notDetermined:
-            eventStore.requestAccess(to: .event) { granted, _ in
-                DispatchQueue.main.async {
-                    self.hasPermission = granted
-                    completion(granted)
+            if #available(iOS 17.0, *) {
+                eventStore.requestFullAccessToEvents { [weak self] granted, _ in
+                    DispatchQueue.main.async {
+                        self?.hasPermission = granted
+                        completion(granted)
+                    }
+                }
+            } else {
+                eventStore.requestAccess(to: .event) { [weak self] granted, _ in
+                    DispatchQueue.main.async {
+                        self?.hasPermission = granted
+                        completion(granted)
+                    }
                 }
             }
-        case .authorized:
+        case .authorized, .fullAccess, .writeOnly:
             self.hasPermission = true
             completion(true)
         default:

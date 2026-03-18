@@ -224,7 +224,7 @@ struct DeepCultureView: View {
         // 后台同步 Firebase
         Task {
             do {
-                try await EventManager.shared.fetchEvents()
+                _ = try await EventManager.shared.fetchEvents()
                 let updatedEvents = EventCacheManager.shared.loadEvents(for: userManager.userOpenId)
                 await MainActor.run {
                     allEvents = updatedEvents.filter { $0.deleted != 1 }
@@ -754,7 +754,7 @@ struct DeepCultureView: View {
     }
     
     private func generatePlan() async {
-        guard let location = currentGPSLocation else {
+        guard currentGPSLocation != nil else {
             await MainActor.run {
                 errorMessage = "缺少位置信息"
                 showErrorAlert = true
@@ -775,7 +775,6 @@ struct DeepCultureView: View {
         let destination = gpsLocationAddress.isEmpty ? (gpsLocationName.isEmpty ? "当前位置" : gpsLocationName) : gpsLocationAddress
         
         // 固定为一日游
-        let calendar = Calendar.current
         let startDate = Date()
         let endDate = startDate
         

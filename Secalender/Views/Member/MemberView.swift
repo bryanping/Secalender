@@ -72,6 +72,13 @@ struct MemberView: View {
             .background(Color(.systemGroupedBackground))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    NavigationLink(destination: PersonalProfileView().environmentObject(userManager)) {
+                        Text("profile_page.title".localized())
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 16) {
                         Button(action: { showShareSheet = true }) {
@@ -83,7 +90,6 @@ struct MemberView: View {
                             Image(systemName: "gearshape.fill")
                                 .font(.body)
                         }
-                        
                     }
                 }
             }
@@ -99,7 +105,7 @@ struct MemberView: View {
                 userManager.refresh()
                 setupRequestCountListener()
             }
-            .onChange(of: userManager.userOpenId) { _ in
+            .onChange(of: userManager.userOpenId) { _, _ in
                 setupRequestCountListener()
             }
             .onDisappear {

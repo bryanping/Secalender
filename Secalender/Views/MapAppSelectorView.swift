@@ -7,11 +7,14 @@
 
 import SwiftUI
 import CoreLocation
+import MapKit
 
-/// 地图应用选择器视图
+/// 地图应用选择器视图（选择后直接跳转第三方 App，填入地址并显示路线/距离）
 struct MapAppSelectorView: View {
     let destination: String
     let coordinate: CLLocationCoordinate2D?
+    /// 交通方式；传入时在第三方 App 中直接以「导航/路线」打开并显示距离路段，不传则默认驾车
+    var transportType: MKDirectionsTransportType? = .automobile
     @Environment(\.dismiss) var dismiss
     
     @State private var availableMapApps: [MapAppType] = []
@@ -75,7 +78,7 @@ struct MapAppSelectorView: View {
     }
     
     private func openMapApp(_ mapApp: MapAppType) {
-        MapAppManager.shared.openMapApp(mapApp, destination: destination, coordinate: coordinate)
+        MapAppManager.shared.openMapApp(mapApp, destination: destination, coordinate: coordinate, transportType: transportType)
     }
 }
 
@@ -84,18 +87,19 @@ struct MapAppSelectorSheet: ViewModifier {
     @Binding var isPresented: Bool
     let destination: String
     let coordinate: CLLocationCoordinate2D?
+    var transportType: MKDirectionsTransportType? = .automobile
     
     func body(content: Content) -> some View {
         content
             .sheet(isPresented: $isPresented) {
-                MapAppSelectorView(destination: destination, coordinate: coordinate)
+                MapAppSelectorView(destination: destination, coordinate: coordinate, transportType: transportType)
             }
     }
 }
 
 extension View {
-    /// 显示地图应用选择器
-    func mapAppSelector(isPresented: Binding<Bool>, destination: String, coordinate: CLLocationCoordinate2D? = nil) -> some View {
-        modifier(MapAppSelectorSheet(isPresented: isPresented, destination: destination, coordinate: coordinate))
+    /// 显示地图应用选择器（选择后直接跳转第三方 App 并显示路线）
+    func mapAppSelector(isPresented: Binding<Bool>, destination: String, coordinate: CLLocationCoordinate2D? = nil, transportType: MKDirectionsTransportType? = .automobile) -> some View {
+        modifier(MapAppSelectorSheet(isPresented: isPresented, destination: destination, coordinate: coordinate, transportType: transportType))
     }
 }

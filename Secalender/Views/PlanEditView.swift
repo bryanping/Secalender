@@ -340,13 +340,11 @@ struct PlanEditView: View {
             showErrorAlert = true
             return
         }
-        Task.detached(priority: .userInitiated) {
-            // 在背景執行耗時的 plan 轉換
+        Task { @MainActor in
+            // 在主線程執行 plan 轉換（computePlanInitialData 為 MainActor 隔離）
             let result = computePlanInitialData()
-            await MainActor.run {
-                applyPlanInitialData(result)
-                isDataLoaded = true
-            }
+            applyPlanInitialData(result)
+            isDataLoaded = true
         }
     }
     
@@ -590,10 +588,10 @@ struct PlanEditView: View {
             }
             
             // 等待一小段时间确保 Firebase 写入完成
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 秒
+            _ = try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 秒
             
             // 从 Firebase 重新加载，更新本地缓存
-            try? await EventManager.shared.fetchEvents()
+            _ = try? await EventManager.shared.fetchEvents()
             
             // 通知 CalendarView 刷新
             NotificationCenter.default.post(name: NSNotification.Name("EventSaved"), object: nil)
@@ -624,8 +622,6 @@ struct PlanEditView: View {
         }
         
         for (date, items) in groupedByDate.sorted(by: { $0.key < $1.key }) {
-            var blocks: [TimeBlock] = []
-            
             // 获取该天的原始 blocks（包括 transit, buffer, flex, rest）
             let originalBlocks = originalBlocksByDay[date] ?? []
             

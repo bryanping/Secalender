@@ -69,7 +69,7 @@ final class TimeItemMigration {
                 "status": "active",
                 "startAt": Timestamp(date: startAt),
                 "endAt": Timestamp(date: endAt),
-                "notes": data["information"] as? String,
+                "notes": (data["information"] as? String).map { $0 as Any } ?? NSNull(),
                 "createdAt": Timestamp(date: Date()),
                 "updatedAt": FieldValue.serverTimestamp()
             ]

@@ -999,7 +999,7 @@ struct PasswordManageView: View {
         isChanging = true
         errorMessage = ""
         do {
-            try await AuthenticationManager.shared.linkEmail(email: email, password: newPassword)
+            _ = try await AuthenticationManager.shared.linkEmail(email: email, password: newPassword)
             showSuccessAlert = true
         } catch {
             errorMessage = error.localizedDescription

@@ -58,6 +58,11 @@ struct CalendarView: View {
     @State private var showBatchShare: Bool = false
     @State private var showMultiEventView: Bool = false
     @State private var showImportAppleCalendar: Bool = false
+    
+    /// 搜尋關鍵字（標題、地點、備註、標籤）
+    @State private var searchText: String = ""
+    /// 依標籤篩選（可選）
+    @State private var selectedTagFilter: String? = nil
 
     var body: some View {
         NavigationView {
@@ -66,6 +71,7 @@ struct CalendarView: View {
                 Divider()
                 // 筛选标签栏
                 filterTabBar
+
                 Divider()
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -114,8 +120,14 @@ struct CalendarView: View {
                         // 执行自动导入（如果启用）
                         await performAutoImportIfEnabled()
                     }
-                    .onChange(of: selectedFilter) { _ in
+                    .onChange(of: selectedFilter) { _, _ in
                         // 当筛选器改变时，重新过滤事件
+                        events = filterEvents(allEvents)
+                    }
+                    .onChange(of: searchText) { _, _ in
+                        events = filterEvents(allEvents)
+                    }
+                    .onChange(of: selectedTagFilter) { _, _ in
                         events = filterEvents(allEvents)
                     }
                     .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("EventSaved"))) { _ in
@@ -218,7 +230,6 @@ struct CalendarView: View {
         }
 
         let myId = userManager.userOpenId
-        let role = userManager.userRole
         
         // 1. 先从本地缓存加载事件（立即显示）
         let cachedEvents = EventCacheManager.shared.loadEvents(for: myId)
@@ -481,6 +492,16 @@ struct CalendarView: View {
         }
         .background(Color(UIColor.systemBackground))
     }
+    
+    /// 當前事件中出現過的所有標籤（用於篩選）
+    private var allDistinctTags: [String] {
+        var set: Set<String> = []
+        for event in allEvents {
+            (event.tags ?? []).forEach { set.insert($0) }
+        }
+        return EventTagPresets.tagKeys.filter { set.contains($0) }
+    }
+    
 
     private func previousMonth() {
         currentMonth = Calendar.current.date(byAdding: .month, value: -1, to: currentMonth)!
@@ -552,111 +573,96 @@ struct CalendarView: View {
     }
     
     // MARK: - 事件筛选方法
-    /// 根据选中的筛选类型过滤事件（按照新的存储逻辑）
+    /// 根据选中的筛选类型、搜尋關鍵字、標籤過濾事件
     private func filterEvents(_ eventsToFilter: [Event]) -> [Event] {
         let myId = userManager.userOpenId
+        var result: [Event]
         
         switch selectedFilter {
         case .all:
-            // 返回所有事件（个人、好友公开、社群）
-            return eventsToFilter
-            
+            result = eventsToFilter
         case .myOwn:
-            // 只返回自己创建的事件（来自 users/{myId}/events，无论是否有 groupId）
-            return eventsToFilter.filter { $0.creatorOpenid == myId }
-            
+            result = eventsToFilter.filter { $0.creatorOpenid == myId }
         case .friendAndPublic:
-            // 返回朋友分享的事件或社群事件
-            // 优先级：社群活动优先（即使自己创建的社群活动也要显示）
-            return eventsToFilter.filter { event in
-                // 1. 社群事件（优先判断）- 包括自己创建的社群活动
-                // 社群活动应该显示为蓝色，即使创建者是自己
-                if let groupId = event.groupId, groupIds.contains(groupId) {
-                    return true
-                }
-                
-                // 2. 排除自己创建的个人活动（非社群活动）
-                if event.creatorOpenid == myId {
-                    return false  // 排除自己创建的个人活动
-                }
-                
-                // 3. 好友公开的事件（来自 users/{friendId}/events，openChecked == 1）
-                if friendIds.contains(event.creatorOpenid) && event.openChecked == 1 {
-                    return true
-                }
-                
+            result = eventsToFilter.filter { event in
+                if let groupId = event.groupId, groupIds.contains(groupId) { return true }
+                if event.creatorOpenid == myId { return false }
+                if friendIds.contains(event.creatorOpenid) && event.openChecked == 1 { return true }
                 return false
             }
-            
         case .nearby:
-            // 附近行程：基于用户位置筛选
-            guard let userLocation = locationManager.currentLocation else {
-                // 如果无法获取位置，返回空数组
-                return []
-            }
-            
-            return eventsToFilter.filter { event in
-                // 如果事件有地点信息，计算距离
-                if !event.destination.isEmpty {
-                    // 这里可以添加基于mapObj的距离计算
-                    // 暂时返回所有有地点信息且公开的事件
-                    return event.openChecked == 1 && !event.destination.isEmpty
-                }
-                return false
+            guard locationManager.currentLocation != nil else { return [] }
+            result = eventsToFilter.filter { event in
+                event.openChecked == 1 && !event.destination.isEmpty
             }
         }
+        
+        // 搜尋：標題、地點、備註、標籤
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if !query.isEmpty {
+            result = result.filter { event in
+                event.title.lowercased().contains(query) ||
+                event.destination.lowercased().contains(query) ||
+                (event.information?.lowercased().contains(query) ?? false) ||
+                (event.tags?.contains { $0.lowercased().contains(query) } ?? false)
+            }
+        }
+        
+        // 標籤篩選
+        if let tag = selectedTagFilter {
+            result = result.filter { ($0.tags ?? []).contains(tag) }
+        }
+        
+        return result
     }
     
     /// 从 Firestore 文档解析 Event（与 EventManager 中的方法保持一致）
-    private func parseEventFromDocument(_ document: QueryDocumentSnapshot) -> Event? {
-        do {
-            let data = document.data()
-            
-            // 手动解析，处理缺失字段和类型不匹配
-            var event = Event()
-            
-            // 基本字段
-            event.id = data["id"] as? Int ?? abs(document.documentID.hashValue)
-            event.title = data["title"] as? String ?? ""
-            event.creatorOpenid = data["creatorOpenid"] as? String ?? ""
-            event.color = data["color"] as? String ?? "#FF0000" // 默认红色
-            
-            // 处理date字段：可能是String或Timestamp
-            if let dateString = data["date"] as? String {
-                event.date = dateString
-            } else if let timestamp = data["date"] as? Timestamp {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "yyyy-MM-dd"
-                event.date = formatter.string(from: timestamp.dateValue())
-            } else {
-                event.date = ""
-            }
-            
-            event.startTime = data["startTime"] as? String ?? ""
-            event.endTime = data["endTime"] as? String ?? ""
-            event.endDate = data["endDate"] as? String
-            event.destination = data["destination"] as? String ?? ""
-            event.mapObj = data["mapObj"] as? String ?? ""
-            event.openChecked = data["openChecked"] as? Int ?? 0
-            event.personChecked = data["personChecked"] as? Int ?? 0
-            event.personNumber = data["personNumber"] as? Int
-            event.sponsorType = data["sponsorType"] as? String
-            event.category = data["category"] as? String
-            event.createTime = data["createTime"] as? String ?? ""
-            event.deleted = data["deleted"] as? Int
-            event.information = data["information"] as? String
-            event.groupId = data["groupId"] as? String
-            event.isAllDay = data["isAllDay"] as? Bool ?? false
-            event.repeatType = data["repeatType"] as? String ?? "never"
-            event.calendarComponent = data["calendarComponent"] as? String ?? "default"
-            event.travelTime = data["travelTime"] as? String
-            event.invitees = data["invitees"] as? [String]
-            
-            return event
-        } catch {
-            print("解析事件失败: \(error)")
-            return nil
+    nonisolated private func parseEventFromDocument(_ document: QueryDocumentSnapshot) -> Event? {
+        let data = document.data()
+        
+        // 手动解析，处理缺失字段和类型不匹配
+        var event = Event()
+        
+        // 基本字段
+        event.id = data["id"] as? Int ?? abs(document.documentID.hashValue)
+        event.title = data["title"] as? String ?? ""
+        event.creatorOpenid = data["creatorOpenid"] as? String ?? ""
+        event.color = data["color"] as? String ?? "#FF0000" // 默认红色
+        
+        // 处理date字段：可能是String或Timestamp
+        if let dateString = data["date"] as? String {
+            event.date = dateString
+        } else if let timestamp = data["date"] as? Timestamp {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            event.date = formatter.string(from: timestamp.dateValue())
+        } else {
+            event.date = ""
         }
+        
+        event.startTime = data["startTime"] as? String ?? ""
+        event.endTime = data["endTime"] as? String ?? ""
+        event.endDate = data["endDate"] as? String
+        event.destination = data["destination"] as? String ?? ""
+        event.mapObj = data["mapObj"] as? String ?? ""
+        event.openChecked = data["openChecked"] as? Int ?? 0
+        event.personChecked = data["personChecked"] as? Int ?? 0
+        event.personNumber = data["personNumber"] as? Int
+        event.sponsorType = data["sponsorType"] as? String
+        event.category = data["category"] as? String
+        event.createTime = data["createTime"] as? String ?? ""
+        event.deleted = data["deleted"] as? Int
+        event.information = data["information"] as? String
+        event.groupId = data["groupId"] as? String
+        event.isAllDay = data["isAllDay"] as? Bool ?? false
+        event.repeatType = data["repeatType"] as? String ?? "never"
+        event.calendarComponent = data["calendarComponent"] as? String ?? "default"
+        event.travelTime = data["travelTime"] as? String
+        event.invitees = data["invitees"] as? [String]
+        event.aiEvent = data["aiEvent"] as? Int ?? 0
+        event.tags = data["tags"] as? [String]
+        
+        return event
     }
     
     // MARK: - 多选模式工具栏
@@ -756,7 +762,6 @@ struct CalendarView: View {
     /// 国家名称转换（英文转中文）
     private func convertCountryToChinese(_ englishCountry: String) -> String? {
         let dataManager = DestinationDataManager.shared
-        let allCountries = dataManager.getAllCountries()
         
         // 先尝试直接搜索（支持简繁体英文）
         let matchedCountries = dataManager.searchCountries(englishCountry)
@@ -795,7 +800,7 @@ struct CalendarView: View {
             guard let eventDate = event.dateObj,
                   event.deleted != 1,
                   !event.destination.isEmpty,
-                  let eventCoordinate = parseCoordinate(from: event.mapObj) else {
+                  parseCoordinate(from: event.mapObj) != nil else {
                 return false
             }
             

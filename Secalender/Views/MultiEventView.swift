@@ -225,6 +225,7 @@ struct MultiEventView: View {
         }
         .sheet(isPresented: $showEventEditView) {
             if let event = eventToEdit {
+                let capturedEventId = event.id
                 NavigationView {
                     EventEditView(
                         viewModel: EventDetailViewModel(event: event),
@@ -236,7 +237,7 @@ struct MultiEventView: View {
                             eventToEdit = nil
                         },
                         onDelete: {
-                            if let eventId = event.id {
+                            if let eventId = capturedEventId {
                                 withAnimation {
                                     deletedEventIds.insert(eventId)
                                 }
@@ -388,6 +389,15 @@ struct MultiEventView: View {
         .onAppear {
             // 初始化时更新分组数据
             eventsByDate = groupEventsByDate()
+            // 從日曆進入時，將當前顯示的行程預設為已選中並進入多選模式，方便直接批量刪除/編輯
+            if source == .calendar && !eventIds.isEmpty {
+                if selectedEventIds.isEmpty {
+                    selectedEventIds = Set(eventIds)
+                }
+                if !isMultiSelectMode {
+                    isMultiSelectMode = true
+                }
+            }
         }
         .onChange(of: eventsToView.count) { _, _ in
             // 当事件列表变化时，重新分组
@@ -715,7 +725,6 @@ struct MultiEventView: View {
             showBlockEditView = true
         } else {
             // 如果找不到对应的 Block，创建一个新的
-            let calendar = Calendar.current
             let startTime = event.startDateTime ?? Date()
             let endTime = event.endDateTime ?? event.startDateTime ?? Date()
             
@@ -989,7 +998,6 @@ struct EventCard: View {
     // 根据事件类型和内容判断图标颜色
     private func iconColorForEvent(_ event: Event) -> Color {
         let title = event.title.lowercased()
-        let destination = event.destination.lowercased()
         
         // 交通类型：灰色或浅蓝色
         if title.contains("搭乘") || title.contains("地鐵") || title.contains("地鐵") || 
@@ -1035,7 +1043,6 @@ struct EventCard: View {
     // 根据事件类型和内容判断图标
     private func iconForEvent(_ event: Event) -> String {
         let title = event.title.lowercased()
-        let destination = event.destination.lowercased()
         
         // 交通类型
         if title.contains("搭乘") || title.contains("地鐵") || title.contains("subway") ||

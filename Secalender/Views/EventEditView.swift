@@ -46,6 +46,8 @@ struct EventEditView: View {
     
     @State private var selectedCoordinate: CLLocationCoordinate2D?
 
+    @State private var selectedTags: [String] = []
+
     let onComplete: (() -> Void)?
     let onDelete: (() -> Void)?  // 删除后的回调
     let source: EditSource  // 编辑来源
@@ -151,6 +153,39 @@ struct EventEditView: View {
                             .buttonStyle(PlainButtonStyle())
                         }
                         
+                        // 事件標籤
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("event_tags.label".localized())
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(EventTagPresets.defaultTags, id: \.key) { tag in
+                                        let key = tag.key
+                                        let isSelected = selectedTags.contains(key)
+                                        Button {
+                                            if isSelected {
+                                                selectedTags.removeAll { $0 == key }
+                                            } else {
+                                                selectedTags.append(key)
+                                            }
+                                        } label: {
+                                            Text(tag.localizedKey.localized())
+                                                .font(.system(size: 13))
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 8)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 16)
+                                                        .fill(isSelected ? Color.blue : Color(UIColor.systemGray5))
+                                                )
+                                                .foregroundColor(isSelected ? .white : .primary)
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                    }
+                                }
+                            }
+                        }
+                        
                         // 設定時間
                         VStack(alignment: .leading, spacing: 4) {
                             Text("event_create.set_time".localized())
@@ -174,7 +209,7 @@ struct EventEditView: View {
                         }
                     }
                 }
-                .onChange(of: isAllDay) { newValue in
+                .onChange(of: isAllDay) { _, newValue in
                     if newValue {
                         isHasEnd = false
                         let calendar = Calendar.current
@@ -249,6 +284,7 @@ struct EventEditView: View {
             isAllDay = viewModel.event.isAllDay ?? false
             repeatType = viewModel.event.repeatType ?? "never"
             calendarComponent = viewModel.event.calendarComponent ?? "default"
+            selectedTags = viewModel.event.tags ?? []
             
             // 初始化日期
             if let dateObj = viewModel.event.dateObj {
@@ -281,12 +317,12 @@ struct EventEditView: View {
             
             //修改内容：isHasEnd 初始化只看“是否真的有结束字段”，不做推断
             if !isAllDay {
-                isHasEnd = (viewModel.event.endTime != nil) || (viewModel.event.endDate != nil)
+                isHasEnd = viewModel.event.endDate != nil
             } else {
                 isHasEnd = viewModel.event.endDate != nil && viewModel.event.endDate != viewModel.event.date
             }
         }
-        .onChange(of: isAllDay) { newValue in
+        .onChange(of: isAllDay) { _, newValue in
             if newValue {
                 let calendar = Calendar.current
                 selectedStartTime = calendar.startOfDay(for: selectedDate)
@@ -360,6 +396,7 @@ struct EventEditView: View {
         viewModel.event.isAllDay = isAllDay
         viewModel.event.repeatType = repeatType
         viewModel.event.calendarComponent = calendarComponent
+        viewModel.event.tags = selectedTags.isEmpty ? nil : selectedTags
         
         // 日期
         viewModel.event.date = dateToString(selectedDate, format: "yyyy-MM-dd")
@@ -397,7 +434,7 @@ struct EventEditView: View {
         
         // 先更新本地缓存（立即响应，不等待网络）
         let userId = userManager.userOpenId
-        if let eventId = viewModel.event.id {
+        if viewModel.event.id != nil {
             // 更新事件：先更新本地缓存
             EventCacheManager.shared.updateEventInCache(viewModel.event, for: userId)
         } else {

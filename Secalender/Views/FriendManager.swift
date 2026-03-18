@@ -14,6 +14,7 @@
 
 import Foundation
 import Firebase
+import FirebaseFirestore
 
 // MARK: - FriendEntry 数据模型
 /// 好友条目数据模型，统一管理好友信息
@@ -153,12 +154,15 @@ final class FriendManager {
                     
                     return snapshot.documents.compactMap { doc in
                         let data = doc.data()
+                        let name = (data["name"] as? String) ?? (data["display_name"] as? String) ?? (data["displayName"] as? String)
+                        let photoUrl = (data["photo_url"] as? String) ?? (data["photoUrl"] as? String)
+                        let uid = (data["openid"] as? String) ?? (data["user_id"] as? String) ?? doc.documentID
                         return FriendEntry(
-                            id: doc.documentID,
+                            id: uid,
                             alias: data["alias"] as? String,
-                            name: data["name"] as? String,
+                            name: name,
                             email: data["email"] as? String,
-                            photoUrl: data["photo_url"] as? String,
+                            photoUrl: photoUrl,
                             gender: data["gender"] as? String
                         )
                     }
@@ -181,6 +185,56 @@ final class FriendManager {
     /// 此方法保留用于向后兼容，实际使用 getFriends 方法
     func loadFriends(for userId: String) async {
         _ = await getFriends(for: userId)
+    }
+
+    /// 取得某好友的「未過期公開活動」數量（openChecked == 1，且 endDate/date >= 今天）
+    func fetchPublicActiveEventCount(for friendId: String) async -> Int {
+        let db = Firestore.firestore()
+        let today = Calendar.current.startOfDay(for: Date())
+        do {
+            let snapshot = try await db.collection("users").document(friendId)
+                .collection("events")
+                .whereField("openChecked", isEqualTo: 1)
+                .getDocuments()
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            var count = 0
+            for doc in snapshot.documents {
+                let data = doc.data()
+                guard (data["deleted"] as? Int) != 1 else { continue }
+                let dateStr = data["date"] as? String ?? ""
+                let endDateStr = data["endDate"] as? String ?? dateStr
+                let lastDateStr = endDateStr.isEmpty ? dateStr : endDateStr
+                guard let lastDate = formatter.date(from: lastDateStr) else { continue }
+                if lastDate >= today {
+                    count += 1
+                }
+            }
+            return count
+        } catch {
+            print("⚠️ fetchPublicActiveEventCount error: \(error.localizedDescription)")
+            return 0
+        }
+    }
+
+    /// 取得個人狀態字串（最近活躍），來自 users 文檔的 last_active_at；若無則回傳 nil
+    @MainActor
+    func fetchLastActiveString(for friendId: String) async -> String? {
+        let db = Firestore.firestore()
+        do {
+            let doc = try await db.collection("users").document(friendId).getDocument()
+            guard let data = doc.data(),
+                  let ts = data["last_active_at"] as? Timestamp else { return nil }
+            let date = ts.dateValue()
+            let interval = Date().timeIntervalSince(date)
+            if interval < 60 { return "friends.status_just_now".localized() }
+            if interval < 3600 { return String(format: "friends.status_minutes_ago".localized(), Int(interval / 60)) }
+            if interval < 86400 { return String(format: "friends.status_hours_ago".localized(), Int(interval / 3600)) }
+            if interval < 86400 * 2 { return "friends.status_yesterday".localized() }
+            return String(format: "friends.status_days_ago".localized(), Int(interval / 86400))
+        } catch {
+            return nil
+        }
     }
 
     /// 判断是否为好友

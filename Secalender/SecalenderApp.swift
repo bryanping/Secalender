@@ -15,6 +15,7 @@ import UserNotifications
 @main
 struct SecalenderApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @Environment(\.scenePhase) private var scenePhase
 
     @StateObject private var userManager = FirebaseUserManager.shared
     @StateObject private var localization = LocalizationManager.shared
@@ -29,6 +30,11 @@ struct SecalenderApp: App {
                 .id(localization.localeIdentifier) // 强制刷新整棵 SwiftUI 树
                 .onOpenURL { url in
                     handleIncomingURL(url)
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        SyncQueueService.shared.triggerSyncIfNeeded()
+                    }
                 }
         }
     }
@@ -65,7 +71,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil
     ) -> Bool {
         FirebaseApp.configure()
-        
+        // Firestore 預設已啟用離線持久化，減少重複讀取與流量
+
         // 初始化 Google Maps 和 Places API
         // 从 Info.plist 读取 API Key（通过 Secrets.xcconfig 配置）
         var apiKeyFound = false
@@ -122,6 +129,18 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             print("      - Geocoding API")
             print("   7. 详细步骤请查看: API_KEY_CONFIGURATION_GUIDE.md")
             #endif
+        }
+        
+        // 同步佇列：App 啟動後若有待同步項目則發出通知，由 EventManager 處理
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("SyncQueueNeedsSync"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { await EventManager.shared.processSyncQueue() }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            SyncQueueService.shared.triggerSyncIfNeeded()
         }
         
         return true

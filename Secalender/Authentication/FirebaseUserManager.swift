@@ -67,7 +67,7 @@ class FirebaseUserManager: ObservableObject {
     }
 
     func ensureUserIsSignedIn(completion: @escaping (Bool) -> Void) {
-        if let user = Auth.auth().currentUser {
+        if Auth.auth().currentUser != nil {
             completion(true)
         } else {
             Auth.auth().signInAnonymously { result, error in
@@ -80,6 +80,21 @@ class FirebaseUserManager: ObservableObject {
         // 修改内容：防止并发加载
         guard !isLoading else { return }
         
+        // 先從本機快取顯示，減少 Firestore 讀取與延遲
+        if let cached = UserProfileCache.shared.load(userId: userId) {
+            self.alias = cached.alias
+            self.displayName = cached.displayName ?? cached.name
+            self.gender = cached.gender
+            self.photoUrl = cached.photoUrl
+            self.userRole = cached.role ?? "member"
+            self.userCode = cached.userCode
+            self.region = cached.region
+            self.phone = cached.phone
+            self.userCodeModified = cached.userCodeModified ?? false
+            self.favoriteTags = cached.favoriteTags ?? []
+            self.signature = cached.signature
+        }
+        
         isLoading = true
         refreshTask = Task { @MainActor in
             defer { self.isLoading = false }
@@ -90,7 +105,6 @@ class FirebaseUserManager: ObservableObject {
                 guard !Task.isCancelled else { return }
                 
                 self.alias = dbUser.alias
-                // 優先使用 displayName，如果沒有則使用 name
                 self.displayName = dbUser.displayName ?? dbUser.name
                 self.gender = dbUser.gender
                 self.photoUrl = dbUser.photoUrl
@@ -101,6 +115,8 @@ class FirebaseUserManager: ObservableObject {
                 self.userCodeModified = dbUser.userCodeModified ?? false
                 self.favoriteTags = dbUser.favoriteTags ?? []
                 self.signature = dbUser.signature
+                
+                UserProfileCache.shared.save(CachedUserProfile.from(dbUser))
                 
                 try await loadFriendIds(for: userId)
             } catch {

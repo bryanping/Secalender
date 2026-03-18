@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 import Firebase
 import FirebaseFirestore
 import FirebaseFirestoreSwift
@@ -400,82 +401,119 @@ struct FriendsAndGroupsView: View {
 }
 
 
-// MARK: - 朋友行视图
+// MARK: - 朋友行视图（2.0：头像/人名、公开行程标签、分享活动/日历入口）
 struct FriendRowView: View {
     let friend: FriendEntry
     @EnvironmentObject var userManager: FirebaseUserManager
     @State private var showDeleteConfirmation = false
-    @State private var showFriendDetail = false
+    @State private var showShareActivitySheet = false
+    
+    private var displayName: String {
+        friend.alias ?? friend.name ?? friend.email ?? "friends.unknown".localized()
+    }
     
     var body: some View {
-        Button {
-            showFriendDetail = true
-        } label: {
-            HStack(spacing: 16) {
-                // 头像 - 玻璃态效果
-                if let urlStr = friend.photoUrl, let url = URL(string: urlStr) {
-                    AsyncImage(url: url) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                    }
-                    .frame(width: 56, height: 56)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(.white.opacity(0.3), lineWidth: 2)
-                    )
-                    .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-                } else {
-                    Circle()
-                        .fill(.ultraThinMaterial)
+        HStack(spacing: 16) {
+            // 点击整行进入好友详情
+            NavigationLink(destination: FriendDetailView(friendId: friend.id)
+                .environmentObject(userManager)) {
+                HStack(spacing: 16) {
+                    // 頭像
+                    if let urlStr = friend.photoUrl, let url = URL(string: urlStr) {
+                        CachedAsyncImage(url: url) {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                        }
                         .frame(width: 56, height: 56)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .foregroundColor(.secondary)
-                                .font(.system(size: 24))
-                        )
+                        .clipShape(Circle())
                         .overlay(
                             Circle()
                                 .stroke(.white.opacity(0.3), lineWidth: 2)
                         )
                         .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-                }
-                
-                // 名字
-                Text(friend.alias ?? friend.name ?? friend.email ?? "friends.unknown".localized())
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-                
-                Spacer()
-                
-                // 删除按钮 - 玻璃态效果
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                        showDeleteConfirmation = true
+                    } else {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .frame(width: 56, height: 56)
+                            .overlay(
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(.secondary)
+                                    .font(.system(size: 24))
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(.white.opacity(0.3), lineWidth: 2)
+                            )
+                            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
                     }
-                } label: {
-                    Image(systemName: "trash")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.red)
-                        .frame(width: 40, height: 40)
-                        .background(.ultraThinMaterial, in: Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(.white.opacity(0.2), lineWidth: 1)
-                        )
+                    
+                    // 名字 + 可選公開行程標籤
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Text(displayName)
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                            Text("friends.open_schedule".localized())
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.green.opacity(0.9), in: Capsule())
+                        }
+                    }
+                    
+                    Spacer(minLength: 0)
                 }
-                .buttonStyle(.plain)
             }
+            .buttonStyle(.plain)
+            
+            // 分享活動（不觸發導航）
+            Button {
+                showShareActivitySheet = true
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .frame(width: 40, height: 40)
+            }
+            .buttonStyle(.plain)
+            
+            // 日曆（進入好友詳情看行程）
+            NavigationLink(destination: FriendDetailView(friendId: friend.id)
+                .environmentObject(userManager)) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .frame(width: 40, height: 40)
+            }
+            .buttonStyle(.plain)
+            
+            // 删除
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    showDeleteConfirmation = true
+                }
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.red)
+                    .frame(width: 40, height: 40)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(.white.opacity(0.2), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
-        .sheet(isPresented: $showFriendDetail) {
-            FriendDetailView(friendId: friend.id)
-                .environmentObject(userManager)
+        .sheet(isPresented: $showShareActivitySheet) {
+            ShareActivitiesToFriendSheet(
+                friendId: friend.id,
+                friendName: displayName
+            )
+            .environmentObject(userManager)
         }
         .alert("friends.delete".localized(), isPresented: $showDeleteConfirmation) {
             Button("common.cancel".localized(), role: .cancel) {}
@@ -497,6 +535,105 @@ struct FriendRowView: View {
             )
         } catch {
             print("删除好友失败: \(error.localizedDescription)")
+        }
+    }
+}
+
+// MARK: - 分享活動給此好友（選擇行程後分享）
+struct ShareActivitiesToFriendSheet: View {
+    let friendId: String
+    let friendName: String
+    @EnvironmentObject var userManager: FirebaseUserManager
+    @Environment(\.dismiss) var dismiss
+    @State private var events: [Event] = []
+    @State private var selectedEventIds: Set<Int> = []
+    @State private var isLoading = true
+    @State private var isSharing = false
+    @State private var showSuccess = false
+    
+    var body: some View {
+        NavigationView {
+            Group {
+                if isLoading {
+                    ProgressView("friends.loading".localized())
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if events.isEmpty {
+                    Text("friends.no_events_to_share".localized())
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(events, id: \.id) { event in
+                            if let eid = event.id {
+                                Toggle(isOn: Binding(
+                                    get: { selectedEventIds.contains(eid) },
+                                    set: { if $0 { selectedEventIds.insert(eid) } else { selectedEventIds.remove(eid) } }
+                                )) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(event.title)
+                                            .font(.headline)
+                                        if !event.date.isEmpty {
+                                            Text(event.date)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("event_share_action.share_event".localized())
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("common.cancel".localized()) { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("event_share.share".localized()) {
+                        Task { await shareSelected() }
+                    }
+                    .disabled(selectedEventIds.isEmpty || isSharing)
+                }
+            }
+            .task {
+                await loadMyEvents()
+            }
+            .alert("event_share_action.share_success".localized(), isPresented: $showSuccess) {
+                Button("common.confirm".localized(), role: .cancel) {
+                    dismiss()
+                }
+            }
+        }
+    }
+    
+    private func loadMyEvents() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let all = try await EventManager.shared.fetchEvents()
+            let mine = all.filter { $0.creatorOpenid == userManager.userOpenId && ($0.deleted ?? 0) != 1 }
+            await MainActor.run {
+                events = mine.sorted { ($0.dateObj ?? .distantPast) < ($1.dateObj ?? .distantPast) }
+            }
+        } catch {
+            await MainActor.run { events = [] }
+        }
+    }
+    
+    private func shareSelected() async {
+        guard !selectedEventIds.isEmpty else { return }
+        isSharing = true
+        defer { isSharing = false }
+        do {
+            try await EventManager.shared.shareMultipleEventsWithFriends(
+                eventIds: Array(selectedEventIds),
+                friendIds: [friendId]
+            )
+            await MainActor.run { showSuccess = true }
+        } catch {
+            print("分享活動失敗: \(error.localizedDescription)")
         }
     }
 }
@@ -591,7 +728,7 @@ struct FriendActivityCardStackView: View {
             cardStack
         }
         .onAppear { displayedInvitations = invitations }
-        .onChange(of: invitations) { displayedInvitations = invitations }
+        .onChange(of: invitations) { _, newValue in displayedInvitations = newValue }
     }
     
     private var sectionTitle: some View {
@@ -766,13 +903,9 @@ struct MemberRowView: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // 頭像
+            // 頭像 - 優先本機快取
             if let urlStr = member.photoUrl, let url = URL(string: urlStr) {
-                AsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
+                CachedAsyncImage(url: url) {
                     Circle()
                         .fill(Color.gray.opacity(0.3))
                 }
@@ -1018,5 +1151,69 @@ struct InviteMembersToGroupView: View {
             showErrorAlert = true
         }
         isInviting = false
+    }
+}
+
+// MARK: - 頭像快取視圖（原 CachedAvatarView，合併於此）
+/// 當前用戶頭像：優先使用本機儲存，沒有再用 URL
+struct LocalUserAvatarView: View {
+    let userId: String
+    let remotePhotoUrl: String?
+    let placeholder: () -> AnyView
+
+    init(userId: String, remotePhotoUrl: String?, @ViewBuilder placeholder: @escaping () -> some View) {
+        self.userId = userId
+        self.remotePhotoUrl = remotePhotoUrl
+        self.placeholder = { AnyView(placeholder()) }
+    }
+
+    var body: some View {
+        if let data = LocalAvatarCache.loadAvatar(forUserId: userId),
+           let uiImage = UIImage(data: data) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+        } else if let urlString = remotePhotoUrl, let url = URL(string: urlString) {
+            CachedAsyncImage(url: url, placeholder: placeholder)
+        } else {
+            placeholder()
+        }
+    }
+}
+
+/// 依 URL 顯示圖片：先讀本機快取，沒有再從網路載入並寫入快取
+struct CachedAsyncImage<Placeholder: View>: View {
+    let url: URL
+    let placeholder: () -> Placeholder
+
+    @State private var image: UIImage?
+    @State private var loading = false
+
+    var body: some View {
+        Group {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else if loading {
+                placeholder()
+            } else {
+                placeholder()
+            }
+        }
+        .task(id: url) {
+            if let data = ImageCacheService.load(for: url), let ui = UIImage(data: data) {
+                image = ui
+                return
+            }
+            loading = true
+            defer { loading = false }
+            guard let (data, _) = try? await URLSession.shared.data(from: url),
+                  let ui = UIImage(data: data) else {
+                return
+            }
+            ImageCacheService.save(data, for: url)
+            image = ui
+        }
     }
 }

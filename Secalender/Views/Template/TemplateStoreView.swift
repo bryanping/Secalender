@@ -547,13 +547,7 @@ private extension TemplateStoreView {
     func creatorAvatar(_ creator: TemplateCreator) -> some View {
         Group {
             if let urlString = creator.avatarURL, !urlString.isEmpty, let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img): img.resizable().scaledToFill()
-                    case .failure, .empty: creatorAvatarPlaceholder(creator)
-                    @unknown default: creatorAvatarPlaceholder(creator)
-                    }
-                }
+                CachedAsyncImage(url: url, placeholder: { creatorAvatarPlaceholder(creator) })
             } else {
                 creatorAvatarPlaceholder(creator)
             }

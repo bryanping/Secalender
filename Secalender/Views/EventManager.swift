@@ -33,16 +33,26 @@ class EventManager {
             throw NSError(domain: "EventManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "用户未登录"])
         }
         
-        // 先保存到本地缓存（立即响应）
+        // 先生成 ID，寫入本地並標記待同步（Local First）
+        let documentId = UUID().uuidString
+        let intId = abs(documentId.hashValue)
+        newEvent.id = intId
+        newEvent.syncStatus = .pendingCreate
+        newEvent.updatedAtSync = Date()
+        
         EventCacheManager.shared.addEventToCache(newEvent, for: userId)
+        
+        let queueItem = SyncQueueItem(
+            entityType: .event,
+            entityId: "\(intId)",
+            actionType: .create,
+            userId: userId
+        )
+        SyncQueueService.shared.enqueue(queueItem)
         
         // 尝试保存到 Firestore（后台同步）
         do {
             // 生成文档ID并转换为Int（使用哈希值）
-            let documentId = UUID().uuidString
-            let intId = abs(documentId.hashValue)
-            newEvent.id = intId
-            
             if let groupId = newEvent.groupId {
                 // 社群事件：保存到 groups/{groupId}/groupEvents 子集合
                 var groupEventData = try Firestore.Encoder().encode(newEvent)
@@ -58,14 +68,16 @@ class EventManager {
                 print("✅ 个人活动保存成功: userId=\(userId), eventId=\(intId)")
             }
             
-            // 更新本地缓存中的事件ID
+            // 同步成功：更新本地為已同步、移出佇列
+            newEvent.syncStatus = .synced
             EventCacheManager.shared.addEventToCache(newEvent, for: userId)
+            SyncQueueService.shared.remove(itemId: queueItem.id, userId: userId)
             
             // 記錄影響力：活動創建
             ActivityRecorder.recordEventCreated(title: newEvent.title, eventId: documentId, visibility: newEvent.openChecked)
         } catch {
             print("⚠️ Firebase保存失败，但已保存到本地缓存: \(error.localizedDescription)")
-            // 即使Firebase失败，本地缓存已保存，可以继续使用
+            SyncQueueService.shared.markFailed(itemId: queueItem.id, userId: userId, error: error.localizedDescription)
         }
     }
 
@@ -82,10 +94,19 @@ class EventManager {
         }
 
         // 不修改createTime，保持原始创建时间
-        let updatedEvent = event
+        var updatedEvent = event
+        updatedEvent.syncStatus = .pendingUpdate
+        updatedEvent.updatedAtSync = Date()
 
-        // 先更新本地缓存（立即响应）
         EventCacheManager.shared.updateEventInCache(updatedEvent, for: userId)
+        
+        let queueItem = SyncQueueItem(
+            entityType: .event,
+            entityId: "\(eventId)",
+            actionType: .update,
+            userId: userId
+        )
+        SyncQueueService.shared.enqueue(queueItem)
 
         // 尝试更新到 Firestore（后台同步）
         do {
@@ -128,9 +149,12 @@ class EventManager {
                     print("⚠️ Firebase中找不到个人活动，但已更新本地缓存: ID \(eventId)")
                 }
             }
+            updatedEvent.syncStatus = .synced
+            EventCacheManager.shared.updateEventInCache(updatedEvent, for: userId)
+            SyncQueueService.shared.remove(itemId: queueItem.id, userId: userId)
         } catch {
             print("⚠️ Firebase更新失败，但已更新本地缓存: \(error.localizedDescription)")
-            // 即使Firebase失败，本地缓存已更新，可以继续使用
+            SyncQueueService.shared.markFailed(itemId: queueItem.id, userId: userId, error: error.localizedDescription)
         }
     }
     
@@ -232,7 +256,7 @@ class EventManager {
         }
         
         // 1. 先从本地缓存加载（立即返回）
-        var cachedEvents = EventCacheManager.shared.loadEvents(for: userId)
+        let cachedEvents = EventCacheManager.shared.loadEvents(for: userId)
         
         // 2. 尝试从Firebase获取最新数据（后台同步）
         do {
@@ -348,10 +372,12 @@ class EventManager {
             event.isAllDay = data["isAllDay"] as? Bool ?? false
             event.repeatType = data["repeatType"] as? String ?? "never"
             event.calendarComponent = data["calendarComponent"] as? String ?? "default"
-            event.travelTime = data["travelTime"] as? String
-            event.invitees = data["invitees"] as? [String]
-            
-            return event
+        event.travelTime = data["travelTime"] as? String
+        event.invitees = data["invitees"] as? [String]
+        event.aiEvent = data["aiEvent"] as? Int ?? 0
+        event.tags = data["tags"] as? [String]
+        
+        return event
         } catch {
             print("解析事件失败: \(error)")
             return nil
@@ -395,8 +421,18 @@ class EventManager {
         // 先更新本地缓存（立即响应，不等待网络）
         if var cachedEvent = EventCacheManager.shared.loadEvents(for: userId).first(where: { $0.id == eventId }) {
             cachedEvent.deleted = 1
+            cachedEvent.syncStatus = .pendingDelete
+            cachedEvent.updatedAtSync = Date()
             EventCacheManager.shared.updateEventInCache(cachedEvent, for: userId)
             print("✅ 本地缓存已更新: ID \(eventId)")
+            
+            let queueItem = SyncQueueItem(
+                entityType: .event,
+                entityId: "\(eventId)",
+                actionType: .delete,
+                userId: userId
+            )
+            SyncQueueService.shared.enqueue(queueItem)
         }
         
         // 通知 UI 刷新
@@ -405,8 +441,23 @@ class EventManager {
         // 后台异步更新 Firebase（不阻塞 UI）
         Task {
             do {
-                // 先尝试从个人事件中更新
-                let userEventsSnapshot = try await db.collection("users")
+                try await performFirebaseSoftDelete(eventId: eventId, userId: userId)
+                if let item = SyncQueueService.shared.getPendingItems(userId: userId).first(where: { $0.entityId == "\(eventId)" && $0.actionType == .delete }) {
+                    SyncQueueService.shared.remove(itemId: item.id, userId: userId)
+                }
+            } catch {
+                print("⚠️ Firebase软删除失败，但已更新本地缓存: \(error.localizedDescription)")
+                if let item = SyncQueueService.shared.getPendingItems(userId: userId).first(where: { $0.entityId == "\(eventId)" && $0.actionType == .delete }) {
+                    SyncQueueService.shared.markFailed(itemId: item.id, userId: userId, error: error.localizedDescription)
+                }
+            }
+        }
+    }
+    
+    /// 僅執行 Firebase 軟刪除（供同步佇列重試使用）
+    private func performFirebaseSoftDelete(eventId: Int, userId: String) async throws {
+        // 先尝试从个人事件中更新
+        let userEventsSnapshot = try await db.collection("users")
                     .document(userId)
                     .collection("events")
                     .whereField("id", isEqualTo: eventId)
@@ -439,10 +490,6 @@ class EventManager {
                 }
                 
                 print("⚠️ Firebase中找不到活动，但已更新本地缓存: ID \(eventId)")
-            } catch {
-                print("⚠️ Firebase软删除失败，但已更新本地缓存: \(error.localizedDescription)")
-            }
-        }
     }
     
     /// 更新事件日期
@@ -925,6 +972,49 @@ class EventManager {
             var newData = data
             newData["sharedAt"] = FieldValue.serverTimestamp()
             try await db.collection("event_shares").addDocument(data: newData)
+        }
+    }
+    
+    // MARK: - 同步佇列處理（Local First）
+    
+    /// 處理待同步佇列：依序執行 delete → create → update，供 App 啟動/回前台時觸發
+    func processSyncQueue() async {
+        guard let userId = SyncQueueService.shared.currentUserId() else { return }
+        let items = SyncQueueService.shared.getItemsReadyToSync(userId: userId)
+        for item in items where item.entityType == .event {
+            guard let eventId = Int(item.entityId) else { continue }
+            let events = EventCacheManager.shared.loadEvents(for: userId)
+            switch item.actionType {
+            case .delete:
+                do {
+                    try await performFirebaseSoftDelete(eventId: eventId, userId: userId)
+                    SyncQueueService.shared.remove(itemId: item.id, userId: userId)
+                } catch {
+                    SyncQueueService.shared.markFailed(itemId: item.id, userId: userId, error: error.localizedDescription)
+                }
+            case .create:
+                guard let event = events.first(where: { $0.id == eventId && $0.syncStatus == .pendingCreate }) else { continue }
+                do {
+                    _ = try await addEventToFirebaseOnly(event: event)
+                    var synced = event
+                    synced.syncStatus = .synced
+                    EventCacheManager.shared.updateEventInCache(synced, for: userId)
+                    SyncQueueService.shared.remove(itemId: item.id, userId: userId)
+                } catch {
+                    SyncQueueService.shared.markFailed(itemId: item.id, userId: userId, error: error.localizedDescription)
+                }
+            case .update:
+                guard let event = events.first(where: { $0.id == eventId }) else { continue }
+                do {
+                    try await updateEventInFirebaseOnly(event: event)
+                    var synced = event
+                    synced.syncStatus = .synced
+                    EventCacheManager.shared.updateEventInCache(synced, for: userId)
+                    SyncQueueService.shared.remove(itemId: item.id, userId: userId)
+                } catch {
+                    SyncQueueService.shared.markFailed(itemId: item.id, userId: userId, error: error.localizedDescription)
+                }
+            }
         }
     }
 }

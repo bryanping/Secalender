@@ -50,6 +50,9 @@ class EventFormState: ObservableObject {
     /// 创建时邀请的好友 ID 列表（行程创建完成後發送邀請）
     @Published var selectedFriendsToInvite: [String] = []
     
+    /// 已選事件標籤（key 如 work, travel）
+    @Published var selectedTags: [String] = []
+    
     // 缓存日历显示文本和颜色，避免频繁计算
     @Published var calendarDisplayText: String = "event_create.calendar".localized()
     @Published var calendarColor: Color = .red
@@ -224,6 +227,39 @@ struct EventCreateView: View {
                         )
                     }
                     .buttonStyle(PlainButtonStyle())
+                }
+                
+                // 事件標籤
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("event_tags.label".localized())
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(EventTagPresets.defaultTags, id: \.key) { tag in
+                                let key = tag.key
+                                let isSelected = formState.selectedTags.contains(key)
+                                Button {
+                                    if isSelected {
+                                        formState.selectedTags.removeAll { $0 == key }
+                                    } else {
+                                        formState.selectedTags.append(key)
+                                    }
+                                } label: {
+                                    Text(tag.localizedKey.localized())
+                                        .font(.system(size: 13))
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 8)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .fill(isSelected ? Color.blue : Color(UIColor.systemGray5))
+                                        )
+                                        .foregroundColor(isSelected ? .white : .primary)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                    }
                 }
                 
                 // 設定時間
@@ -426,7 +462,7 @@ struct EventCreateView: View {
                             // 优化：使用防抖，避免频繁触发
                             guard newValue && !hasLoadedDefaultSyncPreference else { return }
                             Task {
-                                try? await UserPreferencesManager.shared.setSyncToAppleCalendarDefault(true, for: userManager.userOpenId)
+                                _ = try? await UserPreferencesManager.shared.setSyncToAppleCalendarDefault(true, for: userManager.userOpenId)
                             }
                         }
                     
@@ -623,7 +659,7 @@ struct EventCreateView: View {
                         .onChange(of: syncToAppleCalendar) { oldValue, newValue in
                             guard newValue && !hasLoadedDefaultSyncPreference else { return }
                             Task {
-                                try? await UserPreferencesManager.shared.setSyncToAppleCalendarDefault(true, for: userManager.userOpenId)
+                                _ = try? await UserPreferencesManager.shared.setSyncToAppleCalendarDefault(true, for: userManager.userOpenId)
                             }
                         }
                     
@@ -900,6 +936,7 @@ struct EventCreateView: View {
                 formState.isAllDay = viewModel.event.isAllDay ?? false
                 formState.repeatType = viewModel.event.repeatType ?? "never"
                 formState.calendarComponent = viewModel.event.calendarComponent ?? "default"
+                formState.selectedTags = viewModel.event.tags ?? []
                 
                 initializeDatePickers()
             }
@@ -1135,9 +1172,9 @@ struct EventCreateView: View {
             }
             
             if !formState.isAllDay {
-                formState.isHasEnd = (viewModel.event.endTime != nil) || (viewModel.event.endDate != nil)
+                formState.isHasEnd = viewModel.event.endDate != nil
             } else {
-                formState.isHasEnd = viewModel.event.endDate != nil && viewModel.event.endDate != viewModel.event.date
+                formState.isHasEnd = (viewModel.event.endDate != nil) && viewModel.event.endDate != viewModel.event.date
             }
             return
         }
@@ -1184,6 +1221,8 @@ struct EventCreateView: View {
         viewModel.event.isAllDay = formState.isAllDay
         viewModel.event.repeatType = formState.repeatType
         viewModel.event.calendarComponent = formState.calendarComponent
+        
+        viewModel.event.tags = formState.selectedTags.isEmpty ? nil : formState.selectedTags
         
         // 更新日期时间
         viewModel.event.date = dateToString(formState.selectedStartDate, format: "yyyy-MM-dd")
@@ -1280,7 +1319,7 @@ struct EventCreateView: View {
                 try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 秒
                 
                 // 从 Firebase 重新加载，更新本地缓存（这会覆盖可能重复的临时事件）
-                try? await EventManager.shared.fetchEvents()
+                _ = try? await EventManager.shared.fetchEvents()
                 
                 // 通知 CalendarView 刷新（通过 NotificationCenter）
                 NotificationCenter.default.post(name: NSNotification.Name("EventSaved"), object: nil)
@@ -1480,7 +1519,7 @@ struct EventCreateView: View {
                 try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 秒
                 
                 // 从 Firebase 重新加载，更新本地缓存（这会覆盖可能重复的临时事件）
-                try? await EventManager.shared.fetchEvents()
+                _ = try? await EventManager.shared.fetchEvents()
                 
                 // 通知 CalendarView 刷新（通过 NotificationCenter）
                 NotificationCenter.default.post(name: NSNotification.Name("EventSaved"), object: nil)
@@ -1595,7 +1634,7 @@ struct EventCreateView: View {
         // 然后从Firebase同步最新设置（后台进行，不阻塞UI）
         // 优化：使用 Task {} 而不是 Task.detached，保持在主 Actor 上下文
         Task { @MainActor in
-            try? await UserPreferencesManager.shared.loadSyncToAppleCalendarDefault(for: userId)
+            _ = try? await UserPreferencesManager.shared.loadSyncToAppleCalendarDefault(for: userId)
             let updatedValue = UserPreferencesManager.shared.getSyncToAppleCalendarDefault(for: userId)
             syncToAppleCalendar = updatedValue
         }
@@ -1631,9 +1670,15 @@ struct EventCreateView: View {
             }
         }
         
-        // 检查权限状态
+        // 检查权限状态（iOS 17+ 使用 fullAccess/writeOnly）
         let status = EKEventStore.authorizationStatus(for: .event)
-        guard status == .authorized else {
+        let hasAccess: Bool
+        if #available(iOS 17.0, *) {
+            hasAccess = (status == .fullAccess || status == .writeOnly)
+        } else {
+            hasAccess = (status == .authorized)
+        }
+        guard hasAccess else {
             print("⚠️ 日历权限未授权，无法同步到手机日历")
             return
         }

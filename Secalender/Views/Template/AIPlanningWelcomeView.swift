@@ -16,11 +16,8 @@ struct AIPlanningWelcomeView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
     @ObservedObject var themeManager = QuickThemeManager.shared
     
-    @State private var showWeekendFlash = false
-    @State private var showDeepCulture = false
-    @State private var showEnrichTrip = false
-    @State private var showTravelPlanning = false
-    @State private var showCustomTheme: QuickTheme?
+    /// 點擊主題卡片後帶預設進入統一 AIPlannerView（取代原 WeekendFlash / DeepCulture / EnrichTrip / TravelPlanning / 自訂主題 各自 sheet）
+    @State private var showAIPlannerWithTheme: QuickTheme?
     @State private var showCreateTemplate = false
     @State private var showThemeManagement = false
     
@@ -250,21 +247,13 @@ struct AIPlanningWelcomeView: View {
         .scrollDismissesKeyboard(.interactively)
         .dismissKeyboardOnTap()
         .background(Color(.systemGroupedBackground))
-        .sheet(isPresented: $showWeekendFlash) {
-            WeekendFlashView()
-                .environmentObject(userManager)
-        }
-        .sheet(isPresented: $showDeepCulture) {
-            DeepCultureView()
-                .environmentObject(userManager)
-        }
-        .sheet(isPresented: $showEnrichTrip) {
-            EnrichTripView()
-                .environmentObject(userManager)
-        }
-        .sheet(isPresented: $showTravelPlanning) {
-            TravelPlanningView()
-                .environmentObject(userManager)
+        .sheet(item: $showAIPlannerWithTheme) { theme in
+            AIPlannerView(
+                plannerModelType: plannerModelType(for: theme.key),
+                themeKey: theme.key,
+                customTheme: theme
+            )
+            .environmentObject(userManager)
         }
         .sheet(isPresented: $showCreateTemplate) {
             CreateTripTemplateView()
@@ -274,23 +263,19 @@ struct AIPlanningWelcomeView: View {
             QuickThemeManagementView()
                 .environmentObject(userManager)
         }
-        .sheet(item: $showCustomTheme) { theme in
-            CustomThemePlannerView(theme: theme)
-                .environmentObject(userManager)
+    }
+    
+    /// 依主題 key 回傳預設時間規劃型態（入口皆導向同一 AIPlannerView，僅預設不同）
+    private func plannerModelType(for themeKey: String) -> PlannerModelType {
+        switch themeKey {
+        case "weekend_flash": return .multiPhase
+        case "deep_culture", "enrich_trip", "travel_planning": return .multiPhase
+        default: return .multiPhase
         }
     }
     
     private func handleThemeTap(_ theme: QuickTheme) {
-        switch theme.key {
-        case "weekend_flash": showWeekendFlash = true
-        case "deep_culture": showDeepCulture = true
-        case "enrich_trip": showEnrichTrip = true
-        case "travel_planning": showTravelPlanning = true
-        default:
-            if !theme.isBuiltIn {
-                showCustomTheme = theme
-            }
-        }
+        showAIPlannerWithTheme = theme
     }
 }
 

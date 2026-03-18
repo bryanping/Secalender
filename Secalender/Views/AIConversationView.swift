@@ -133,7 +133,7 @@ struct AIConversationView: View {
                 .padding()
                 .padding(.bottom, 20) // 为输入框预留空间
             }
-            .onChange(of: chatMessages.count) { _ in
+            .onChange(of: chatMessages.count) { _, _ in
                 // 当有新消息时，立即滚动到底部
                 if let lastMessage = chatMessages.last {
                     // 使用更短的延迟，确保消息已渲染
@@ -144,7 +144,7 @@ struct AIConversationView: View {
                     }
                 }
             }
-            .onChange(of: isLoading) { loading in
+            .onChange(of: isLoading) { _, loading in
                 // 当加载状态改变时，也滚动到底部
                 if !loading, let lastMessage = chatMessages.last {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

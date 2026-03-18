@@ -85,7 +85,7 @@ struct ContentView: View {
             }
             .ignoresSafeArea(edges: .bottom)
         }
-        .onChange(of: selectedTab) { newTab in
+        .onChange(of: selectedTab) { _, newTab in
             // 当切换页面时，添加旋转动画
             if newTab != previousTab {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {

@@ -230,7 +230,7 @@ struct MyTemplatesView: View {
             shareText += "第\(dayIndex + 1)天：\n"
             
             let activities = day.blocks.filter { $0.type == .activity }
-            for (index, activity) in activities.enumerated() {
+            for activity in activities {
                 let timeString = Self.timeFormatter.string(from: activity.startTime)
                 shareText += "\(timeString) - \(activity.title)"
                 if let location = activity.location {
@@ -440,7 +440,7 @@ struct MyTemplatesView: View {
         // 后台同步 Firebase
         Task {
             do {
-                try await EventManager.shared.fetchEvents()
+                _ = try await EventManager.shared.fetchEvents()
                 let updatedEvents = EventCacheManager.shared.loadEvents(for: userManager.userOpenId)
                 await MainActor.run {
                     allEvents = updatedEvents.filter { $0.deleted != 1 }

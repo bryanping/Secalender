@@ -175,12 +175,23 @@ struct AIPlannerView: View {
     
     /// 自定義主題（從快速主題進入時傳入）
     private let customTheme: QuickTheme?
+    /// 入口預設的規劃模型（Welcome/主題入口傳入）
+    private let initialPlannerModelType: PlannerModelType?
+    private let initialThemeKey: String?
     
-    init(customTheme: QuickTheme? = nil) {
+    init(plannerModelType: PlannerModelType? = nil, themeKey: String? = nil, customTheme: QuickTheme? = nil) {
         self.customTheme = customTheme
+        self.initialPlannerModelType = plannerModelType
+        self.initialThemeKey = themeKey
     }
     
-    // 步骤控制
+    /// 是否為「模型驅動單頁」：無主題時為 true，有主題時維持原步驟流程
+    private var isModelDrivenPage: Bool { customTheme == nil }
+    
+    /// 當前規劃模型類型（6 型態；有主題時可依入口預設）
+    @State private var plannerModelType: PlannerModelType = .multiPhase
+    
+    // 步骤控制（僅在非模型驅動時使用）
     @State private var currentStep: PlanningStep = .step1
     
     // 键盘焦点控制
@@ -244,8 +255,8 @@ struct AIPlannerView: View {
     @State private var completedTasks: [String] = []
     @State private var pendingTasks: [String] = []
     
-    // 生成结果
-    @State private var generatedPlan: PlanResult? = nil
+    // 生成結果（引擎唯一輸出為 GenerationResult；plan 僅過渡兼容）
+    @State private var generatedResult: GenerationResult? = nil
     @State private var showPlanDetailView = false
     @State private var showPlanEditView = false
     @State private var planToEdit: PlanResult? = nil  // 用于编辑的 plan
@@ -267,6 +278,31 @@ struct AIPlannerView: View {
     @State private var themeFormStartDate: Date = Date()
     @State private var themeFormDurationDays: Int = 7  // 計劃時長（天），用於非旅行主題
     
+    // 模型驅動頁：共用基礎欄位（標題/目標、描述、日期、地點、偏好）
+    @State private var baseTitle: String = ""
+    @State private var baseDescription: String = ""
+    @State private var baseStartDate: Date = Date()
+    @State private var baseEndDate: Date = Date()
+    @State private var baseStartTime: Date = Date()
+    @State private var baseEndTime: Date = Date()
+    @State private var baseIsAllDay: Bool = false
+    @State private var baseIsHasEnd: Bool = true
+    @State private var baseLocation: String = ""
+    @State private var basePreferences: String = ""
+    // 意圖導向：一句話輸入 → 解析結果 → 確認後才顯示表單
+    @State private var naturalLanguageInput: String = ""
+    @State private var parsedIntent: ParsedPlannerIntent? = nil
+    @State private var hasConfirmedParsedIntent: Bool = false
+    @State private var isParsingIntent: Bool = false
+    // 任務拆解專屬
+    @State private var taskDeadline: Date = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+    @State private var taskAvailableHoursPerDay: Double = 4
+    @State private var taskPriorityStrategy: String = "by_deadline"
+    @State private var taskComplexity: String = "medium"
+    // 修改内容：多人協調表單與試算結果
+    @State private var coordinationFormState = AvailabilityCoordinationFormState()
+    @State private var coordinationPreviewResult: CoordinationResult?
+
     // AI 生成付費開關（預設關閉，開啟後需單獨付費）
     @State private var enableAIGeneration: Bool = false
     
@@ -388,68 +424,70 @@ struct AIPlannerView: View {
                 Color(.systemGroupedBackground)
                     .ignoresSafeArea()
                 
-            VStack(spacing: 0) {
-                    // 进度指示器
-                    progressIndicator
-                
-                // 内容区域
-                    ScrollView {
-                        VStack(spacing: 24) {
-                            switch currentStep {
-                            case .step1:
-                                if useThemeFormMode {
-                                    themeFormStepView
-                                } else {
-                                    step1View
+                if isModelDrivenPage {
+                    // 模型驅動單頁：選擇器 + 共用區 + 模型專屬區 + 生成按鈕
+                    modelDrivenContent
+                } else {
+                    // 有主題時維持原步驟流程
+                    VStack(spacing: 0) {
+                        progressIndicator
+                        ScrollView {
+                            VStack(spacing: 24) {
+                                switch currentStep {
+                                case .step1:
+                                    if useThemeFormMode {
+                                        themeFormStepView
+                                    } else {
+                                        step1View
+                                    }
+                                case .step2:
+                                    step2View
+                                case .step3:
+                                    step3View
+                                case .step4:
+                                    step4View
                                 }
-                            case .step2:
-                                step2View
-                            case .step3:
-                                step3View
-                            case .step4:
-                                step4View
                             }
+                            .padding()
                         }
-                        .padding()
+                        .scrollDismissesKeyboard(.interactively)
+                        .simultaneousGesture(
+                            TapGesture().onEnded {
+                                isTextFieldFocused = false
+                                hideKeyboard()
+                            }
+                        )
+                        bottomButtons
                     }
-                    .scrollDismissesKeyboard(.interactively)  // 滑动时收起键盘
-                    .simultaneousGesture(
-                        TapGesture().onEnded {
-                            // 点击空白区域时收起键盘
-                            isTextFieldFocused = false
-                            hideKeyboard()
-                        }
-                    )
-                    
-                    // 底部按钮
-                    bottomButtons
                 }
             }
             .navigationTitle(
-                currentStep == .step1 ? "行程基礎" :
-                currentStep == .step2 ? "進階設定" :
-                currentStep == .step3 ? "行程細節" : "智能規劃"
+                isModelDrivenPage ? "智能規劃" : (
+                    currentStep == .step1 ? "行程基礎" :
+                    currentStep == .step2 ? "進階設定" :
+                    currentStep == .step3 ? "行程細節" : "智能規劃"
+                )
             )
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    if currentStep != .step1 {
-                        Button(action: {
-                            goToPreviousStep()
-                        }) {
+                    if isModelDrivenPage {
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "chevron.left")
+                        }
+                    } else if currentStep != .step1 {
+                        Button(action: { goToPreviousStep() }) {
                             Image(systemName: "chevron.left")
                         }
                     } else {
-                        Button(action: {
-                            dismiss()
-                        }) {
+                        Button(action: { dismiss() }) {
                             Image(systemName: "chevron.left")
                         }
                     }
                 }
                 
                 // 僅自訂主題顯示右上角選單（編輯、分享），系統自帶主題不顯示
-                if customTheme != nil, customTheme?.isBuiltIn == false {
+                if customTheme != nil, customTheme?.isBuiltIn == false, !isModelDrivenPage {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         if currentStep == .step1 {
                             Menu {
@@ -476,7 +514,6 @@ struct AIPlannerView: View {
             .onAppear {
                 if let theme = customTheme {
                     tripTheme = theme.title
-                    // 主題表單模式：初始化預設值
                     if let questions = theme.formQuestions {
                         var updated = themeFormAnswers
                         for q in questions {
@@ -488,6 +525,9 @@ struct AIPlannerView: View {
                         }
                         themeFormAnswers = updated
                     }
+                }
+                if isModelDrivenPage, let initial = initialPlannerModelType {
+                    plannerModelType = initial
                 }
             }
             .sheet(isPresented: $showEditThemeSheet) {
@@ -556,39 +596,35 @@ struct AIPlannerView: View {
                     clearSurroundingFeatures()
                 }
             }
-            // 修复：使用 generatedPlan 直接驱动 sheet，避免首次空白
-            // PlanResult 已经是 Identifiable，使用 fullScreenCover 实现全屏从右侧滑出
-            .fullScreenCover(item: $generatedPlan) { plan in
+            // 生成引擎輸出為 GenerationResult；PlanDetailView 以 result.plan 顯示，並提供套用/建議/scheduler
+            .fullScreenCover(item: $generatedResult) { result in
                 NavigationView {
                     PlanDetailView(
-                        plan: plan,
-                        customTitle: tripTheme.isEmpty ? nil : tripTheme,  // 传递用户填写的标题
+                        plan: result.plan ?? PlanResult(days: [], assumptions: result.assumptions, riskFlags: result.riskFlags),
+                        customTitle: tripTheme.isEmpty ? nil : tripTheme,
+                        generationResult: result,
                         onEdit: { planToEdit in
-                            // 僅「編輯整個行程」按鈕：切換到 PlanEditView
                             self.planToEdit = planToEdit
-                            generatedPlan = nil
+                            generatedResult = nil
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                 showPlanEditView = true
                             }
                         },
                         onPlanUpdated: { updatedPlan in
-                            // block 編輯：僅同步 plan，不切換視圖
                             self.planToEdit = updatedPlan
-                            generatedPlan = updatedPlan
+                            if var r = generatedResult { r.plan = updatedPlan; generatedResult = r }
                         },
-                        onAddToCalendar: nil,  // 不再需要这个功能
-                        onSaveToTemplate: nil,  // 已自动保存，不需要保存按钮
+                        onAddToCalendar: nil,
+                        onSaveToTemplate: nil,
                         onDismiss: {
-                            // 关闭详情页
-                            generatedPlan = nil
+                            generatedResult = nil
                         }
                     )
                     .environmentObject(userManager)
                 }
             }
             .sheet(isPresented: $showPlanEditView) {
-                // 修复：确保 plan 数据在 sheet 打开时已经准备好
-                if let plan = planToEdit ?? generatedPlan {
+                if let plan = planToEdit ?? generatedResult?.plan {
                     PlanEditView(
                         plan: plan,
                         customTitle: tripTheme.isEmpty ? nil : tripTheme,  // 传递用户填写的"此行的主題"
@@ -605,19 +641,15 @@ struct AIPlannerView: View {
                             }
                         },
                         onSaveToTemplate: { editedPlan, title in
-                            // 修复：使用编辑后的 PlanResult，而不是进入编辑页前的 generatedPlan
                             savePlanToTemplate(editedPlan, title: title)
-                            // 更新 generatedPlan 为编辑后的版本
-                            generatedPlan = editedPlan
+                            if var r = generatedResult { r.plan = editedPlan; generatedResult = r }
                             showPlanEditView = false
-                            // 重新打开详情页显示编辑后的内容
-                            generatedPlan = editedPlan
                         },
                         onDismiss: {
-                            // 退出编辑页面，返回详情页
                             showPlanEditView = false
-                            if let editedPlan = planToEdit {
-                                generatedPlan = editedPlan
+                            if let editedPlan = planToEdit, var r = generatedResult {
+                                r.plan = editedPlan
+                                generatedResult = r
                             }
                         }
                     )
@@ -639,13 +671,11 @@ struct AIPlannerView: View {
                         },
                         onDismiss: nil,  // 从模版打开时不使用 onDismiss
                         onBackToTemplate: {
-                            // 返回到行程模版（PlanDetailView）
                             showMultiEventView = false
-                            // 重新打开详情页
-                            if let plan = generatedPlan {
-                                generatedPlan = nil
+                            if let r = generatedResult {
+                                generatedResult = nil
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    generatedPlan = plan
+                                    generatedResult = r
                                 }
                             }
                         }
@@ -663,6 +693,801 @@ struct AIPlannerView: View {
         }
     }
     
+    // MARK: - 模型驅動單頁內容（意圖導向：輸入 → 解析卡片 → 動態表單）
+    private var modelDrivenContent: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 24) {
+                    if !hasConfirmedParsedIntent {
+                        if let intent = parsedIntent {
+                            parsedResultCard(intent)
+                        } else {
+                            intentInputSection
+                            suggestionChipsSection
+                            if !naturalLanguageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                Button(action: {
+                                    let parsed = PlannerAutoRouter.resolveModel(input: naturalLanguageInput)
+                                    parsedIntent = parsed
+                                }) {
+                                    HStack {
+                                        Text("下一步")
+                                            .fontWeight(.semibold)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(12)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                    } else {
+                        sharedFormSection
+                        modelSpecificFormSection
+                    }
+                }
+                .padding()
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    isTextFieldFocused = false
+                    hideKeyboard()
+                }
+            )
+            if hasConfirmedParsedIntent {
+                modelDrivenGenerateButton
+            }
+        }
+    }
+
+    /// 一句話輸入區（意圖導向入口）
+    private var intentInputSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("你想安排什麼？")
+                .font(.headline)
+                .foregroundColor(.primary)
+            TextField("例：明天台北親子行程、三天東京旅遊、一週內完成專案", text: $naturalLanguageInput, axis: .vertical)
+                .lineLimit(2...5)
+                .textFieldStyle(.roundedBorder)
+                .padding()
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+                .focused($isTextFieldFocused)
+        }
+    }
+
+    /// 熱門建議 chips（點擊填入輸入框）
+    private var suggestionChipsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("熱門")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(["週末放鬆行程", "親子一日遊", "三天東京旅遊", "一週內完成專案"], id: \.self) { suggestion in
+                        Button(action: { naturalLanguageInput = suggestion }) {
+                            Text(suggestion)
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(20)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+            }
+        }
+    }
+
+    /// AI 解析結果卡片：類型、時間、地點、目標 + [修改] [繼續]
+    private func parsedResultCard(_ intent: ParsedPlannerIntent) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "brain.head.profile")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                Text("AI 理解你的需求")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                labelRow("類型", intent.displayType)
+                if let days = intent.durationDays, days > 0 {
+                    labelRow("時間", "\(days) 天")
+                } else if let hint = intent.durationHint {
+                    labelRow("時間", hint)
+                }
+                if let loc = intent.location, !loc.isEmpty {
+                    labelRow("地點", loc)
+                } else if let lh = intent.locationHint {
+                    labelRow("地點", lh)
+                }
+                if let goal = intent.goal, !goal.isEmpty {
+                    labelRow("目標", goal)
+                }
+                // 修改内容：多人協調解析摘要
+                if intent.modelType == .availabilityCoordination {
+                    if !intent.participants.isEmpty {
+                        labelRow("參與者", intent.participants.map(\.name).joined(separator: "、"))
+                    }
+                    if let m = intent.coordinationMode {
+                        labelRow("協調模式", m.displayTitle)
+                    }
+                    labelRow("信心度", String(format: "%.0f%%", intent.confidence * 100))
+                    if !intent.missingFields.isEmpty {
+                        labelRow("待補欄位", intent.missingFields.map(\.rawValue).joined(separator: "、"))
+                    }
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+            HStack(spacing: 12) {
+                Button(action: {
+                    resetModelDrivenAfterIntentEdit()
+                }) {
+                    Text("修改")
+                        .fontWeight(.medium)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color(.systemGray5))
+                        .foregroundColor(.primary)
+                        .cornerRadius(10)
+                }
+                .buttonStyle(PlainButtonStyle())
+                Button(action: {
+                    applyParsedIntentToForm(intent)
+                    hasConfirmedParsedIntent = true
+                }) {
+                    Text("繼續")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+    }
+
+    private func labelRow(_ title: String, _ value: String) -> some View {
+        HStack(alignment: .top) {
+            Text("\(title)：")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// 修改：回到步驟 1，保留輸入框文字，清空解析與表單預填（避免污染新一輪）
+    private func resetModelDrivenAfterIntentEdit() {
+        parsedIntent = nil
+        hasConfirmedParsedIntent = false
+        plannerModelType = .multiPhase
+        baseTitle = ""
+        baseDescription = ""
+        baseLocation = ""
+        destination = ""
+        selectedCountry = nil
+        selectedCity = nil
+        travelDays = 3
+        let cal = Calendar.current
+        baseStartDate = Date()
+        baseEndDate = Date()
+        baseIsAllDay = false
+        baseIsHasEnd = true
+        taskDeadline = cal.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+        taskAvailableHoursPerDay = 4
+        taskPriorityStrategy = "by_deadline"
+        taskComplexity = "medium"
+        selectedPace = .relaxed
+        selectedTransportation = .publicTransport
+        budgetLevel = .moderate
+        coordinationFormState = AvailabilityCoordinationFormState() // 修改内容
+        coordinationPreviewResult = nil // 修改内容
+    }
+
+    /// 解析結果寫入表單：僅補空欄；任務型清空旅遊欄位，旅遊型不動任務截止預設除非由旅遊流程覆寫
+    private func applyParsedIntentToForm(_ intent: ParsedPlannerIntent) {
+        plannerModelType = intent.modelType
+
+        if baseTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            baseTitle = intent.goal ?? intent.rawInput
+        }
+        if baseDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            baseDescription = intent.rawInput
+        }
+
+        switch intent.modelType {
+        case .availabilityCoordination:
+            // 修改内容：套用多人協調預填
+            coordinationFormState.participants = intent.participants.isEmpty
+                ? [ParsedParticipant(name: "我", role: .selfUser, isRequired: true)]
+                : intent.participants
+            if let dateRange = intent.dateRange {
+                coordinationFormState.startDate = dateRange.start
+                coordinationFormState.endDate = dateRange.end
+            }
+            coordinationFormState.durationMinutes = intent.meetingDurationMinutes ?? 60
+            coordinationFormState.coordinationMode = intent.coordinationMode ?? .strictIntersection
+            coordinationPreviewResult = nil
+        case .floatingTask:
+            destination = ""
+            baseLocation = ""
+            selectedCountry = nil
+            selectedCity = nil
+            let off = intent.taskDeadlineOffsetDays ?? 7
+            taskDeadline = Calendar.current.date(byAdding: .day, value: off, to: Date()) ?? Date()
+        default:
+            if let loc = intent.location, !loc.isEmpty {
+                if destination.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    destination = loc
+                }
+                if baseLocation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    baseLocation = loc
+                }
+            }
+            let days: Int = {
+                if let d = intent.durationDays, d > 0 { return min(max(d, 1), 30) }
+                if intent.displayType == "主題規劃" { return 3 }
+                return 1
+            }()
+            travelDays = days
+            let cal = Calendar.current
+            baseStartDate = Date()
+            baseEndDate = cal.date(byAdding: .day, value: days - 1, to: baseStartDate) ?? baseStartDate
+            baseIsAllDay = true
+            baseIsHasEnd = true
+            taskDeadline = cal.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+            if intent.pace == "packed" {
+                selectedPace = .tight
+            } else if intent.pace == "relaxed" {
+                selectedPace = .relaxed
+            }
+        }
+    }
+    
+    /// 中段：共用基礎資訊區（標題/目標、描述、日期、地點、偏好）
+    private var sharedFormSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("基礎資訊")
+                .font(.headline)
+                .foregroundColor(.primary)
+            VStack(spacing: 12) {
+                TextField("標題或目標", text: $baseTitle)
+                    .textFieldStyle(.roundedBorder)
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                TextField("描述（選填）", text: $baseDescription, axis: .vertical)
+                    .lineLimit(3...6)
+                    .textFieldStyle(.roundedBorder)
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("時間範圍")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    DateTimePickerView(
+                        startDate: $baseStartDate,
+                        startTime: $baseStartTime,
+                        endDate: Binding(
+                            get: { baseIsHasEnd ? baseEndDate : nil },
+                            set: { if let d = $0 { baseEndDate = d } }
+                        ),
+                        endTime: Binding(
+                            get: { baseIsHasEnd ? baseEndTime : nil },
+                            set: { if let t = $0 { baseEndTime = t } }
+                        ),
+                        isAllDay: $baseIsAllDay,
+                        isHasEnd: $baseIsHasEnd
+                    )
+                }
+                TextField("地點（選填）", text: $baseLocation)
+                    .textFieldStyle(.roundedBorder)
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+                TextField("偏好或備註", text: $basePreferences, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textFieldStyle(.roundedBorder)
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(12)
+            }
+        }
+    }
+    
+    /// 下段：依 plannerModelType 顯示模型專屬欄位（6 型）
+    @ViewBuilder
+    private var modelSpecificFormSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(modelSpecificSectionTitle)
+                .font(.headline)
+                .foregroundColor(.primary)
+            switch plannerModelType {
+            case .multiPhase:
+                multiDayFields
+            case .floatingTask:
+                taskBreakdownFields
+            case .availabilityCoordination:
+                availabilityCoordinationSection // 修改内容
+            case .availability, .recurring, .matching, .aiOptimization:
+                timePlanningPlaceholderView
+            }
+        }
+    }
+
+    // 修改内容：多人協調動態表單
+    private var availabilityCoordinationSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("多人時間協調")
+                .font(.headline)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("參與者")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                ForEach(coordinationFormState.participants) { participant in
+                    HStack {
+                        Text(participant.name)
+                        Spacer()
+                        Text(participant.role.rawValue)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                }
+                Button("新增參與者") {
+                    var s = coordinationFormState
+                    s.participants.append(
+                        ParsedParticipant(name: "新參與者", role: .guest, isRequired: false)
+                    )
+                    coordinationFormState = s
+                }
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("日期範圍")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                DatePicker("開始", selection: $coordinationFormState.startDate, displayedComponents: .date)
+                DatePicker("結束", selection: $coordinationFormState.endDate, displayedComponents: .date)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("活動時長")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Stepper(value: $coordinationFormState.durationMinutes, in: 15...240, step: 15) {
+                    Text("\(coordinationFormState.durationMinutes) 分鐘")
+                }
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("協調模式")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Picker("協調模式", selection: $coordinationFormState.coordinationMode) {
+                    ForEach(CoordinationMode.allCases, id: \.self) { mode in
+                        Text(mode.displayTitle).tag(mode)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("搜集方式")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Picker("搜集方式", selection: $coordinationFormState.collectionMethod) {
+                    ForEach(AvailabilityCollectionMethod.allCases, id: \.self) { method in
+                        Text(method.displayTitle).tag(method)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                Text("備註")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                TextField("例如：希望安排在白天、避免中午", text: $coordinationFormState.note, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+            }
+            if let preview = coordinationPreviewResult {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("試算 Top 3 候選時段（MVP：假設全員在範圍內皆可）")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    ForEach(Array(preview.rankedCandidates.prefix(3))) { c in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(Self.coordinationDateFormatter.string(from: c.start)) → \(Self.coordinationDateFormatter.string(from: c.end))")
+                                .font(.subheadline)
+                            Text("分數 \(String(format: "%.2f", c.score)) · 可到 \(c.availableParticipantIds.count) 人")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.systemGray6))
+                .cornerRadius(12)
+            }
+        }
+    }
+
+    private static let coordinationDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .short
+        f.timeStyle = .short
+        return f
+    }()
+    
+    private var modelSpecificSectionTitle: String {
+        switch plannerModelType {
+        case .availability: return "區間可選型設定"
+        case .floatingTask: return "彈性任務型設定"
+        case .multiPhase: return "多階段型設定"
+        case .recurring: return "反覆週期型設定"
+        case .matching: return "協作撮合型設定"
+        case .aiOptimization: return "自動優化型設定"
+        case .availabilityCoordination: return "多人協調設定" // 修改内容
+        }
+    }
+    
+    /// 區間可選 / 反覆週期 / 撮合 / AI 優化 的佔位說明（進階設定即將推出）
+    private var timePlanningPlaceholderView: some View {
+        Text("此型態的進階設定即將推出，目前可使用上方基礎資訊與時間範圍生成。")
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+    }
+    
+    /// 單日：時間範圍、地區、預算、節奏
+    private var singleDayFields: some View {
+        VStack(spacing: 12) {
+            destinationField
+            HStack {
+                Text("行程節奏")
+                Spacer()
+                Picker("", selection: $selectedPace) {
+                    Text("輕鬆").tag(Pace.relaxed)
+                    Text("緊湊").tag(Pace.tight)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 160)
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            budgetField
+        }
+    }
+    
+    /// 多日：天數、住宿地、交通偏好、每日安排密度
+    private var multiDayFields: some View {
+        VStack(spacing: 12) {
+            destinationField
+            HStack {
+                Text("天數")
+                Spacer()
+                Stepper("\(travelDays) 天", value: $travelDays, in: 1...30)
+                    .padding()
+            }
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            HStack {
+                Text("交通偏好")
+                Spacer()
+                Picker("", selection: $selectedTransportation) {
+                    Text("大眾運輸").tag(TransportationType?.some(.publicTransport))
+                    Text("自駕").tag(TransportationType?.some(.selfDrive))
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 180)
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            HStack {
+                Text("節奏")
+                Spacer()
+                Picker("", selection: $selectedPace) {
+                    Text("輕鬆").tag(Pace.relaxed)
+                    Text("緊湊").tag(Pace.tight)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 160)
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            budgetField
+        }
+    }
+    
+    /// 任務拆解：截止日期、每日可用時數、任務複雜度、優先順序
+    private var taskBreakdownFields: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("截止日期")
+                Spacer()
+                DatePicker("", selection: $taskDeadline, displayedComponents: .date)
+                    .labelsHidden()
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            HStack {
+                Text("每日可用時數")
+                Spacer()
+                Text("\(Int(taskAvailableHoursPerDay)) 小時")
+                Slider(value: $taskAvailableHoursPerDay, in: 1...12, step: 0.5)
+                    .frame(width: 120)
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            HStack {
+                Text("優先順序")
+                Spacer()
+                Picker("", selection: $taskPriorityStrategy) {
+                    Text("依截止日").tag("by_deadline")
+                    Text("依重要性").tag("by_importance")
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 180)
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            HStack {
+                Text("任務複雜度")
+                Spacer()
+                Picker("", selection: $taskComplexity) {
+                    Text("簡單").tag("low")
+                    Text("中等").tag("medium")
+                    Text("複雜").tag("high")
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 180)
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+        }
+    }
+    
+    private var destinationField: some View {
+        Button(action: { showLocationPicker = true }) {
+            HStack {
+                Image(systemName: "mappin.circle.fill")
+                    .foregroundColor(.blue)
+                Text(destination.isEmpty ? "選擇目的地" : destination)
+                    .foregroundColor(destination.isEmpty ? .secondary : .primary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private var budgetField: some View {
+        HStack {
+            Text("預算")
+            Spacer()
+            Picker("", selection: $budgetLevel) {
+                Text("低").tag(BudgetLevel.low)
+                Text("中").tag(BudgetLevel.moderate)
+                Text("高").tag(BudgetLevel.high)
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 160)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+    }
+    
+    /// 底部：生成按鈕（組 GenerateRequest → GenerationOrchestrator）
+    private var modelDrivenGenerateButton: some View {
+        Button(action: { Task { await runModelDrivenGenerate() } }) {
+            HStack {
+                if isGenerating {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                }
+                // 修改内容：多人協調用不同按鈕文案
+                Text(isGenerating
+                     ? (plannerModelType == .availabilityCoordination ? "試算中…" : "生成中…")
+                     : (plannerModelType == .availabilityCoordination ? "建立協調並試算" : "生成"))
+                    .fontWeight(.semibold)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(isGenerating ? Color.gray : Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(14)
+        }
+        .disabled(isGenerating)
+        .padding()
+    }
+    
+    /// 模型驅動頁：組裝 GenerateRequest 並呼叫 GenerationOrchestrator
+    private func runModelDrivenGenerate() async {
+        // 修改内容：多人協調不走行程／任務生成管線
+        if plannerModelType == .availabilityCoordination {
+            await runAvailabilityCoordinationGenerate()
+            return
+        }
+        let needsDest = plannerModelType == .multiPhase
+        let destValue = destination.isEmpty ? baseLocation : destination
+        if needsDest && destValue.isEmpty {
+            await MainActor.run {
+                errorMessage = "請填寫目的地或地點"
+                showErrorAlert = true
+            }
+            return
+        }
+        await MainActor.run { isGenerating = true }
+        defer { Task { @MainActor in isGenerating = false } }
+        let calendar = Calendar.current
+        let start: Date = baseIsAllDay
+            ? calendar.startOfDay(for: baseStartDate)
+            : mergeDateWithTime(date: baseStartDate, time: baseStartTime)
+        let end: Date = {
+            if !baseIsHasEnd {
+                return baseIsAllDay
+                    ? calendar.date(bySettingHour: 23, minute: 59, second: 59, of: baseStartDate) ?? start
+                    : calendar.date(byAdding: .hour, value: 1, to: start) ?? start
+            }
+            let endDay = baseEndDate > baseStartDate ? baseEndDate : baseStartDate
+            return baseIsAllDay
+                ? calendar.date(bySettingHour: 23, minute: 59, second: 59, of: endDay) ?? start
+                : mergeDateWithTime(date: endDay, time: baseEndTime)
+        }()
+        let startDateForRange = calendar.startOfDay(for: start)
+        let endDateForRange = end > start ? end : calendar.date(byAdding: .day, value: 1, to: start) ?? start
+        var slots = ExtractedSlots()
+        let dest = destValue.isEmpty ? "未填目的地" : destValue
+        slots.destination = SlotInfo(value: dest, confidence: 1.0)
+        slots.dateRange = SlotInfo(value: DateRange(startDate: startDateForRange, endDate: endDateForRange), confidence: 1.0)
+        slots.interestTags = selectedInterests.map { $0.rawValue }
+        slots.budgetLevel = SlotInfo(value: budgetLevel, confidence: 1.0)
+        slots.pace = SlotInfo(value: selectedPace, confidence: 1.0)
+        if let t = selectedTransportation {
+            switch t {
+            case .publicTransport: slots.transportPreference = SlotInfo(value: .publicTransport, confidence: 1.0)
+            case .selfDrive, .charteredCar: slots.transportPreference = SlotInfo(value: .taxi, confidence: 0.9)
+            }
+        }
+        let mode = GenerateRequest.deriveGenerateMode(from: plannerModelType)
+        var taskBreakdownParams: TaskBreakdownParams? = nil
+        if plannerModelType == .floatingTask {
+            taskBreakdownParams = TaskBreakdownParams(
+                deadline: taskDeadline,
+                availableHoursPerDay: taskAvailableHoursPerDay,
+                priorityStrategy: taskPriorityStrategy,
+                taskComplexity: taskComplexity
+            )
+        }
+        let request = GenerateRequest(
+            plannerModelType: plannerModelType,
+            generateMode: mode,
+            themeKey: initialThemeKey ?? "smart_plan",
+            themeMode: .generateItinerary,
+            userId: userManager.userOpenId.isEmpty ? nil : userManager.userOpenId,
+            title: baseTitle.isEmpty ? nil : baseTitle,
+            description: baseDescription.isEmpty ? nil : baseDescription,
+            startDate: start,
+            endDate: end,
+            location: baseLocation.isEmpty ? nil : baseLocation,
+            preferences: basePreferences.isEmpty ? nil : [basePreferences],
+            timezone: TimeZone.current,
+            sourcePage: "AIPlannerView",
+            slots: slots,
+            assumptions: [],
+            riskFlags: [],
+            npi: nil,
+            customInstructions: basePreferences.isEmpty ? nil : basePreferences,
+            departureLocation: nil,
+            accommodationAddress: nil,
+            accommodationCoordinate: nil,
+            selectedAttractionNames: [],
+            customSurroundingTags: [],
+            adults: adults,
+            children: children,
+            taskBreakdown: taskBreakdownParams
+        )
+        do {
+            let result = try await GenerationOrchestrator.shared.generate(request: request)
+            await MainActor.run {
+                generatedResult = result
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                showErrorAlert = true
+            }
+        }
+    }
+
+    // 修改内容：組裝多人協調請求
+    private func buildCoordinationRequest(currentUserId: String) -> CoordinationRequest {
+        let t = baseTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        return CoordinationRequest(
+            title: t.isEmpty ? "多人時間協調" : t,
+            createdByUserId: currentUserId,
+            participants: coordinationFormState.participants,
+            coordinationMode: coordinationFormState.coordinationMode,
+            collectionMethod: coordinationFormState.collectionMethod,
+            targetDateRange: coordinationFormState.dateRange,
+            requiredDurationMinutes: coordinationFormState.durationMinutes,
+            timezoneIdentifier: coordinationFormState.timezoneIdentifier,
+            note: {
+                let n = coordinationFormState.note.trimmingCharacters(in: .whitespacesAndNewlines)
+                return n.isEmpty ? nil : n
+            }()
+        )
+    }
+
+    // 修改内容：多人協調試算（debug 列印 + Top 3 顯示）
+    private func runAvailabilityCoordinationGenerate() async {
+        guard coordinationFormState.participants.count >= 2 else {
+            await MainActor.run {
+                errorMessage = "請至少兩位參與者（可點「新增參與者」）"
+                showErrorAlert = true
+            }
+            return
+        }
+        let uid = userManager.userOpenId.isEmpty ? "local_user" : userManager.userOpenId
+        let req = buildCoordinationRequest(currentUserId: uid)
+        print("[CoordinationRequest] id=\(req.id) title=\(req.title) mode=\(req.coordinationMode.rawValue) durationMin=\(req.requiredDurationMinutes)")
+        let responses: [AvailabilityResponse] = coordinationFormState.participants.map {
+            AvailabilityResponse(
+                participantId: $0.id,
+                timeBlocks: [
+                    AvailabilityBlock(
+                        start: req.targetDateRange.start,
+                        end: req.targetDateRange.end,
+                        preference: .preferred
+                    )
+                ],
+                responseStatus: .submitted
+            )
+        }
+        await MainActor.run { isGenerating = true }
+        defer { Task { @MainActor in isGenerating = false } }
+        let result = AvailabilityIntersectionEngine.generateCandidates(request: req, responses: responses)
+        await MainActor.run {
+            coordinationPreviewResult = result
+        }
+    }
+    
+    /// 將「日期」與「時間」合併為單一 Date（用於 DateTimePickerView 產出）
+    private func mergeDateWithTime(date: Date, time: Date) -> Date {
+        let c = Calendar.current
+        let h = c.component(.hour, from: time)
+        let m = c.component(.minute, from: time)
+        let s = c.component(.second, from: time)
+        return c.date(bySettingHour: h, minute: m, second: s, of: date) ?? date
+    }
+    
     // MARK: - 加载事件列表（用于 MultiEventView）
     private func loadEventsForMultiView() async {
         guard !userManager.userOpenId.isEmpty else { return }
@@ -676,7 +1501,7 @@ struct AIPlannerView: View {
         // 后台同步 Firebase
         Task {
             do {
-                try await EventManager.shared.fetchEvents()
+                _ = try await EventManager.shared.fetchEvents()
                 let updatedEvents = EventCacheManager.shared.loadEvents(for: userManager.userOpenId)
                 await MainActor.run {
                     allEvents = updatedEvents.filter { $0.deleted != 1 }
@@ -809,13 +1634,15 @@ struct AIPlannerView: View {
     
     @ViewBuilder
     private func themeFormQuestionView(question: ThemeFormQuestion) -> some View {
+        let labelText = (question.label.contains(".") ? question.label.localized() : question.label)
+        let placeholderText = (question.placeholder?.contains(".") == true ? (question.placeholder ?? "").localized() : (question.placeholder ?? ""))
         VStack(alignment: .leading, spacing: 8) {
-            Text(question.label)
+            Text(labelText)
                 .font(.headline)
             
             switch question.type {
             case .text:
-                TextField(question.placeholder ?? "", text: Binding(
+                TextField(placeholderText, text: Binding(
                     get: { themeFormAnswers[question.id] ?? question.defaultValue ?? "" },
                     set: { updateThemeFormAnswer(question.id, value: $0) }
                 ))
@@ -860,7 +1687,7 @@ struct AIPlannerView: View {
                 
             case .select:
                 if let options = question.options {
-                    Picker(question.label, selection: Binding(
+                    Picker(labelText, selection: Binding(
                         get: { themeFormAnswers[question.id] ?? question.defaultValue ?? "" },
                         set: { updateThemeFormAnswer(question.id, value: $0) }
                     )) {
@@ -905,7 +1732,7 @@ struct AIPlannerView: View {
                         updateThemeFormAnswer(question.id, value: ISO8601DateFormatter().string(from: $0))
                     }
                 )
-                DatePicker(question.label, selection: binding, displayedComponents: .date)
+                DatePicker(labelText, selection: binding, displayedComponents: .date)
                     .datePickerStyle(.compact)
             }
         }
@@ -1498,7 +2325,7 @@ struct AIPlannerView: View {
                         .padding()
                         .background(Color(.systemBackground))
                         .cornerRadius(12)
-                    } else if let location = currentGPSLocation {
+                    } else if currentGPSLocation != nil {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Image(systemName: "checkmark.circle.fill")
@@ -2179,7 +3006,6 @@ struct AIPlannerView: View {
     // MARK: - 国家名称转换（英文转中文）
     private func convertCountryToChinese(_ englishCountry: String) -> String? {
         let dataManager = DestinationDataManager.shared
-        let allCountries = dataManager.getAllCountries()
         
         // 先尝试直接搜索（支持简繁体英文）
         let matchedCountries = dataManager.searchCountries(englishCountry)
@@ -2356,7 +3182,7 @@ struct AIPlannerView: View {
         // 1. 首先尝试从城市资料库获取（优先使用资料库，避免重复API调用）
         let database = CityAttractionsDatabase.shared
         let interestTags = selectedInterests.map { $0.rawValue }
-        var cityAttractions = database.getFilteredAttractions(
+        let cityAttractions = database.getFilteredAttractions(
             for: cityName,
             country: countryName,
             interestTags: interestTags,
@@ -2725,22 +3551,40 @@ struct AIPlannerView: View {
             }
         }
         
-        let classificationResult = ClassificationResult(
-            inputType: .typeA,
+        let themeKeyForRequest = customTheme != nil ? "custom_\(customTheme!.key)" : "travel_planning"
+        let customInstructionsForRequest: String? = {
+            var s = customTheme?.aiInstruction ?? ""
+            if useThemeFormMode, let npi = buildAndValidateNPI().npi {
+                let npiJson = NPIMapper.npiToPromptJSON(npi)
+                s = (s.isEmpty ? "" : s + "\n\n") + "【標準輸入 NPI】\n\(npiJson)"
+            }
+            return s.isEmpty ? nil : s
+        }()
+        let modelType: PlannerModelType = .multiPhase
+        let request = GenerateRequest(
+            plannerModelType: modelType,
+            generateMode: travelDays == 1 ? .singleDay : .multiDay,
+            themeKey: themeKeyForRequest,
+            themeMode: customTheme?.themeMode ?? .generateItinerary,
+            userId: userManager.userOpenId.isEmpty ? nil : userManager.userOpenId,
             slots: slots,
             assumptions: [],
-            riskFlags: []
+            riskFlags: [],
+            npi: useThemeFormMode ? buildAndValidateNPI().npi : nil,
+            customInstructions: customInstructionsForRequest,
+            departureLocation: useCustomDepartureLocation ? (customDepartureCoordinate.map { CLLocation(latitude: $0.latitude, longitude: $0.longitude) }) : currentGPSLocation,
+            accommodationAddress: accommodationAddress.isEmpty ? nil : accommodationAddress,
+            accommodationCoordinate: accommodationCoordinate,
+            selectedAttractionNames: surroundingAttractions.filter { selectedSurroundingAttractions.contains($0.id) }.map { $0.name },
+            customSurroundingTags: customSurroundingTags,
+            adults: adults,
+            children: children
         )
         
-        let npiForPrompt: NormalizedPlanningInput? = useThemeFormMode ? (buildAndValidateNPI().npi) : nil
-        
-        // 修复：统一错误处理，只在外部 catch，apiTask 内部不处理错误
-        // 并行执行：任务列表动画 + OpenAI API 调用
         let apiTask = Task {
-            // apiTask 内部不 catch，让错误传播到外层统一处理
-            let plan = try await generateAIPoweredPlan(from: classificationResult, npi: npiForPrompt)
+            let result = try await GenerationOrchestrator.shared.generate(request: request)
             await MainActor.run {
-                generatedPlan = plan
+                generatedResult = result
             }
         }
         
@@ -2819,22 +3663,17 @@ struct AIPlannerView: View {
         
         // 修复：统一错误处理，只在这里处理一次
         do {
-            // 等待 API 调用完成
             _ = try await apiTask.value
-            
-            // API 调用成功，转换并保存
             await MainActor.run {
                 if !currentTask.isEmpty {
                     completedTasks.append(currentTask)
                     currentTask = ""
                 }
                 generationProgress = 1.0
-                
-                // 转换为Event并保存（convertAndSavePlan 已经是 @MainActor，可以直接调用）
-                if let plan = generatedPlan {
-                    Task { @MainActor in
-                        await convertAndSavePlan(plan)
-                    }
+                isGenerating = false
+                ActivityRecorder.recordAIUsed()
+                if let result = generatedResult, let plan = result.plan {
+                    savePlanToTemplate(plan, title: nil)
                 }
             }
         } catch {
@@ -2856,99 +3695,6 @@ struct AIPlannerView: View {
                 showErrorAlert = true
                 isGenerating = false
             }
-        }
-    }
-    
-    private func generateAIPoweredPlan(from result: ClassificationResult, npi: NormalizedPlanningInput? = nil) async throws -> PlanResult {
-        guard let destination = result.slots.destination.value else {
-            throw PlanGenerationError.missingDestination
-        }
-        
-        guard let dateRange = result.slots.dateRange.value else {
-            throw PlanGenerationError.missingDateInfo
-        }
-        
-        let calendar = Calendar.current
-        let days = calendar.dateComponents([.day], from: dateRange.startDate, to: dateRange.endDate).day ?? 1
-        let numberOfDays = max(1, days + 1)
-        
-        // 获取选中的周边特色名称 + 自訂標籤
-        let selectedAttractionNames = surroundingAttractions
-            .filter { selectedSurroundingAttractions.contains($0.id) }
-            .map { $0.name }
-        
-        // 准备住宿信息（统一使用地址字符串）
-        let accommodationAddressString: String? = accommodationAddress.isEmpty ? nil : accommodationAddress
-        let accommodationTypeString: String? = accommodationAddress.isEmpty ? nil : "住宿地址"
-        
-        // 根据 switch 状态决定使用哪个位置
-        let departureLocation: CLLocation?
-        if useCustomDepartureLocation, let coordinate = customDepartureCoordinate {
-            departureLocation = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        } else {
-            departureLocation = currentGPSLocation
-        }
-        
-        // 合併主題 AI 指令與 NPI（禁止直接拼接原始表單答案）
-        var customInstructions = customTheme?.aiInstruction ?? ""
-        if let npiInput = npi {
-            let npiJson = NPIMapper.npiToPromptJSON(npiInput)
-            customInstructions = (customInstructions.isEmpty ? "" : customInstructions + "\n\n") + "【標準輸入 NPI】\n\(npiJson)"
-        }
-        
-        let aiPlan = try await AITripGenerator.shared.generateAIItinerary(
-            destination: destination,
-            startDate: dateRange.startDate,
-            endDate: dateRange.endDate,
-            durationDays: numberOfDays,
-            interestTags: result.slots.interestTags,
-            pace: selectedPace,
-            walkingLevel: result.slots.walkingLevel.value,
-            transportPreference: result.slots.transportPreference.value,
-            selectedAttractions: selectedAttractionNames,
-            customTags: customSurroundingTags,
-            currentGPSLocation: departureLocation,
-            accommodationAddress: accommodationAddressString,
-            accommodationType: accommodationTypeString,
-            adults: adults,
-            children: children,
-            customAIInstructions: customInstructions.isEmpty ? nil : customInstructions,
-            themeKey: customTheme != nil ? "custom_\(customTheme!.key)" : "travel_planning",
-            themePromptPrefix: customTheme?.aiPromptPrefix
-        )
-        
-        let context = AITripGenerator.PlanConversionContext(
-            departureLocation: departureLocation,
-            accommodationAddress: accommodationAddressString,
-            accommodationCoordinate: accommodationCoordinate,
-            transportPreference: result.slots.transportPreference.value
-        )
-        var plan = try AITripGenerator.shared.convertToPlanResult(aiPlan, slots: result.slots, adults: adults, children: children, context: context)
-        plan.assumptions = result.assumptions
-        
-        return plan
-    }
-    
-    // 修复：去掉 MainActor 嵌套和 sleep，使用确定性顺序逻辑
-    @MainActor
-    private func convertAndSavePlan(_ plan: PlanResult) async {
-        // 已经在 MainActor 上，不需要再包 MainActor.run
-        isGenerating = false
-        ActivityRecorder.recordAIUsed()
-        
-        // 保存到模板
-        savePlanToTemplate(plan, title: nil)
-        
-        // 更新 generatedPlan（确保数据一致性）
-        generatedPlan = plan
-        
-        // 验证数据完整性后显示详情页（不需要 sleep，逻辑保证数据已准备好）
-        if !plan.days.isEmpty {
-            showPlanDetailView = true
-        } else {
-            // 如果数据无效，显示错误
-            errorMessage = "生成的行程数据无效"
-            showErrorAlert = true
         }
     }
     

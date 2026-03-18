@@ -2,19 +2,19 @@
 //  TravelPlanningView.swift
 //  Secalender
 //
-//  Created by 林平 on 2025/8/8.
-//  快速主题入口：與 AIPlannerView 同等功能的行程規劃視圖
+//  旅遊行程主題入口：內嵌完整四步驟行程規劃（TravelPlannerContent），
+//  與 AIPlannerView 的旅遊流程一致。AIPlannerView 日後可改為時間管理總入口。
 //
 
 import SwiftUI
 
-/// 快速主题中的行程規劃視圖，功能與 AIPlannerView 相同
+/// 旅遊行程主題視圖：自包含完整行程生成機制（目的地→偏好→細節→AI 生成），非僅連結。
 struct TravelPlanningView: View {
     @EnvironmentObject var userManager: FirebaseUserManager
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
-        AIPlannerView()
+        TravelPlannerContent()
             .environmentObject(userManager)
     }
 }

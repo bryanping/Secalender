@@ -20,7 +20,10 @@ struct GoogleMapView: UIViewRepresentable {
             longitude: region.longitude,
             zoom: 15.0
         )
-        let mapView = GMSMapView.map(withFrame: .zero, camera: camera)
+        let options = GMSMapViewOptions()
+        options.camera = camera
+        options.frame = .zero
+        let mapView = GMSMapView(options: options)
         mapView.delegate = context.coordinator
         mapView.isMyLocationEnabled = true
         mapView.settings.myLocationButton = false

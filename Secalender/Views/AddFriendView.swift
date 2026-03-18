@@ -566,9 +566,8 @@ struct AddFriendView: View {
                 .getDocuments()
             
             for doc in userCodeSnapshot.documents {
-                if let data = doc.data() as? [String: Any] {
-                    foundUsers.append((doc.documentID, data))
-                }
+                let data = doc.data()
+                foundUsers.append((doc.documentID, data))
             }
             
             // 通过手机号搜索
@@ -577,9 +576,8 @@ struct AddFriendView: View {
                 .getDocuments()
             
             for doc in phoneSnapshot.documents {
-                if let data = doc.data() as? [String: Any] {
-                    foundUsers.append((doc.documentID, data))
-                }
+                let data = doc.data()
+                foundUsers.append((doc.documentID, data))
             }
             
             // 通过邮箱搜索
@@ -588,9 +586,8 @@ struct AddFriendView: View {
                 .getDocuments()
             
             for doc in emailSnapshot.documents {
-                if let data = doc.data() as? [String: Any] {
-                    foundUsers.append((doc.documentID, data))
-                }
+                let data = doc.data()
+                foundUsers.append((doc.documentID, data))
             }
             
             // 转换为搜索结果
@@ -667,17 +664,13 @@ struct AddFriendView: View {
     
     // MARK: - 获取共同好友数量
     private func getMutualFriendsCount(targetUserId: String) async -> Int {
-        do {
-            let myFriends = await FriendManager.shared.getFriends(for: userManager.userOpenId)
-            let theirFriends = await FriendManager.shared.getFriends(for: targetUserId)
-            
-            let myFriendIds = Set(myFriends.map { $0.id })
-            let theirFriendIds = Set(theirFriends.map { $0.id })
-            
-            return myFriendIds.intersection(theirFriendIds).count
-        } catch {
-            return 0
-        }
+        let myFriends = await FriendManager.shared.getFriends(for: userManager.userOpenId)
+        let theirFriends = await FriendManager.shared.getFriends(for: targetUserId)
+        
+        let myFriendIds = Set(myFriends.map { $0.id })
+        let theirFriendIds = Set(theirFriends.map { $0.id })
+        
+        return myFriendIds.intersection(theirFriendIds).count
     }
     
     // MARK: - 处理添加好友
@@ -978,7 +971,7 @@ struct AddFriendView: View {
                 }
             }
         }
-        .onChange(of: messageText) { newValue in
+        .onChange(of: messageText) { _, newValue in
             // 限制留言长度为100字符
             if newValue.count > 100 {
                 messageText = String(newValue.prefix(100))

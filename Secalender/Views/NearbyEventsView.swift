@@ -57,8 +57,14 @@ struct NearbyEventsView: View {
                 .cornerRadius(10)
             }
             
-            Map(coordinateRegion: $region, interactionModes: [.all], showsUserLocation: true)
-                .edgesIgnoringSafeArea(.all)
+            Map(initialPosition: .region(region)) {
+                UserAnnotation()
+            }
+            .mapStyle(.standard)
+            .onMapCameraChange(frequency: .onEnd) { context in
+                region = context.region
+            }
+            .edgesIgnoringSafeArea(.all)
         }
         .task {
             // 请求位置权限并获取实时GPS位置

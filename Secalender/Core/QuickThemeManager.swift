@@ -191,6 +191,40 @@ struct QuickTheme: Identifiable, Equatable, Codable {
     }
 }
 
+// MARK: - 內建主題專屬問題集（還原週末快閃／深度文化／充實行程）
+extension QuickThemeManager {
+    /// 週末快閃：交通 1 小時內、逛街生活景點、可選主題後生周邊特色
+    static func weekendFlashFormQuestions() -> [ThemeFormQuestion] {
+        [
+            ThemeFormQuestion(id: "start_date", label: "weekend_flash.form.start_date", type: .date, options: nil, unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "計劃日期"),
+            ThemeFormQuestion(id: "duration_days", label: "weekend_flash.form.duration_days", type: .number, options: nil, unit: "天", placeholder: nil, defaultValue: "1", minValue: 1, maxValue: 1, description: "固定 1 天"),
+            ThemeFormQuestion(id: "destination", label: "weekend_flash.form.destination", type: .text, options: nil, unit: nil, placeholder: "weekend_flash.form.destination_placeholder", defaultValue: nil, minValue: nil, maxValue: nil, description: "地點（城市或區域）"),
+            ThemeFormQuestion(id: "travel_limit_minutes", label: "weekend_flash.form.travel_limit", type: .number, options: nil, unit: "分鐘", placeholder: nil, defaultValue: "60", minValue: 30, maxValue: 120, description: "交通時間上限"),
+            ThemeFormQuestion(id: "theme_type", label: "weekend_flash.form.theme_type", type: .multiSelect, options: ["逛街", "生活景點", "咖啡輕食", "文創市集", "自然風光", "美食街區", "藝術空間"], unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "主題（選後生周邊特色）")
+        ]
+    }
+    
+    /// 深度文化：當前城市、古蹟／古城／美術／展覽等
+    static func deepCultureFormQuestions() -> [ThemeFormQuestion] {
+        [
+            ThemeFormQuestion(id: "start_date", label: "deep_culture.form.start_date", type: .date, options: nil, unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "計劃開始日期"),
+            ThemeFormQuestion(id: "duration_days", label: "deep_culture.form.duration_days", type: .number, options: nil, unit: "天", placeholder: nil, defaultValue: "1", minValue: 1, maxValue: 14, description: "天數"),
+            ThemeFormQuestion(id: "city", label: "deep_culture.form.city", type: .text, options: nil, unit: nil, placeholder: "deep_culture.form.city_placeholder", defaultValue: nil, minValue: nil, maxValue: nil, description: "當前／目標城市"),
+            ThemeFormQuestion(id: "culture_type", label: "deep_culture.form.culture_type", type: .multiSelect, options: ["古蹟", "古城", "美術館", "博物館", "短期展覽", "歷史建築", "文化活動"], unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "類型")
+        ]
+    }
+    
+    /// 充實行程：行程目標、周圍推薦（購物／美食／休憩等）
+    static func enrichTripFormQuestions() -> [ThemeFormQuestion] {
+        [
+            ThemeFormQuestion(id: "start_date", label: "enrich_trip.form.start_date", type: .date, options: nil, unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "計劃開始日期"),
+            ThemeFormQuestion(id: "duration_days", label: "enrich_trip.form.duration_days", type: .number, options: nil, unit: "天", placeholder: nil, defaultValue: "3", minValue: 1, maxValue: 30, description: "天數"),
+            ThemeFormQuestion(id: "trip_goal", label: "enrich_trip.form.trip_goal", type: .text, options: nil, unit: nil, placeholder: "enrich_trip.form.trip_goal_placeholder", defaultValue: nil, minValue: nil, maxValue: nil, description: "行程目標或目的地"),
+            ThemeFormQuestion(id: "surrounding_categories", label: "enrich_trip.form.surrounding", type: .multiSelect, options: ["購物", "美食", "休憩", "景點", "夜生活", "親子"], unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "周圍推薦類型")
+        ]
+    }
+}
+
 // MARK: - QuickThemeManager
 @MainActor
 final class QuickThemeManager: ObservableObject {
@@ -207,31 +241,31 @@ final class QuickThemeManager: ObservableObject {
         .builtIn(key: "travel_planning", icon: "map.fill", iconColorHex: "#007AFF", title: "travel_planning.template_name")
     ]
     
-    /// 內建主題專屬提示詞庫（未來可從 Firebase 載入分享）
+    /// 內建主題專屬提示詞與問題集（還原週末快閃／深度文化／充實行程各自問題集）
     private let builtInPromptConfigs: [String: ThemePromptConfig] = [
         "weekend_flash": ThemePromptConfig(
             themeKey: "weekend_flash",
             welcomeTitleKey: "weekend_flash.welcome_title",
             welcomeSubtitleKey: "weekend_flash.welcome_subtitle",
-            formQuestions: nil,
-            aiPromptBase: nil,
+            formQuestions: QuickThemeManager.weekendFlashFormQuestions(),
+            aiPromptBase: "【週末快閃】僅推薦交通 1 小時內可達的逛街、生活、景點；依使用者選擇的主題（逛街／生活景點／咖啡輕食／文創市集／自然風光等）產出周邊特色，安排緊湊一日遊。",
             requiresAI: true
         ),
         "deep_culture": ThemePromptConfig(
             themeKey: "deep_culture",
             welcomeTitleKey: "deep_culture.welcome_title",
             welcomeSubtitleKey: "deep_culture.welcome_subtitle",
-            formQuestions: nil,
-            aiPromptBase: nil,
+            formQuestions: QuickThemeManager.deepCultureFormQuestions(),
+            aiPromptBase: "【深度文化】搜尋並推薦當前城市的古蹟、古城、美術館、博物館、歷史建築、文化活動，以及短期美術／藝術展覽；以文化與藝術體驗為主安排行程。",
             requiresAI: true
         ),
         "enrich_trip": ThemePromptConfig(
             themeKey: "enrich_trip",
             welcomeTitleKey: "enrich_trip.welcome_title",
             welcomeSubtitleKey: "enrich_trip.welcome_subtitle",
-            formQuestions: nil,
-            aiPromptBase: nil,
-            requiresAI: false
+            formQuestions: QuickThemeManager.enrichTripFormQuestions(),
+            aiPromptBase: "【充實行程】依使用者填寫的行程目標或目的地，推薦目標周圍的購物、美食、休憩、景點、夜生活、親子等選項，補齊並充實既有行程。",
+            requiresAI: true
         ),
         "travel_planning": ThemePromptConfig(
             themeKey: "travel_planning",
@@ -263,17 +297,22 @@ final class QuickThemeManager: ObservableObject {
         return NSLocalizedString(key, bundle: bundle, comment: "")
     }
     
-    // MARK: - 取得所有主題（含內建 + 自定義，已排序）
+    // MARK: - 取得所有主題（含內建 + 自定義，已排序；內建會帶入專屬 formQuestions 與 aiInstruction）
     func allThemes(userId: String = "") -> [QuickTheme] {
         let custom = loadCustomThemesForUser(userId)
         var combined = builtInThemes.map { theme in
-            QuickTheme(
+            let config = builtInPromptConfigs[theme.key]
+            return QuickTheme(
                 id: theme.id,
                 key: theme.key,
                 icon: theme.icon,
                 iconColorHex: theme.iconColorHex,
                 title: Self.localizedString(theme.title),
+                aiPromptPrefix: theme.aiPromptPrefix,
                 themeMode: theme.themeMode,
+                aiInstruction: config?.aiPromptBase ?? theme.aiInstruction,
+                advancedParams: theme.advancedParams,
+                formQuestions: config?.formQuestions ?? theme.formQuestions,
                 sortOrder: theme.sortOrder,
                 isFavorite: theme.isFavorite,
                 isBuiltIn: true

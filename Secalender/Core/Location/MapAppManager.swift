@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreLocation
+import MapKit
 import UIKit
 
 /// 地图应用类型
@@ -26,18 +27,19 @@ enum MapAppType: String, CaseIterable {
         }
     }
     
-    /// 地图应用的 URL Scheme
+    /// 地图应用的 URL Scheme（用于检测是否已安装；Apple 使用 maps:// 以直接打开 App）
     var urlScheme: String {
         switch self {
         case .amap: return "iosamap://"
         case .baidu: return "baidumap://"
-        case .apple: return "http://maps.apple.com/"
+        case .apple: return "maps://"
         case .google: return "comgooglemaps://"
         }
     }
     
-    /// 检查应用是否已安装
+    /// 检查应用是否已安装（Apple 地图为系统内置，始终视为可用）
     var isInstalled: Bool {
+        if self == .apple { return true }
         guard let url = URL(string: urlScheme) else { return false }
         return UIApplication.shared.canOpenURL(url)
     }
@@ -55,84 +57,109 @@ class MapAppManager {
         return MapAppType.allCases.filter { $0.isInstalled || $0 == .apple }
     }
     
-    /// 打开指定地图应用
+    /// 打开指定地图应用（直接跳转 App，填入地址并可选显示路线/距离）
     /// - Parameters:
     ///   - mapApp: 地图应用类型
     ///   - destination: 目的地地址（字符串）
     ///   - coordinate: 目的地坐标（可选，优先使用）
-    func openMapApp(_ mapApp: MapAppType, destination: String, coordinate: CLLocationCoordinate2D? = nil) {
+    ///   - transportType: 交通方式（可选）；传入时以「导航/路线」模式打开并显示距离路段，不传则仅打开并定位到目的地
+    func openMapApp(_ mapApp: MapAppType, destination: String, coordinate: CLLocationCoordinate2D? = nil, transportType: MKDirectionsTransportType? = nil) {
         let encodedDestination = destination.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? destination
+        let wantDirections = (transportType != nil)
         
         var urlString: String?
         
         switch mapApp {
         case .amap:
-            if let coord = coordinate {
-                // 使用坐标导航
-                urlString = "iosamap://navi?sourceApplication=Secalender&lat=\(coord.latitude)&lon=\(coord.longitude)&dev=0&style=2"
+            // 高德：path 为路线规划，t=0 驾车 t=2 步行；无 transportType 时也用 path 只填终点
+            let t: Int
+            if let type = transportType {
+                t = (type == .walking) ? 2 : 0  // 0 驾车, 2 步行
             } else {
-                // 使用地址搜索
-                urlString = "iosamap://path?sourceApplication=Secalender&dname=\(encodedDestination)"
+                t = 0
+            }
+            if let coord = coordinate {
+                urlString = "iosamap://path?sourceApplication=Secalender&dlat=\(coord.latitude)&dlon=\(coord.longitude)&dname=\(encodedDestination)&dev=0&t=\(t)"
+            } else {
+                urlString = "iosamap://path?sourceApplication=Secalender&dname=\(encodedDestination)&dev=0&t=\(t)"
             }
             
         case .baidu:
             if let coord = coordinate {
-                // 使用坐标导航
-                urlString = "baidumap://map/direction?destination=\(coord.latitude),\(coord.longitude)&mode=driving&src=Secalender"
+                let mode = (transportType == .walking) ? "walking" : "driving"
+                urlString = "baidumap://map/direction?destination=name:\(encodedDestination)|latlng:\(coord.latitude),\(coord.longitude)&mode=\(mode)&src=Secalender"
             } else {
-                // 使用地址搜索
-                urlString = "baidumap://map/search?query=\(encodedDestination)&src=Secalender"
+                let mode = (transportType == .walking) ? "walking" : "driving"
+                urlString = "baidumap://map/direction?destination=\(encodedDestination)&mode=\(mode)&src=Secalender"
             }
             
         case .apple:
-            if let coord = coordinate {
-                // 使用坐标
-                urlString = "http://maps.apple.com/?daddr=\(coord.latitude),\(coord.longitude)"
+            // 使用 maps:// 直接打开 Apple 地图 App，避免跳到网页
+            if wantDirections {
+                if let coord = coordinate {
+                    urlString = "maps://?daddr=\(coord.latitude),\(coord.longitude)&dirflg=\(appleDirflg(transportType!))"
+                } else {
+                    urlString = "maps://?daddr=\(encodedDestination)&dirflg=\(appleDirflg(transportType!))"
+                }
             } else {
-                // 使用地址搜索
-                urlString = "http://maps.apple.com/?q=\(encodedDestination)"
+                if let coord = coordinate {
+                    urlString = "maps://?daddr=\(coord.latitude),\(coord.longitude)"
+                } else {
+                    urlString = "maps://?q=\(encodedDestination)"
+                }
             }
             
         case .google:
-            if let coord = coordinate {
-                // 使用坐标导航
-                urlString = "comgooglemaps://?daddr=\(coord.latitude),\(coord.longitude)&directionsmode=driving"
+            if wantDirections {
+                if let coord = coordinate {
+                    urlString = "comgooglemaps://?daddr=\(coord.latitude),\(coord.longitude)&dirflg=\(googleDirflg(transportType!))"
+                } else {
+                    urlString = "comgooglemaps://?daddr=\(encodedDestination)&dirflg=\(googleDirflg(transportType!))"
+                }
             } else {
-                // 使用地址搜索
-                urlString = "comgooglemaps://?q=\(encodedDestination)"
+                if let coord = coordinate {
+                    urlString = "comgooglemaps://?q=\(encodedDestination)&center=\(coord.latitude),\(coord.longitude)"
+                } else {
+                    urlString = "comgooglemaps://?q=\(encodedDestination)"
+                }
             }
         }
         
         guard let urlString = urlString,
               let url = URL(string: urlString) else {
-            // 如果无法构建 URL，尝试使用 Apple 地图作为备用
             if mapApp != .apple {
-                openMapApp(.apple, destination: destination, coordinate: coordinate)
+                openMapApp(.apple, destination: destination, coordinate: coordinate, transportType: transportType)
             }
             return
         }
         
-        // 检查是否可以打开 URL
         if UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url, options: [:], completionHandler: nil)
         } else {
-            // 如果无法打开，尝试使用 Apple 地图作为备用
             if mapApp != .apple {
-                openMapApp(.apple, destination: destination, coordinate: coordinate)
+                openMapApp(.apple, destination: destination, coordinate: coordinate, transportType: transportType)
             } else {
-                // 如果 Apple 地图也无法打开，尝试使用网页版
-                if let coord = coordinate {
-                    let webUrl = URL(string: "https://maps.apple.com/?daddr=\(coord.latitude),\(coord.longitude)")
-                    if let webUrl = webUrl {
-                        UIApplication.shared.open(webUrl, options: [:], completionHandler: nil)
-                    }
-                } else {
-                    let webUrl = URL(string: "https://maps.apple.com/?q=\(encodedDestination)")
-                    if let webUrl = webUrl {
-                        UIApplication.shared.open(webUrl, options: [:], completionHandler: nil)
-                    }
+                // Apple 地图备用：仍用 maps:// 尝试打开本机 App，不再用 https 避免开浏览器
+                if let fallback = URL(string: urlString) {
+                    UIApplication.shared.open(fallback, options: [:], completionHandler: nil)
                 }
             }
+        }
+    }
+    
+    private func appleDirflg(_ type: MKDirectionsTransportType) -> String {
+        switch type {
+        case .walking: return "w"
+        case .transit: return "r"
+        default: return "d"
+        }
+    }
+    
+    private func googleDirflg(_ type: MKDirectionsTransportType) -> String {
+        switch type {
+        case .walking: return "w"
+        case .transit: return "r"
+        default: return "d"
         }
     }
 }
