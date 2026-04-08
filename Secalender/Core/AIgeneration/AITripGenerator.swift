@@ -32,6 +32,11 @@ struct AIDayItinerary: Codable {
     let dayTheme: String?       // 每天的主题（如"经典上海·城市记忆线"）
     let dayKeywords: String?    // 关键词（如"历史、城市符号、夜景"）
     let activities: [AITripActivity]
+    // 修改内容：支持主线/可选/备选结构输出（兼容旧 JSON）
+    let mainlineActivities: [AITripActivity]?
+    let optionalActivities: [AITripActivity]?
+    let fallbackActivities: [AITripActivity]?
+    let bufferNote: String?
     let daySummary: String      // 这一天行程的总结
     let transportation: [String]?  // 交通建议
 }
@@ -43,12 +48,206 @@ struct AITripPlan: Codable {
     let endDate: String
     let days: [AIDayItinerary]
     let generalTips: [String]   // 总体建议
+    // 修改内容：记录本次使用的 travel theme module
+    let appliedThemeId: String?
+    let appliedThemeName: String?
+    let appliedIntensity: PlanningIntensityLevel?
+}
+
+// 修改内容：travel 專屬負載策略
+struct TravelLoadPolicy: Codable, Hashable {
+    let intensity: PlanningIntensityLevel
+    let maxAnchorsPerDay: Int
+    let maxSecondaryStopsPerDay: Int
+    let maxFlexibleStopsPerDay: Int
+    let reserveBufferRatio: Double
+    let maxCrossDistrictMoves: Int
+    let minMealMinutes: Int
+    let defaultTransferBufferMinutes: Int
+    let hotspotQueueBufferMinutes: Int
+    let afternoonSlowdownEnabled: Bool
+}
+
+// 修改内容：停靠點優先級
+enum PlanStopPriority: String, Codable {
+    case anchor
+    case secondary
+    case flexible
+    case fallback
+}
+
+// 修改内容：活動現實摩擦負載
+struct ActivityLoadProfile: Codable, Hashable {
+    let baseDurationMinutes: Int
+    let moveCost: Int
+    let queueRisk: Int
+    let energyCost: Int
+    let contextSwitchCost: Int
+    let uncertaintyCost: Int
+
+    var estimatedRealConsumptionMinutes: Int {
+        baseDurationMinutes + moveCost + queueRisk + contextSwitchCost + uncertaintyCost
+    }
+}
+
+// 修改内容：候選活動池模型
+struct CandidateActivity: Identifiable, Codable, Hashable {
+    let id: String
+    let title: String
+    let category: String
+    let priority: PlanStopPriority
+    let note: String?
+    let district: String?
+    let loadProfile: ActivityLoadProfile
+}
+
+// 修改内容：travel 主題模組（prompt + 負載 + 類別偏好）
+struct TravelThemeModule: Identifiable, Codable, Hashable {
+    let id: String
+    let name: String
+    let summary: String
+    let promptPrefix: String
+    let loadPolicy: TravelLoadPolicy
+    let preferredCategories: [String]
+    let avoidedPatterns: [String]
+}
+
+// 修改内容：旅遊分配引擎，避免塞滿式行程
+enum TravelAllocationEngine {
+    struct DayAllocationResult {
+        let mainline: [TimePlanItem]
+        let optional: [TimePlanItem]
+        let fallback: [TimePlanItem]
+    }
+
+    static func buildDayPlan(
+        candidates: [CandidateActivity],
+        theme: TravelThemeModule,
+        availableMinutes: Int
+    ) -> DayAllocationResult {
+        let policy = theme.loadPolicy
+
+        let anchors = candidates.filter { $0.priority == .anchor }.prefix(policy.maxAnchorsPerDay)
+        let secondaries = candidates.filter { $0.priority == .secondary }.prefix(policy.maxSecondaryStopsPerDay)
+        let flexibles = candidates.filter { $0.priority == .flexible }.prefix(policy.maxFlexibleStopsPerDay)
+        let selected = Array(anchors) + Array(secondaries) + Array(flexibles)
+
+        let kept = applyBuffersAndTrim(to: selected, policy: policy, availableMinutes: availableMinutes)
+        let keptTitles = Set(kept.map(\.title))
+
+        let mainline = kept.filter { $0.priority == .anchor || $0.priority == .secondary }
+        let optional = kept.filter { $0.priority == .flexible || $0.priority == .fallback }
+
+        let overflowFallback = candidates
+            .filter { !keptTitles.contains($0.title) }
+            .prefix(3)
+            .map { item in
+                TimePlanItem(
+                    id: UUID().uuidString,
+                    title: item.title,
+                    startText: nil,
+                    endText: nil,
+                    durationMinutes: item.loadProfile.estimatedRealConsumptionMinutes,
+                    note: item.note,
+                    priority: .fallback,
+                    category: item.category,
+                    isOptional: true,
+                    estimatedTransferMinutes: policy.defaultTransferBufferMinutes,
+                    bufferMinutes: policy.hotspotQueueBufferMinutes
+                )
+            }
+
+        return DayAllocationResult(mainline: mainline, optional: optional, fallback: overflowFallback)
+    }
+
+    static func applyBuffersAndTrim(
+        to activities: [CandidateActivity],
+        policy: TravelLoadPolicy,
+        availableMinutes: Int
+    ) -> [TimePlanItem] {
+        var consumed = 0
+        var output: [TimePlanItem] = []
+
+        let reserved = Int(Double(availableMinutes) * policy.reserveBufferRatio)
+        let usable = max(0, availableMinutes - reserved)
+
+        for activity in activities {
+            let realCost =
+                activity.loadProfile.baseDurationMinutes
+                + policy.defaultTransferBufferMinutes
+                + activity.loadProfile.queueRisk
+                + activity.loadProfile.contextSwitchCost
+                + activity.loadProfile.uncertaintyCost
+
+            if consumed + realCost > usable { continue }
+
+            consumed += realCost
+
+            output.append(
+                TimePlanItem(
+                    id: UUID().uuidString,
+                    title: activity.title,
+                    startText: nil,
+                    endText: nil,
+                    durationMinutes: realCost,
+                    note: activity.note,
+                    priority: activity.priority,
+                    category: activity.category,
+                    isOptional: activity.priority == .flexible || activity.priority == .fallback,
+                    estimatedTransferMinutes: policy.defaultTransferBufferMinutes,
+                    bufferMinutes: policy.hotspotQueueBufferMinutes
+                )
+            )
+        }
+
+        return output
+    }
 }
 
 /// AI行程生成器
 final class AITripGenerator {
     static let shared = AITripGenerator()
     private init() {}
+    
+    // 修改内容：内建 travel theme modules（先内建，后续可迁移 Firebase）
+    private let builtInTravelThemes: [TravelThemeModule] = [
+        TravelThemeModule(
+            id: "family_relaxed",
+            name: "亲子放松",
+            summary: "低压、少跨区、保留休息餐饮缓冲",
+            promptPrefix: "【主题：亲子放松】减少跨区移动，优先低排队、低步行、可休息的安排。每一天只保留少量核心活动。",
+            loadPolicy: TravelLoadPolicy(intensity: .relaxed, maxAnchorsPerDay: 1, maxSecondaryStopsPerDay: 1, maxFlexibleStopsPerDay: 1, reserveBufferRatio: 0.35, maxCrossDistrictMoves: 1, minMealMinutes: 70, defaultTransferBufferMinutes: 30, hotspotQueueBufferMinutes: 25, afternoonSlowdownEnabled: true),
+            preferredCategories: ["亲子", "公园", "轻体验", "美食"],
+            avoidedPatterns: ["跨区折返", "高排队连续安排"]
+        ),
+        TravelThemeModule(
+            id: "slow_city_walk",
+            name: "慢节奏城市散步",
+            summary: "少量目的地，重视街区氛围与留白",
+            promptPrefix: "【主题：慢节奏城市散步】不追求打卡数量，优先同区慢游与街区体验，明确留白时间。",
+            loadPolicy: TravelLoadPolicy(intensity: .relaxed, maxAnchorsPerDay: 1, maxSecondaryStopsPerDay: 1, maxFlexibleStopsPerDay: 1, reserveBufferRatio: 0.35, maxCrossDistrictMoves: 1, minMealMinutes: 60, defaultTransferBufferMinutes: 25, hotspotQueueBufferMinutes: 20, afternoonSlowdownEnabled: true),
+            preferredCategories: ["街区", "散步", "咖啡", "轻文化"],
+            avoidedPatterns: ["景点堆砌", "连续跨区"]
+        ),
+        TravelThemeModule(
+            id: "food_explore",
+            name: "美食探索",
+            summary: "餐饮优先，景点辅助，保证用餐时长",
+            promptPrefix: "【主题：美食探索】以用餐和当地风味为主线，景点仅作辅助；餐饮时间必须完整，不压缩。",
+            loadPolicy: TravelLoadPolicy(intensity: .standard, maxAnchorsPerDay: 1, maxSecondaryStopsPerDay: 1, maxFlexibleStopsPerDay: 2, reserveBufferRatio: 0.25, maxCrossDistrictMoves: 2, minMealMinutes: 80, defaultTransferBufferMinutes: 25, hotspotQueueBufferMinutes: 25, afternoonSlowdownEnabled: false),
+            preferredCategories: ["餐厅", "市场", "甜品", "小吃"],
+            avoidedPatterns: ["短时用餐", "远距离跳点"]
+        ),
+        TravelThemeModule(
+            id: "efficient_highlights",
+            name: "高效亮点",
+            summary: "相对高密度但保留必要缓冲",
+            promptPrefix: "【主题：高效亮点】优先城市核心亮点，同区聚类，允许较高密度但必须保留交通和排队缓冲。",
+            loadPolicy: TravelLoadPolicy(intensity: .intensive, maxAnchorsPerDay: 2, maxSecondaryStopsPerDay: 1, maxFlexibleStopsPerDay: 2, reserveBufferRatio: 0.18, maxCrossDistrictMoves: 2, minMealMinutes: 55, defaultTransferBufferMinutes: 20, hotspotQueueBufferMinutes: 20, afternoonSlowdownEnabled: false),
+            preferredCategories: ["地标", "核心景点", "城市亮点"],
+            avoidedPatterns: ["无缓冲衔接", "跨区往返"]
+        )
+    ]
     
     /// 使用OpenAI生成包含真实地点的行程
     /// - Parameter themeKey: 主題識別（weekend_flash, deep_culture, travel_planning, enrich_trip 或自訂 key），用於選擇專屬提示詞
@@ -72,7 +271,8 @@ final class AITripGenerator {
         children: Int? = nil,
         customAIInstructions: String? = nil,
         themeKey: String? = nil,
-        themePromptPrefix: String? = nil
+        themePromptPrefix: String? = nil,
+        travelThemeId: String? = nil
     ) async throws -> AITripPlan {
         
         // 检查 OpenAI 开关
@@ -90,6 +290,15 @@ final class AITripGenerator {
         
         let startDateString = dateFormatter.string(from: startDate)
         let endDateString = dateFormatter.string(from: endDate)
+        
+        // 修改内容：解析/推断 travel theme module（优先用户选择）
+        let resolvedTheme = resolveTravelTheme(
+            preferredThemeId: travelThemeId,
+            interestTags: interestTags,
+            customInstructions: customAIInstructions,
+            adults: adults,
+            children: children
+        )
         
         // 构建详细的提示词（使用验证后的目的地，依 themeKey 加入主題專屬說明）
         var prompt = buildPrompt(
@@ -113,9 +322,12 @@ final class AITripGenerator {
         
         // 依主題加入專屬提示詞前綴（優先使用 themePromptPrefix，否則用 themeKey 的內建提示）
         let themePrefix: String? = if let custom = themePromptPrefix, !custom.trimmingCharacters(in: .whitespaces).isEmpty {
-            custom
+            resolvedTheme.promptPrefix + "\n" + custom
         } else {
-            buildThemeSpecificPromptPrefix(themeKey: themeKey, durationDays: durationDays)
+            [resolvedTheme.promptPrefix, buildThemeSpecificPromptPrefix(themeKey: themeKey, durationDays: durationDays)]
+                .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n")
         }
         if let prefix = themePrefix {
             prompt = prefix + "\n\n" + prompt
@@ -136,7 +348,8 @@ final class AITripGenerator {
         print("✅ [AITripGenerator] OpenAI API 调用成功，响应长度: \(aiPlanJson.count) 字符")
         
         // 解析JSON响应（使用原始目的地，保持数据一致性）
-        return try parseAIResponse(aiPlanJson, destination: destination, startDate: startDateString, endDate: endDateString)
+        let parsedPlan = try parseAIResponse(aiPlanJson, destination: destination, startDate: startDateString, endDate: endDateString)
+        return applyTravelThemeModule(to: parsedPlan, theme: resolvedTheme, pace: pace)
     }
     
     /// 验证和规范化目的地格式
@@ -483,6 +696,17 @@ final class AITripGenerator {
             children: children
         )
         
+        // 修改内容：统一加入“真实可执行”硬约束（避免塞满式攻略）
+        prompt += """
+
+        
+        【硬性执行规则 / Mandatory Constraints】
+        - 不要为了显得丰富而堆砌过多景点。
+        - 每一天只安排少量核心活动，并保留足够的移动、排队、用餐、休息与临时变化空间。
+        - 宁可少安排，也不要给出难以真实执行的紧凑行程。
+        - 输出时请区分：1) 核心主线 2) 可选活动 3) 备选活动。
+        """
+        
         return prompt
     }
     
@@ -519,6 +743,130 @@ final class AITripGenerator {
             }
             return nil
         }
+    }
+    
+    // 修改内容：根据用户输入推断默认 travel theme
+    private func resolveTravelTheme(
+        preferredThemeId: String?,
+        interestTags: [String],
+        customInstructions: String?,
+        adults: Int?,
+        children: Int?
+    ) -> TravelThemeModule {
+        if let preferredThemeId,
+           let direct = builtInTravelThemes.first(where: { $0.id == preferredThemeId }) {
+            return direct
+        }
+        if (children ?? 0) > 0 || (adults ?? 1) > 1 {
+            if let family = builtInTravelThemes.first(where: { $0.id == "family_relaxed" }) {
+                return family
+            }
+        }
+        let normalizedInstructions = (customInstructions ?? "").lowercased()
+        if normalizedInstructions.contains("慢游")
+            || normalizedInstructions.contains("放松")
+            || normalizedInstructions.contains("散步") {
+            return builtInTravelThemes.first(where: { $0.id == "slow_city_walk" }) ?? builtInTravelThemes[0]
+        }
+        if interestTags.contains(where: { ["food", "美食", "餐厅", "餐廳"].contains($0.lowercased()) })
+            || normalizedInstructions.contains("美食")
+            || normalizedInstructions.contains("餐厅")
+            || normalizedInstructions.contains("餐廳") {
+            return builtInTravelThemes.first(where: { $0.id == "food_explore" }) ?? builtInTravelThemes[0]
+        }
+        return builtInTravelThemes.first(where: { $0.id == "efficient_highlights" }) ?? builtInTravelThemes[0]
+    }
+    
+    // 修改内容：将 AI 原始结果二次分配为主线/可选/备选，控制真实负载
+    private func applyTravelThemeModule(to plan: AITripPlan, theme: TravelThemeModule, pace: Pace) -> AITripPlan {
+        let availableMinutes: Int = {
+            switch pace {
+            case .relaxed: return 420
+            case .moderate: return 510
+            case .tight: return 570
+            }
+        }()
+        
+        let remappedDays: [AIDayItinerary] = plan.days.map { day in
+            let candidates = day.activities.enumerated().map { idx, activity in
+                CandidateActivity(
+                    id: "\(day.date)-\(idx)-\(activity.title)",
+                    title: activity.title,
+                    category: activity.category,
+                    priority: inferPriority(index: idx, category: activity.category),
+                    note: activity.rationale ?? activity.description,
+                    district: nil,
+                    loadProfile: ActivityLoadProfile(
+                        baseDurationMinutes: max(45, activity.recommendedDuration),
+                        moveCost: theme.loadPolicy.defaultTransferBufferMinutes,
+                        queueRisk: inferQueueRisk(for: activity),
+                        energyCost: 5,
+                        contextSwitchCost: 10,
+                        uncertaintyCost: 10
+                    )
+                )
+            }
+            
+            let allocation = TravelAllocationEngine.buildDayPlan(
+                candidates: candidates,
+                theme: theme,
+                availableMinutes: availableMinutes
+            )
+            let indexedActivities = Dictionary(uniqueKeysWithValues: day.activities.map { ($0.title, $0) })
+            let mainline = allocation.mainline.compactMap { indexedActivities[$0.title] }
+            let optional = allocation.optional.compactMap { indexedActivities[$0.title] }
+            let fallback = allocation.fallback.compactMap { indexedActivities[$0.title] }
+            let merged = mainline + optional
+            
+            return AIDayItinerary(
+                date: day.date,
+                dayTheme: day.dayTheme,
+                dayKeywords: day.dayKeywords,
+                activities: merged.isEmpty ? day.activities : merged,
+                mainlineActivities: mainline.isEmpty ? nil : mainline,
+                optionalActivities: optional.isEmpty ? nil : optional,
+                fallbackActivities: fallback.isEmpty ? nil : fallback,
+                bufferNote: "已按\(theme.name)策略保留缓冲，避免过度紧凑。",
+                daySummary: day.daySummary,
+                transportation: day.transportation
+            )
+        }
+        
+        return AITripPlan(
+            destination: plan.destination,
+            startDate: plan.startDate,
+            endDate: plan.endDate,
+            days: remappedDays,
+            generalTips: plan.generalTips,
+            appliedThemeId: theme.id,
+            appliedThemeName: theme.name,
+            appliedIntensity: theme.loadPolicy.intensity
+        )
+    }
+    
+    // 修改内容：优先级推断，支持主线/可选
+    private func inferPriority(index: Int, category: String) -> PlanStopPriority {
+        if index == 0 { return .anchor }
+        let lowered = category.lowercased()
+        if lowered.contains("景点") || lowered.contains("spot") || lowered.contains("文化") {
+            return index <= 1 ? .secondary : .flexible
+        }
+        if lowered.contains("餐") || lowered.contains("food") || lowered.contains("restaurant") {
+            return .secondary
+        }
+        return index <= 2 ? .secondary : .flexible
+    }
+    
+    // 修改内容：现实摩擦估算（仍是规则估值）
+    private func inferQueueRisk(for activity: AITripActivity) -> Int {
+        let lowered = "\(activity.title) \(activity.category)".lowercased()
+        if lowered.contains("museum") || lowered.contains("博物馆") || lowered.contains("热门") || lowered.contains("地标") {
+            return 20
+        }
+        if lowered.contains("餐厅") || lowered.contains("restaurant") {
+            return 15
+        }
+        return 10
     }
     
     /// 根据语言环境构建本地化的 prompt

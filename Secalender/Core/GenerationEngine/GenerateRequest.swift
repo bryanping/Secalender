@@ -58,6 +58,11 @@ struct GenerateRequest {
     var adults: Int
     var children: Int
     
+    // 修改内容：travel domain 專屬控制欄位（不影響其他 domain）
+    var planningDomain: PlanningDomain = .travel
+    var planningIntensity: PlanningIntensityLevel? = nil
+    var travelThemeModuleId: String? = nil
+    
     // MARK: - 模型專屬（任務拆解等）
     var taskBreakdown: TaskBreakdownParams? = nil
     

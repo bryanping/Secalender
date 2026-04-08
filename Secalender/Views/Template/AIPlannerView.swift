@@ -217,6 +217,8 @@ struct AIPlannerView: View {
     @State private var selectedTransportation: TransportationType? = .publicTransport
     @State private var selectedPace: Pace = .relaxed  // 預設輕鬆，僅支援輕鬆/緊湊
     @State private var budgetLevel: BudgetLevel = .moderate
+    // 修改内容：travel theme module 选择（主题优先于单次 prompt）
+    @State private var selectedTravelThemeModuleId: String? = nil
     
     // 步骤3：行程細節優化
     @State private var surroundingAttractions: [SurroundingAttraction] = []
@@ -1488,6 +1490,25 @@ struct AIPlannerView: View {
         return c.date(bySettingHour: h, minute: m, second: s, of: date) ?? date
     }
     
+    // 修改内容：内建 travel themes（与 AITripGenerator 对齐）
+    private var travelThemeModules: [TravelThemeModule] {
+        [
+            TravelThemeModule(id: "family_relaxed", name: "亲子放松", summary: "低压、少跨区", promptPrefix: "", loadPolicy: TravelLoadPolicy(intensity: .relaxed, maxAnchorsPerDay: 1, maxSecondaryStopsPerDay: 1, maxFlexibleStopsPerDay: 1, reserveBufferRatio: 0.35, maxCrossDistrictMoves: 1, minMealMinutes: 70, defaultTransferBufferMinutes: 30, hotspotQueueBufferMinutes: 25, afternoonSlowdownEnabled: true), preferredCategories: [], avoidedPatterns: []),
+            TravelThemeModule(id: "slow_city_walk", name: "慢节奏散步", summary: "重视街区氛围与留白", promptPrefix: "", loadPolicy: TravelLoadPolicy(intensity: .relaxed, maxAnchorsPerDay: 1, maxSecondaryStopsPerDay: 1, maxFlexibleStopsPerDay: 1, reserveBufferRatio: 0.35, maxCrossDistrictMoves: 1, minMealMinutes: 60, defaultTransferBufferMinutes: 25, hotspotQueueBufferMinutes: 20, afternoonSlowdownEnabled: true), preferredCategories: [], avoidedPatterns: []),
+            TravelThemeModule(id: "food_explore", name: "美食探索", summary: "餐饮优先，景点辅助", promptPrefix: "", loadPolicy: TravelLoadPolicy(intensity: .standard, maxAnchorsPerDay: 1, maxSecondaryStopsPerDay: 1, maxFlexibleStopsPerDay: 2, reserveBufferRatio: 0.25, maxCrossDistrictMoves: 2, minMealMinutes: 80, defaultTransferBufferMinutes: 25, hotspotQueueBufferMinutes: 25, afternoonSlowdownEnabled: false), preferredCategories: [], avoidedPatterns: []),
+            TravelThemeModule(id: "efficient_highlights", name: "高效亮点", summary: "高效率打卡但保留缓冲", promptPrefix: "", loadPolicy: TravelLoadPolicy(intensity: .intensive, maxAnchorsPerDay: 2, maxSecondaryStopsPerDay: 1, maxFlexibleStopsPerDay: 2, reserveBufferRatio: 0.18, maxCrossDistrictMoves: 2, minMealMinutes: 55, defaultTransferBufferMinutes: 20, hotspotQueueBufferMinutes: 20, afternoonSlowdownEnabled: false), preferredCategories: [], avoidedPatterns: [])
+        ]
+    }
+    
+    // 修改内容：未手动选择时自动匹配默认主题
+    private func inferDefaultTravelThemeId() -> String {
+        if children > 0 { return "family_relaxed" }
+        let normalized = "\(tripTheme) \(additionalRequirements)".lowercased()
+        if normalized.contains("慢游") || normalized.contains("放松") || normalized.contains("散步") { return "slow_city_walk" }
+        if normalized.contains("美食") || normalized.contains("餐厅") || normalized.contains("餐廳") { return "food_explore" }
+        return "efficient_highlights"
+    }
+    
     // MARK: - 加载事件列表（用于 MultiEventView）
     private func loadEventsForMultiView() async {
         guard !userManager.userOpenId.isEmpty else { return }
@@ -2056,6 +2077,39 @@ struct AIPlannerView: View {
                             selectedTransportation = transport
                         }
                     }
+                }
+            }
+            
+            // 修改内容：travel planning 主题模块选择
+            VStack(alignment: .leading, spacing: 12) {
+                Text("旅游主题模块")
+                    .font(.system(size: 20, weight: .semibold))
+                Text("主题会影响行程密度、偏好与缓冲策略。")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                ForEach(travelThemeModules, id: \.id) { module in
+                    Button {
+                        selectedTravelThemeModuleId = module.id
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(module.name).font(.subheadline).fontWeight(.semibold)
+                                Text(module.summary).font(.caption).foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            if selectedTravelThemeModuleId == module.id {
+                                Image(systemName: "checkmark.circle.fill").foregroundColor(.blue)
+                            }
+                        }
+                        .padding(12)
+                        .background(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(selectedTravelThemeModuleId == module.id ? Color.blue : Color(UIColor.systemGray4), lineWidth: 1)
+                        )
+                        .cornerRadius(12)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             
@@ -3552,6 +3606,8 @@ struct AIPlannerView: View {
         }
         
         let themeKeyForRequest = customTheme != nil ? "custom_\(customTheme!.key)" : "travel_planning"
+        // 修改内容：若未手动选择则自动套用默认主题
+        let resolvedTravelThemeId = selectedTravelThemeModuleId ?? inferDefaultTravelThemeId()
         let customInstructionsForRequest: String? = {
             var s = customTheme?.aiInstruction ?? ""
             if useThemeFormMode, let npi = buildAndValidateNPI().npi {
@@ -3578,7 +3634,10 @@ struct AIPlannerView: View {
             selectedAttractionNames: surroundingAttractions.filter { selectedSurroundingAttractions.contains($0.id) }.map { $0.name },
             customSurroundingTags: customSurroundingTags,
             adults: adults,
-            children: children
+            children: children,
+            planningDomain: .travel,
+            planningIntensity: nil,
+            travelThemeModuleId: resolvedTravelThemeId
         )
         
         let apiTask = Task {
