@@ -78,7 +78,8 @@ final class GenerationOrchestrator {
             children: request.children,
             customAIInstructions: request.customInstructions,
             themeKey: request.themeKey,
-            themePromptPrefix: resolution.promptPrefix
+            themePromptPrefix: resolution.promptPrefix,
+            travelThemeId: request.travelThemeModuleId
         )
 
         let conversionContext = AITripGenerator.PlanConversionContext(
@@ -96,6 +97,13 @@ final class GenerationOrchestrator {
         )
         plan.assumptions = request.assumptions
         plan.riskFlags = request.riskFlags
+        // 修改内容：将主题与节奏信息写入结果，便于前端展示
+        if let appliedThemeName = aiPlan.appliedThemeName {
+            plan.riskFlags.append("已套用主题：\(appliedThemeName)")
+        }
+        if let intensity = aiPlan.appliedIntensity {
+            plan.riskFlags.append("节奏强度：\(intensity.rawValue)")
+        }
 
         var candidates = normalizer.normalize(plan: plan)
         let resultType = classifyResultType(candidates: candidates, plan: plan)

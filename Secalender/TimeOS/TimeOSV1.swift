@@ -170,6 +170,12 @@ struct TimePlanItem: Codable, Identifiable {
     let endText: String?
     let durationMinutes: Int?
     let note: String?
+    // 修改内容：支持主线/可选/备选优先级与现实缓冲字段（向后兼容）
+    let priority: PlanStopPriority = .secondary
+    let category: String? = nil
+    let isOptional: Bool = false
+    let estimatedTransferMinutes: Int? = nil
+    let bufferMinutes: Int? = nil
 }
 
 // MARK: - Engine
@@ -1191,4 +1197,3 @@ struct TimeSecretaryView: View {
         .disabled(vm.isLoading || (vm.currentNPI?.missingFields.isEmpty != true))
     }
 }
-

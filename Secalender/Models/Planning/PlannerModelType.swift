@@ -7,6 +7,23 @@
 
 import Foundation
 
+// 修改内容：新增規劃領域，為 travel 專屬策略提供 domain 邊界
+enum PlanningDomain: String, Codable {
+    case travel
+    case task
+    case study
+    case family
+    case workday
+    case deadline
+}
+
+// 修改内容：新增強度級別，用於主題模組和負載策略
+enum PlanningIntensityLevel: String, Codable {
+    case relaxed
+    case standard
+    case intensive
+}
+
 enum PlannerModelType: String, Codable, CaseIterable {
     case availability = "availability"
     case floatingTask = "floatingTask"
