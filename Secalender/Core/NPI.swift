@@ -46,8 +46,12 @@ enum NPIFieldWhitelist {
     }
 }
 
-// MARK: - NPI 標準輸入
-struct NormalizedPlanningInput: Codable {
+// MARK: - Legacy NPI 標準輸入
+//
+// 注意：此結構為既有 AIPlanner/生成引擎使用的「舊版 NPI」。
+// Time OS V1 會新增另一份同名概念但不同欄位的 `NormalizedPlanningInput`（放在 TimeOS/Models）。
+// 為避免型別名稱衝突，這裡改名為 LegacyNormalizedPlanningInput。
+struct LegacyNormalizedPlanningInput: Codable {
     var plan_type: NPIPlanType
     var start_date: String          // YYYY-MM-DD
     var end_date: String           // YYYY-MM-DD
@@ -91,7 +95,7 @@ struct NPIGenerationLog: Codable {
     let themeKey: String
     let templateVersion: Int
     let mappingVersion: String
-    let npi: NormalizedPlanningInput
+    let npi: LegacyNormalizedPlanningInput
     let rawFormAnswersCount: Int
     let validationPassed: Bool
     let validationErrors: [String]?
@@ -111,7 +115,7 @@ enum NPIMapper {
         planType: NPIPlanType = .itinerary,
         fixedStartDate: Date?,
         fixedDurationDays: Int?
-    ) -> NormalizedPlanningInput {
+    ) -> LegacyNormalizedPlanningInput {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         
@@ -226,12 +230,12 @@ enum NPIMapper {
         return npi
     }
     
-    private static func defaultNPI(planType: NPIPlanType, themeTitle: String) -> NormalizedPlanningInput {
+    private static func defaultNPI(planType: NPIPlanType, themeTitle: String) -> LegacyNormalizedPlanningInput {
         let today = Date()
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let end = Calendar.current.date(byAdding: .day, value: 6, to: today) ?? today
-        return NormalizedPlanningInput(
+        return LegacyNormalizedPlanningInput(
             plan_type: planType,
             start_date: formatter.string(from: today),
             end_date: formatter.string(from: end),
@@ -271,7 +275,7 @@ enum NPIMapper {
     }
     
     /// 校驗 NPI，回傳錯誤列表
-    static func validateNPI(_ npi: NormalizedPlanningInput) -> [String] {
+    static func validateNPI(_ npi: LegacyNormalizedPlanningInput) -> [String] {
         var errors: [String] = []
         
         if npi.goal.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -316,7 +320,7 @@ enum NPIMapper {
     /// 建立 generation_log
     static func buildGenerationLog(
         themeKey: String,
-        npi: NormalizedPlanningInput,
+        npi: LegacyNormalizedPlanningInput,
         rawFormAnswersCount: Int,
         validationErrors: [String]
     ) -> NPIGenerationLog {
@@ -333,7 +337,7 @@ enum NPIMapper {
     }
     
     /// 將 NPI 轉為 AI 指令用的 JSON 字串（禁止傳原始 formAnswers）
-    static func npiToPromptJSON(_ npi: NormalizedPlanningInput) -> String {
+    static func npiToPromptJSON(_ npi: LegacyNormalizedPlanningInput) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
         if let data = try? encoder.encode(npi), let str = String(data: data, encoding: .utf8) {

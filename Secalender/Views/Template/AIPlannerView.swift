@@ -363,7 +363,7 @@ struct AIPlannerView: View {
     }
     
     /// 建立 NPI 並校驗（禁止直接拼接原始表單到 prompt）
-    private func buildAndValidateNPI() -> (npi: NormalizedPlanningInput?, errors: [String]?) {
+    private func buildAndValidateNPI() -> (npi: LegacyNormalizedPlanningInput?, errors: [String]?) {
         guard let theme = customTheme, let questions = theme.formQuestions, !questions.isEmpty else {
             return (nil, ["無表單問題"])
         }

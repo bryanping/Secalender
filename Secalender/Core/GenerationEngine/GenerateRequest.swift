@@ -48,7 +48,7 @@ struct GenerateRequest {
     var slots: ExtractedSlots
     var assumptions: [String]
     var riskFlags: [String]
-    var npi: NormalizedPlanningInput?
+    var npi: LegacyNormalizedPlanningInput?
     var customInstructions: String?
     var departureLocation: CLLocation?
     var accommodationAddress: String?

@@ -68,6 +68,7 @@
 		A2BD0C2A2F3A3DD90054E3F1 /* FriendInviteLinkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BD0C282F3A3DD90054E3F1 /* FriendInviteLinkManager.swift */; };
 		A2BD0C2B2F3A3DD90054E3F1 /* QRCodeGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BD0C292F3A3DD90054E3F1 /* QRCodeGenerator.swift */; };
 		A2BD0C442F35874C0054E3F1 /* AvatarUploadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BD0C432F35874C0054E3F1 /* AvatarUploadService.swift */; };
+		A2BFD2452F6A502B00B850C9 /* PlannerModelType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BFD2442F6A502B00B850C9 /* PlannerModelType.swift */; };
 		A2C21B2C2DE2248700D588C3 /* ReceivedFriendRequestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C21B2B2DE2248600D588C3 /* ReceivedFriendRequestsView.swift */; };
 		A2C9F4792F2733FF000847C3 /* GooglePlacesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C9F4782F2733FF000847C3 /* GooglePlacesManager.swift */; };
 		A2C9F47A2F2733FF000847C3 /* GooglePlacesAutocompleteManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C9F4772F2733FF000847C3 /* GooglePlacesAutocompleteManager.swift */; };
@@ -158,6 +159,7 @@
 		A2E93C612C32ADEF00516E52 /* UserManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E93C602C32ADEF00516E52 /* UserManager.swift */; };
 		A2EC3F022F4E7D2300736C8 /* CommunityTripsFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2EC3F012F4E7D2300736C8 /* CommunityTripsFeedView.swift */; };
 		A2EDD8F52C2484B00098B31A /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2EDD8F42C2484B00098B31A /* Utilities.swift */; };
+		A2F0A0032F90000100DA4FC9 /* TimeOSV1.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F0A0022F90000100DA4FC9 /* TimeOSV1.swift */; };
 		A2F153E62E45D57400158F94 /* TemplateStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F153E52E45D57300158F94 /* TemplateStoreView.swift */; };
 		A2F153E82E45D58F00158F94 /* TemplateDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F153E72E45D58E00158F94 /* TemplateDetailView.swift */; };
 		A2F153EC2E45D5B100158F94 /* AchievementsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F153EB2E45D5AF00158F94 /* AchievementsView.swift */; };
@@ -274,6 +276,7 @@
 		A2BD0C282F3A3DD90054E3F1 /* FriendInviteLinkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendInviteLinkManager.swift; sourceTree = "<group>"; };
 		A2BD0C292F3A3DD90054E3F1 /* QRCodeGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeGenerator.swift; sourceTree = "<group>"; };
 		A2BD0C432F35874C0054E3F1 /* AvatarUploadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarUploadService.swift; sourceTree = "<group>"; };
+		A2BFD2442F6A502B00B850C9 /* PlannerModelType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerModelType.swift; sourceTree = "<group>"; };
 		A2C21B2B2DE2248600D588C3 /* ReceivedFriendRequestsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceivedFriendRequestsView.swift; sourceTree = "<group>"; };
 		A2C9F4772F2733FF000847C3 /* GooglePlacesAutocompleteManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GooglePlacesAutocompleteManager.swift; sourceTree = "<group>"; };
 		A2C9F4782F2733FF000847C3 /* GooglePlacesManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GooglePlacesManager.swift; sourceTree = "<group>"; };
@@ -370,6 +373,7 @@
 		A2E93C602C32ADEF00516E52 /* UserManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserManager.swift; sourceTree = "<group>"; };
 		A2EC3F012F4E7D2300736C8 /* CommunityTripsFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityTripsFeedView.swift; sourceTree = "<group>"; };
 		A2EDD8F42C2484B00098B31A /* Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
+		A2F0A0022F90000100DA4FC9 /* TimeOSV1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeOSV1.swift; sourceTree = "<group>"; };
 		A2F153E52E45D57300158F94 /* TemplateStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateStoreView.swift; sourceTree = "<group>"; };
 		A2F153E72E45D58E00158F94 /* TemplateDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateDetailView.swift; sourceTree = "<group>"; };
 		A2F153EB2E45D5AF00158F94 /* AchievementsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsView.swift; sourceTree = "<group>"; };
@@ -714,6 +718,7 @@
 			isa = PBXGroup;
 			children = (
 				A2E0FA392F24B00200DA4FC9 /* Networking */,
+				A2F0A0042F90000100DA4FC9 /* TimeOS */,
 				A2E0FA0B2F21F31B00DA4FC9 /* NPI.swift */,
 				A2E0FA032F21F31A00DA4FC9 /* QuickThemeManager.swift */,
 				A2E0FA0D2F21F31D00DA4FC9 /* ThemePromptService.swift */,
@@ -772,6 +777,14 @@
 				A2EDD8F42C2484B00098B31A /* Utilities.swift */,
 			);
 			path = Utilities;
+			sourceTree = "<group>";
+		};
+		A2F0A0042F90000100DA4FC9 /* TimeOS */ = {
+			isa = PBXGroup;
+			children = (
+				A2F0A0022F90000100DA4FC9 /* TimeOSV1.swift */,
+			);
+			path = ../TimeOS;
 			sourceTree = "<group>";
 		};
 		A2F229B52D40CC9400B4CA4D /* Models */ = {
@@ -876,6 +889,7 @@
 				B3C0R0112F60100100DA4FC9 /* PlannerMissingField.swift */,
 				B3C0R0122F60100100DA4FC9 /* ParsedParticipant.swift */,
 				B3C0R0132F60100100DA4FC9 /* ParsedPlannerIntent.swift */,
+				A2BFD2442F6A502B00B850C9 /* PlannerModelType.swift */,
 			);
 			path = Planning;
 			sourceTree = "<group>";
@@ -963,7 +977,7 @@
 		A2F8E6B82C1944A700AA109D /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				BuildIndependentTargetsInParallel = 1;
+				BuildIndependentTargetsInParallel = NO;
 				LastSwiftUpdateCheck = 1540;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
@@ -1068,6 +1082,7 @@
 				A2E0F9C72F1B8C3A00DA4FC9 /* BatchShareEventsView.swift in Sources */,
 				A2E0F9BB2F1B1CAB00DA4FC9 /* PlanDetailView.swift in Sources */,
 				A2E0F9E92F21F30A00DA4FC9 /* AIPlannerView.swift in Sources */,
+				A2F0A0032F90000100DA4FC9 /* TimeOSV1.swift in Sources */,
 				A2E0FA012F21F30B00DA4FC9 /* TravelPlanningView.swift in Sources */,
 				A2E0FA302F21F30C00DA4FC9 /* TravelPlannerContent.swift in Sources */,
 				A2E0F9C12F1B1ECE00DA4FC9 /* PlanEditView.swift in Sources */,
@@ -1150,6 +1165,7 @@
 				A2E0FA3A2F24B00300DA4FC9 /* TimeItemService.swift in Sources */,
 				A2E0FA3D2F24B00500DA4FC9 /* TimeItem.swift in Sources */,
 				A2E0FA3F2F24B00700DA4FC9 /* SchedulerService.swift in Sources */,
+				A2BFD2452F6A502B00B850C9 /* PlannerModelType.swift in Sources */,
 				A2GEN0012F24B10000DA4FC9 /* GenerateRequest.swift in Sources */,
 				A2GEN0032F24B10000DA4FC9 /* GenerationResult.swift in Sources */,
 				A2GEN0052F24B10000DA4FC9 /* TimeItemCandidate.swift in Sources */,
@@ -1298,7 +1314,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
-				SECALENDER_API_BASE_URL = "https://app.huodonli.cn";
+				SECALENDER_API_BASE_URL = "https://secalenderweb-271916944141.asia-southeast1.run.app";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -1360,7 +1376,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
-				SECALENDER_API_BASE_URL = "https://app.huodonli.cn";
+				SECALENDER_API_BASE_URL = "https://secalenderweb-271916944141.asia-southeast1.run.app";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
@@ -1400,7 +1416,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.Lin-ping.Secalender";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SECALENDER_API_BASE_URL = "https://app.huodonli.cn";
+				SECALENDER_API_BASE_URL = "https://secalenderweb-271916944141.asia-southeast1.run.app";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -1444,7 +1460,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.Lin-ping.Secalender";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SECALENDER_API_BASE_URL = "https://app.huodonli.cn";
+				SECALENDER_API_BASE_URL = "https://secalenderweb-271916944141.asia-southeast1.run.app";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;

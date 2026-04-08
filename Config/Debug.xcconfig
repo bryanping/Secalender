@@ -1,6 +1,6 @@
 // Debug 環境：本地開發
 #include "Secrets.xcconfig"
 
-// 模板市集 API 需連生產環境（實機無法用 localhost）
+// 模板市集 API：Cloud Run（若改回大陸網域 + Nginx 反代，可改為 https://app.huodonli.cn）
 // 若需測試本地 Next.js，可改為 http://YOUR_MAC_IP:3000
-SECALENDER_API_BASE_URL = https://app.huodonli.cn
+SECALENDER_API_BASE_URL = https://secalenderweb-271916944141.asia-southeast1.run.app

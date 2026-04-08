@@ -1,5 +1,5 @@
 // Release 環境：生產
 #include "Secrets.xcconfig"
 
-// 生產 API
-SECALENDER_API_BASE_URL = https://app.huodonli.cn
+// 生產 API（Cloud Run；若改回大陸網域請改為 https://app.huodonli.cn）
+SECALENDER_API_BASE_URL = https://secalenderweb-271916944141.asia-southeast1.run.app

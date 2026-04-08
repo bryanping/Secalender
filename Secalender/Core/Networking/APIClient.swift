@@ -39,7 +39,7 @@ final class APIClient {
     static let shared = APIClient()
 
     /// API 基底網址：從 Info.plist（xcconfig 注入）讀取 SECALENDER_API_BASE_URL
-    private static let productionBaseURL = "https://app.huodonli.cn"
+    private static let productionBaseURL = "https://secalenderweb-271916944141.asia-southeast1.run.app"
 
     private var baseURL: String {
         guard let url = Bundle.main.infoDictionary?["SECALENDER_API_BASE_URL"] as? String,

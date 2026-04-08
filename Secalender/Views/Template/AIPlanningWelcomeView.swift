@@ -15,6 +15,7 @@ struct AIPlanningWelcomeView: View {
     @Binding var showAIPlanner: Bool
     @EnvironmentObject var userManager: FirebaseUserManager
     @ObservedObject var themeManager = QuickThemeManager.shared
+    @State private var showTimeOSV1: Bool = false
     
     /// 點擊主題卡片後帶預設進入統一 AIPlannerView（取代原 WeekendFlash / DeepCulture / EnrichTrip / TravelPlanning / 自訂主題 各自 sheet）
     @State private var showAIPlannerWithTheme: QuickTheme?
@@ -88,6 +89,24 @@ struct AIPlanningWelcomeView: View {
                                     .foregroundColor(.primary)
                             }
                         }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+
+                    Button(action: {
+                        showTimeOSV1 = true
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "clock.badge.checkmark")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Time OS V1（快速入口 + 自然语言）")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color(.systemBackground))
+                        .clipShape(Capsule())
+                        .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
@@ -254,6 +273,11 @@ struct AIPlanningWelcomeView: View {
                 customTheme: theme
             )
             .environmentObject(userManager)
+        }
+        .sheet(isPresented: $showTimeOSV1) {
+            NavigationStack {
+                TimeSecretaryView()
+            }
         }
         .sheet(isPresented: $showCreateTemplate) {
             CreateTripTemplateView()
