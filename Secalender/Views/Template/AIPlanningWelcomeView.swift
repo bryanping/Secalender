@@ -15,8 +15,6 @@ struct AIPlanningWelcomeView: View {
     @Binding var showAIPlanner: Bool
     @EnvironmentObject var userManager: FirebaseUserManager
     @ObservedObject var themeManager = QuickThemeManager.shared
-    @State private var showTimeOSV1: Bool = false
-    
     /// 點擊主題卡片後帶預設進入統一 AIPlannerView（取代原 WeekendFlash / DeepCulture / EnrichTrip / TravelPlanning / 自訂主題 各自 sheet）
     @State private var showAIPlannerWithTheme: QuickTheme?
     @State private var showCreateTemplate = false
@@ -37,22 +35,23 @@ struct AIPlanningWelcomeView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 40) {
+            VStack(spacing: 28) {
                 Spacer()
-                    .frame(height: 5)
+                    .frame(height: 8)
                 
-                // 中央图标区域
-                VStack(spacing: 20) {
-                    
+                // 中央主入口（與 Time OS / 智能規劃為同一畫面）
+                VStack(spacing: 18) {
                     Text("welcome.where_to_travel".localized())
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: 26, weight: .bold))
                         .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
                     
                     Text("welcome.create_perfect_itinerary".localized())
                         .font(.system(size: 15))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 30)
+                        .lineSpacing(3)
+                        .padding(.horizontal, 28)
                     
                     Button(action: {
                         showAIPlanner = true
@@ -62,51 +61,35 @@ struct AIPlanningWelcomeView: View {
                                 .fill(
                                     LinearGradient(
                                         colors: [
-                                            Color.blue.opacity(0.2),
-                                            Color.blue.opacity(0.1),
+                                            Color.blue.opacity(0.22),
+                                            Color.blue.opacity(0.08),
                                             Color.clear
                                         ],
                                         startPoint: .center,
-                                        endPoint: .init(x: 1.2, y: 1.2)
+                                        endPoint: .init(x: 1.15, y: 1.15)
                                     )
                                 )
-                                .frame(width: 220, height: 220)
-                                .blur(radius: 15)
+                                .frame(width: 212, height: 212)
+                                .blur(radius: 14)
                             
                             Circle()
                                 .fill(Color(.systemBackground))
-                                .frame(width: 180, height: 180)
-                                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
+                                .frame(width: 172, height: 172)
+                                .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 6)
                             
-                            VStack(spacing: 12) {
+                            VStack(spacing: 10) {
                                 Image(systemName: "paperplane.fill")
-                                    .font(.system(size: 32, weight: .semibold))
+                                    .font(.system(size: 30, weight: .semibold))
                                     .foregroundColor(.blue)
                                     .rotationEffect(.degrees(-45))
                                 
                                 Text("welcome.start_ai_planning".localized())
                                     .font(.system(size: 16, weight: .semibold))
                                     .foregroundColor(.primary)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 8)
                             }
                         }
-                    }
-                    .buttonStyle(PlainButtonStyle())
-
-                    Button(action: {
-                        showTimeOSV1 = true
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "clock.badge.checkmark")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text("Time OS V1（快速入口 + 自然语言）")
-                                .font(.system(size: 14, weight: .semibold))
-                        }
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color(.systemBackground))
-                        .clipShape(Capsule())
-                        .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
@@ -273,11 +256,6 @@ struct AIPlanningWelcomeView: View {
                 customTheme: theme
             )
             .environmentObject(userManager)
-        }
-        .sheet(isPresented: $showTimeOSV1) {
-            NavigationStack {
-                TimeSecretaryView()
-            }
         }
         .sheet(isPresented: $showCreateTemplate) {
             CreateTripTemplateView()

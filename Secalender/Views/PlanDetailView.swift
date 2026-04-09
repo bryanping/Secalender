@@ -311,6 +311,7 @@ struct PlanDetailView: View {
             accommodationCoordinate: nil,
             selectedAttractionNames: [],
             customSurroundingTags: [],
+            departureDateTime: nil,
             adults: 1,
             children: 0
         )

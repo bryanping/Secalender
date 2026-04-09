@@ -34,6 +34,59 @@ final class GenerationOrchestrator {
     private let conflictDetector = ConflictDetector.shared
     private init() {}
 
+    /// 將目的地字串轉為座標（首段城際時間估算用）
+    private func geocodeLocation(from address: String) async -> CLLocation? {
+        await withCheckedContinuation { continuation in
+            let geocoder = CLGeocoder()
+            geocoder.geocodeAddressString(address) { placemarks, _ in
+                continuation.resume(returning: placemarks?.first?.location)
+            }
+        }
+    }
+
+    private func isoCountryCode(for location: CLLocation) async -> String? {
+        await withCheckedContinuation { continuation in
+            let geocoder = CLGeocoder()
+            geocoder.reverseGeocodeLocation(location) { placemarks, _ in
+                continuation.resume(returning: placemarks?.first?.isoCountryCode)
+            }
+        }
+    }
+
+    private func isoCountryCodeFromAddress(_ address: String) async -> String? {
+        await withCheckedContinuation { continuation in
+            let geocoder = CLGeocoder()
+            geocoder.geocodeAddressString(address) { placemarks, _ in
+                continuation.resume(returning: placemarks?.first?.isoCountryCode)
+            }
+        }
+    }
+
+    /// 門到門交通粗估（市內／城際鐵路／航空），優先「出發→住宿座標」，否則「出發→目的地」
+    private func computeTransitEstimate(request: GenerateRequest, destination: String) async -> TransitEstimate? {
+        guard let dep = request.departureLocation else { return nil }
+        let toLoc: CLLocation
+        if let c = request.accommodationCoordinate {
+            toLoc = CLLocation(latitude: c.latitude, longitude: c.longitude)
+        } else if let loc = await geocodeLocation(from: destination) {
+            toLoc = loc
+        } else {
+            return nil
+        }
+        let originCC = await isoCountryCode(for: dep)
+        let destCC: String?
+        if request.accommodationCoordinate != nil {
+            destCC = await isoCountryCode(for: toLoc)
+        } else {
+            destCC = await isoCountryCodeFromAddress(destination)
+        }
+        let international: Bool = {
+            guard let a = originCC, let b = destCC else { return false }
+            return a != b
+        }()
+        return TransitEstimateCalculator.estimate(from: dep, to: toLoc, isInternational: international)
+    }
+
     /// 唯一入口：執行生成並回傳 GenerationResult
     func generate(request: GenerateRequest) async throws -> GenerationResult {
         let needsItinerarySlots = request.generateMode == .singleDay || request.generateMode == .multiDay
@@ -60,6 +113,8 @@ final class GenerationOrchestrator {
         let days = calendar.dateComponents([.day], from: dateRange.startDate, to: dateRange.endDate).day ?? 1
         let numberOfDays = max(1, days + 1)
 
+        let transitEst = await computeTransitEstimate(request: request, destination: destination)
+
         let aiPlan = try await AITripGenerator.shared.generateAIItinerary(
             destination: destination,
             startDate: dateRange.startDate,
@@ -79,14 +134,20 @@ final class GenerationOrchestrator {
             customAIInstructions: request.customInstructions,
             themeKey: request.themeKey,
             themePromptPrefix: resolution.promptPrefix,
-            travelThemeId: request.travelThemeModuleId
+            travelThemeId: request.travelThemeModuleId,
+            departureDateTime: request.departureDateTime,
+            transitEstimate: transitEst
         )
+
+        let missingTagCoverage = AITripGenerator.validateCustomTagCoverage(plan: aiPlan, tags: request.customSurroundingTags)
 
         let conversionContext = AITripGenerator.PlanConversionContext(
             departureLocation: request.departureLocation,
             accommodationAddress: request.accommodationAddress,
             accommodationCoordinate: request.accommodationCoordinate,
-            transportPreference: request.slots.transportPreference.value
+            transportPreference: request.slots.transportPreference.value,
+            departureDateTime: request.departureDateTime,
+            transitEstimate: transitEst
         )
         var plan = try AITripGenerator.shared.convertToPlanResult(
             aiPlan,
@@ -97,6 +158,9 @@ final class GenerationOrchestrator {
         )
         plan.assumptions = request.assumptions
         plan.riskFlags = request.riskFlags
+        if !missingTagCoverage.isEmpty {
+            plan.riskFlags.append("警示：以下自訂標籤在生成行程文字中未檢測到直接對應，請手動核實或重新生成：\(missingTagCoverage.joined(separator: "、"))")
+        }
         // 修改内容：将主题与节奏信息写入结果，便于前端展示
         if let appliedThemeName = aiPlan.appliedThemeName {
             plan.riskFlags.append("已套用主题：\(appliedThemeName)")

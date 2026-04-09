@@ -55,6 +55,10 @@ struct GenerateRequest {
     var accommodationCoordinate: CLLocationCoordinate2D?
     var selectedAttractionNames: [String]
     var customSurroundingTags: [String]
+    /// 與 `customSurroundingTags` 同義（自訂標籤／生成約束）
+    var customTags: [String] { customSurroundingTags }
+    /// 用戶自訂出發日期＋時間（旅遊規劃第一天交通起點與抵達推算）
+    var departureDateTime: Date? = nil
     var adults: Int
     var children: Int
     

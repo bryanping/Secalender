@@ -61,6 +61,16 @@ final class TravelTimeCalculator {
         calculateTravelTime(from: from, to: to, mode: .transit, completion: completion)
     }
     
+    /// 直線距離超過閾值時，開車／公交 API 常不適用；改走 `TransitEstimateCalculator` 分段估時。
+    /// - Parameter isInternational: 未知時請 false，僅影響航空報到緩衝。
+    /// - Returns: 若不需城際估算則為 nil（應走一般路網）
+    static func intercityEstimateIfApplicable(from: CLLocation, to: CLLocation, isInternational: Bool = false) -> (seconds: TimeInterval, summary: String)? {
+        let d = from.distance(from: to)
+        guard d > 100_000 else { return nil }
+        let est = TransitEstimateCalculator.estimate(from: from, to: to, isInternational: isInternational)
+        return (est.totalSeconds, est.summaryLine)
+    }
+    
     /// 计算最有效率路线（优先 Google Directions API）
     private func calculateEfficientRoute(
         from: CLLocation,
@@ -68,6 +78,10 @@ final class TravelTimeCalculator {
         preferredMode: TravelMode = .transit,
         completion: @escaping (TimeInterval?, String?) -> Void
     ) {
+        if let est = Self.intercityEstimateIfApplicable(from: from, to: to) {
+            completion(est.seconds + preparationTime, est.summary)
+            return
+        }
         // 1. 尝试 Google Directions API（国际地区更准确，需在 Google Cloud 启用 Directions API）
         if !isInChina(), let apiKey = getGoogleAPIKey() {
             requestGoogleDirections(from: from, to: to, mode: preferredMode, apiKey: apiKey) { time, info in
@@ -171,8 +185,12 @@ final class TravelTimeCalculator {
                 }
             } else {
                 let distance = from.distance(from: to)
-                let estimatedTime = (distance / 1000) * 12 * 60
-                completion(estimatedTime + self.preparationTime, "估算约 \(Int(estimatedTime / 60)) 分钟")
+                if let est = Self.intercityEstimateIfApplicable(from: from, to: to) {
+                    completion(est.seconds + self.preparationTime, est.summary)
+                } else {
+                    let estimatedTime = (distance / 1000) * 12 * 60
+                    completion(estimatedTime + self.preparationTime, "估算约 \(Int(estimatedTime / 60)) 分钟")
+                }
             }
         }
     }
@@ -311,8 +329,12 @@ final class TravelTimeCalculator {
                 completion(route.expectedTravelTime + self.preparationTime)
             } else {
                 let distance = from.distance(from: to)
-                let estimatedTime = (distance / 1000) * 2 * 60
-                completion(estimatedTime + self.preparationTime)
+                if let est = Self.intercityEstimateIfApplicable(from: from, to: to) {
+                    completion(est.seconds + self.preparationTime)
+                } else {
+                    let estimatedTime = (distance / 1000) * 2 * 60
+                    completion(estimatedTime + self.preparationTime)
+                }
             }
         }
     }

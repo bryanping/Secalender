@@ -171,11 +171,37 @@ struct TimePlanItem: Codable, Identifiable {
     let durationMinutes: Int?
     let note: String?
     // 修改内容：支持主线/可选/备选优先级与现实缓冲字段（向后兼容）
-    let priority: PlanStopPriority = .secondary
-    let category: String? = nil
-    let isOptional: Bool = false
-    let estimatedTransferMinutes: Int? = nil
-    let bufferMinutes: Int? = nil
+    let priority: PlanStopPriority
+    let category: String?
+    let isOptional: Bool
+    let estimatedTransferMinutes: Int?
+    let bufferMinutes: Int?
+
+    init(
+        id: String = UUID().uuidString,
+        title: String,
+        startText: String? = nil,
+        endText: String? = nil,
+        durationMinutes: Int? = nil,
+        note: String? = nil,
+        priority: PlanStopPriority = .secondary,
+        category: String? = nil,
+        isOptional: Bool = false,
+        estimatedTransferMinutes: Int? = nil,
+        bufferMinutes: Int? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.startText = startText
+        self.endText = endText
+        self.durationMinutes = durationMinutes
+        self.note = note
+        self.priority = priority
+        self.category = category
+        self.isOptional = isOptional
+        self.estimatedTransferMinutes = estimatedTransferMinutes
+        self.bufferMinutes = bufferMinutes
+    }
 }
 
 // MARK: - Engine
@@ -837,14 +863,18 @@ struct QuickEntrySection: View {
             Text("快速开始")
                 .font(.headline)
 
-            LazyVGrid(columns: [.init(.flexible()), .init(.flexible())], spacing: 12) {
+            LazyVGrid(columns: [.init(.flexible()), .init(.flexible())], spacing: 10) {
                 Button("一日安排") { onSelect(.singleDayTrip) }
                 Button("多日行程") { onSelect(.multiDayTrip) }
                 Button("任务计划") { onSelect(.taskBreakdown) }
                 Button("今日重排") { onSelect(.todayReschedule) }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
         }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
@@ -1127,8 +1157,9 @@ struct TimeSecretaryView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 20) {
                 header
+
                 QuickEntrySection { scenario in
                     vm.selectQuickScenario(scenario)
                 }
@@ -1143,7 +1174,8 @@ struct TimeSecretaryView: View {
                 generateButton
 
                 if let plan = vm.generatedPlan {
-                    Divider().padding(.vertical, 8)
+                    Divider()
+                        .padding(.vertical, 4)
                     PlanDraftView(plan: plan)
                 }
 
@@ -1151,22 +1183,30 @@ struct TimeSecretaryView: View {
                     Text(msg)
                         .foregroundStyle(.red)
                         .font(.footnote)
+                        .padding(.top, 2)
                 }
             }
             .padding(16)
+            .padding(.bottom, 8)
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Time OS")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Time OS V1")
-                .font(.title2)
-                .fontWeight(.bold)
-            Text("快速入口 + 自然语言，先补关键字段，再生成可编辑草案。")
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("快速入口与自然语言")
                 .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+            Text("先补关键字段，再生成可编辑草案。")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 2)
     }
 
     private var naturalLanguageSection: some View {
@@ -1177,10 +1217,14 @@ struct TimeSecretaryView: View {
                 .textFieldStyle(.roundedBorder)
             HStack {
                 Button("解析") { vm.processNaturalLanguage() }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
                 Spacer()
             }
         }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private var generateButton: some View {
@@ -1194,6 +1238,8 @@ struct TimeSecretaryView: View {
             }
         }
         .buttonStyle(.borderedProminent)
+        .controlSize(.large)
         .disabled(vm.isLoading || (vm.currentNPI?.missingFields.isEmpty != true))
+        .padding(.top, 4)
     }
 }

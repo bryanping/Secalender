@@ -105,8 +105,9 @@ struct TravelTemplateView: View {
 
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showAIPlanner) {
-                AIPlannerView()
-                    .environmentObject(userManager)
+                NavigationStack {
+                    TimeSecretaryView()
+                }
             }
         }
     }

@@ -208,13 +208,27 @@ enum TravelAllocationEngine {
 final class AITripGenerator {
     static let shared = AITripGenerator()
     private init() {}
+
+    /// 修改内容：与 buildPrompt 末尾一致，供最终 prompt 再次追加
+    private static let mandatoryTravelConstraintsFooter = """
+
+        
+        【硬性执行规则 / Mandatory Constraints】
+        - 不要为了显得丰富而堆砌过多景点。
+        - 每一天只安排少量核心活动，并保留足够的移动、排队、用餐、休息与临时变化空间。
+        - 宁可少安排，也不要给出难以真实执行的紧凑行程。
+        - 即使用户使用「越丰富越好」「尽量多景点」「热门全去」等表述，仍须遵守上述疏密度；多出来的景点必须放进 optionalActivities 或 fallbackActivities，不得在主线塞满。
+        - 输出时请区分：1) 核心主线 2) 可选活动 3) 备选活动。
+        - JSON 中请尽量填写 mainlineActivities、optionalActivities、fallbackActivities；若模型仅能提供 activities，则 activities 视为核心主线为主。
+        - **自定义标签（custom tags）为强制约束**：凡用户提供的每一个自定义标签，必须在行程中得到实质体现（主线、optionalActivities 或 fallbackActivities 至少一处），不得以「仅供参考」忽略。若标签过多，优先满足最重要的 2–3 个，其余必须落入 optional 或 fallback，并在 daySummary 或 bufferNote 中说明已纳入方式。
+        """
     
     // 修改内容：内建 travel theme modules（先内建，后续可迁移 Firebase）
     private let builtInTravelThemes: [TravelThemeModule] = [
         TravelThemeModule(
             id: "family_relaxed",
             name: "亲子放松",
-            summary: "低压、少跨区、保留休息餐饮缓冲",
+            summary: "少移动、低压力、保留休息与用餐时间",
             promptPrefix: "【主题：亲子放松】减少跨区移动，优先低排队、低步行、可休息的安排。每一天只保留少量核心活动。",
             loadPolicy: TravelLoadPolicy(intensity: .relaxed, maxAnchorsPerDay: 1, maxSecondaryStopsPerDay: 1, maxFlexibleStopsPerDay: 1, reserveBufferRatio: 0.35, maxCrossDistrictMoves: 1, minMealMinutes: 70, defaultTransferBufferMinutes: 30, hotspotQueueBufferMinutes: 25, afternoonSlowdownEnabled: true),
             preferredCategories: ["亲子", "公园", "轻体验", "美食"],
@@ -232,7 +246,7 @@ final class AITripGenerator {
         TravelThemeModule(
             id: "food_explore",
             name: "美食探索",
-            summary: "餐饮优先，景点辅助，保证用餐时长",
+            summary: "餐饮优先、景点辅助，用餐时间要够",
             promptPrefix: "【主题：美食探索】以用餐和当地风味为主线，景点仅作辅助；餐饮时间必须完整，不压缩。",
             loadPolicy: TravelLoadPolicy(intensity: .standard, maxAnchorsPerDay: 1, maxSecondaryStopsPerDay: 1, maxFlexibleStopsPerDay: 2, reserveBufferRatio: 0.25, maxCrossDistrictMoves: 2, minMealMinutes: 80, defaultTransferBufferMinutes: 25, hotspotQueueBufferMinutes: 25, afternoonSlowdownEnabled: false),
             preferredCategories: ["餐厅", "市场", "甜品", "小吃"],
@@ -241,13 +255,42 @@ final class AITripGenerator {
         TravelThemeModule(
             id: "efficient_highlights",
             name: "高效亮点",
-            summary: "相对高密度但保留必要缓冲",
+            summary: "重点景点优先、同区聚类、节奏较紧凑",
             promptPrefix: "【主题：高效亮点】优先城市核心亮点，同区聚类，允许较高密度但必须保留交通和排队缓冲。",
             loadPolicy: TravelLoadPolicy(intensity: .intensive, maxAnchorsPerDay: 2, maxSecondaryStopsPerDay: 1, maxFlexibleStopsPerDay: 2, reserveBufferRatio: 0.18, maxCrossDistrictMoves: 2, minMealMinutes: 55, defaultTransferBufferMinutes: 20, hotspotQueueBufferMinutes: 20, afternoonSlowdownEnabled: false),
             preferredCategories: ["地标", "核心景点", "城市亮点"],
             avoidedPatterns: ["无缓冲衔接", "跨区往返"]
         )
     ]
+
+    /// 修改内容：與 TravelPlannerContent / AIPlannerView 共用自動推断，避免兩套規則漂移（驗收見 ThemeResolver 頂部）
+    static func inferTravelThemeModuleId(
+        children: Int,
+        combinedUserText: String,
+        interestTagRawValues: [String]
+    ) -> String {
+        let t = combinedUserText.lowercased()
+        let tags = interestTagRawValues.map { $0.lowercased() }
+        if children > 0 { return "family_relaxed" }
+        if t.contains("亲子") || t.contains("親子") || t.contains("小孩") || t.contains("儿童") || t.contains("兒童") || t.contains("帶娃") || t.contains("带娃") {
+            return "family_relaxed"
+        }
+        // 美食优先于「慢游/咖啡」等线索，避免「轻松美食」被误判为散步主题
+        if t.contains("美食") || t.contains("餐廳") || t.contains("餐厅")
+            || tags.contains("food") {
+            return "food_explore"
+        }
+        if t.contains("慢游") || t.contains("慢遊") || t.contains("放松") || t.contains("放鬆")
+            || t.contains("散步") || t.contains("闲逛") || t.contains("咖啡") || t.contains("书店") || t.contains("書店")
+            || t.contains("文青") || t.contains("留白") || t.contains("轻松") || t.contains("輕鬆") {
+            return "slow_city_walk"
+        }
+        if t.contains("重点") || t.contains("打卡") || t.contains("热门") || t.contains("熱門")
+            || t.contains("丰富") || t.contains("豐富") || t.contains("高效") || t.contains("景点") || t.contains("景點") {
+            return "efficient_highlights"
+        }
+        return "efficient_highlights"
+    }
     
     /// 使用OpenAI生成包含真实地点的行程
     /// - Parameter themeKey: 主題識別（weekend_flash, deep_culture, travel_planning, enrich_trip 或自訂 key），用於選擇專屬提示詞
@@ -272,7 +315,9 @@ final class AITripGenerator {
         customAIInstructions: String? = nil,
         themeKey: String? = nil,
         themePromptPrefix: String? = nil,
-        travelThemeId: String? = nil
+        travelThemeId: String? = nil,
+        departureDateTime: Date? = nil,
+        transitEstimate: TransitEstimate? = nil
     ) async throws -> AITripPlan {
         
         // 检查 OpenAI 开关
@@ -320,6 +365,7 @@ final class AITripGenerator {
             children: children
         )
         
+        // 修改内容：Firebase/QuickTheme 的 themePromptPrefix 與 TravelThemeModule.promptPrefix 疊加（見 ThemeResolver.swift 頂部）；硬規則在 mandatoryTravelConstraintsFooter，置於最末。
         // 依主題加入專屬提示詞前綴（優先使用 themePromptPrefix，否則用 themeKey 的內建提示）
         let themePrefix: String? = if let custom = themePromptPrefix, !custom.trimmingCharacters(in: .whitespaces).isEmpty {
             resolvedTheme.promptPrefix + "\n" + custom
@@ -338,6 +384,9 @@ final class AITripGenerator {
         if let custom = customAIInstructions, !custom.trimmingCharacters(in: .whitespaces).isEmpty {
             finalPrompt += "\n\n【自定義行程指令】\n\(custom)"
         }
+        finalPrompt += appendDepartureAndTransitPrompt(transitEstimate: transitEstimate, departureDateTime: departureDateTime)
+        // 修改内容：硬规则在最终 prompt 末尾再强调一次，避免被主题前缀或自定义指令稀释
+        finalPrompt += "\n\n" + Self.mandatoryTravelConstraintsFooter
         
         print("🤖 [AITripGenerator] 提示词构建完成，长度: \(finalPrompt.count) 字符")
         print("🤖 [AITripGenerator] 调用 OpenAIManager.generateStructuredItinerary()...")
@@ -350,6 +399,53 @@ final class AITripGenerator {
         // 解析JSON响应（使用原始目的地，保持数据一致性）
         let parsedPlan = try parseAIResponse(aiPlanJson, destination: destination, startDate: startDateString, endDate: endDateString)
         return applyTravelThemeModule(to: parsedPlan, theme: resolvedTheme, pace: pace)
+    }
+    
+    private func appendDepartureAndTransitPrompt(transitEstimate: TransitEstimate?, departureDateTime: Date?) -> String {
+        var out = ""
+        if let te = transitEstimate {
+            out += "\n\n【交通估時與抵達現實約束】（引擎依直線距離與是否跨國粗估，實際路程可能更長）\n"
+            out += "- 分段模式：\(te.mode.rawValue)\n"
+            out += "- 預估門到門全程：約 \(Int(te.totalSeconds / 60)) 分鐘\n"
+            out += te.breakdown.map { "- \($0)" }.joined(separator: "\n")
+            out += "\n- 請依此安排**第一天**：若抵達已午後／晚間，主線僅能少量輕量點；傍晚後僅入住、用餐、附近散步，勿排滿。"
+        }
+        if let dep = departureDateTime {
+            let df = DateFormatter()
+            df.dateFormat = "yyyy-MM-dd HH:mm"
+            out += "\n\n【用戶啟程時間】\(df.string(from: dep))\n"
+            out += "- 以該時間為首日交通段起點，反推可遊玩時段；禁止假設一律上午已抵達景點。"
+        }
+        return out
+    }
+    
+    /// 輕量校驗：自訂標籤字樣是否出現在行程文字中（未出現者回傳，供 riskFlags 警示）
+    static func validateCustomTagCoverage(plan: AITripPlan, tags: [String]) -> [String] {
+        guard !tags.isEmpty else { return [] }
+        let corpus = corpusString(for: plan).lowercased()
+        return tags.filter { tag in
+            let t = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !t.isEmpty else { return false }
+            if corpus.contains(t.lowercased()) { return false }
+            if t.count >= 2, corpus.contains(String(t.prefix(2)).lowercased()) { return false }
+            return true
+        }
+    }
+    
+    private static func corpusString(for plan: AITripPlan) -> String {
+        var s = plan.destination
+        for day in plan.days {
+            s += (day.dayTheme ?? "") + (day.dayKeywords ?? "") + day.daySummary
+            let all = day.activities + (day.mainlineActivities ?? []) + (day.optionalActivities ?? []) + (day.fallbackActivities ?? [])
+            for a in all {
+                s += a.title + a.description + a.category
+                if let loc = a.location { s += loc }
+            }
+        }
+        for tip in plan.generalTips {
+            s += tip
+        }
+        return s
     }
     
     /// 验证和规范化目的地格式
@@ -697,15 +793,7 @@ final class AITripGenerator {
         )
         
         // 修改内容：统一加入“真实可执行”硬约束（避免塞满式攻略）
-        prompt += """
-
-        
-        【硬性执行规则 / Mandatory Constraints】
-        - 不要为了显得丰富而堆砌过多景点。
-        - 每一天只安排少量核心活动，并保留足够的移动、排队、用餐、休息与临时变化空间。
-        - 宁可少安排，也不要给出难以真实执行的紧凑行程。
-        - 输出时请区分：1) 核心主线 2) 可选活动 3) 备选活动。
-        """
+        prompt += Self.mandatoryTravelConstraintsFooter
         
         return prompt
     }
@@ -745,7 +833,7 @@ final class AITripGenerator {
         }
     }
     
-    // 修改内容：根据用户输入推断默认 travel theme
+    // 修改内容：优先请求中的 travelThemeModuleId；否则与 UI 共用 inferTravelThemeModuleId
     private func resolveTravelTheme(
         preferredThemeId: String?,
         interestTags: [String],
@@ -757,24 +845,12 @@ final class AITripGenerator {
            let direct = builtInTravelThemes.first(where: { $0.id == preferredThemeId }) {
             return direct
         }
-        if (children ?? 0) > 0 || (adults ?? 1) > 1 {
-            if let family = builtInTravelThemes.first(where: { $0.id == "family_relaxed" }) {
-                return family
-            }
-        }
-        let normalizedInstructions = (customInstructions ?? "").lowercased()
-        if normalizedInstructions.contains("慢游")
-            || normalizedInstructions.contains("放松")
-            || normalizedInstructions.contains("散步") {
-            return builtInTravelThemes.first(where: { $0.id == "slow_city_walk" }) ?? builtInTravelThemes[0]
-        }
-        if interestTags.contains(where: { ["food", "美食", "餐厅", "餐廳"].contains($0.lowercased()) })
-            || normalizedInstructions.contains("美食")
-            || normalizedInstructions.contains("餐厅")
-            || normalizedInstructions.contains("餐廳") {
-            return builtInTravelThemes.first(where: { $0.id == "food_explore" }) ?? builtInTravelThemes[0]
-        }
-        return builtInTravelThemes.first(where: { $0.id == "efficient_highlights" }) ?? builtInTravelThemes[0]
+        let inferred = Self.inferTravelThemeModuleId(
+            children: children ?? 0,
+            combinedUserText: customInstructions ?? "",
+            interestTagRawValues: interestTags
+        )
+        return builtInTravelThemes.first(where: { $0.id == inferred }) ?? builtInTravelThemes[0]
     }
     
     // 修改内容：将 AI 原始结果二次分配为主线/可选/备选，控制真实负载
@@ -1085,9 +1161,9 @@ final class AITripGenerator {
             prompt += "\n- 必须包含的景点：\(selectedAttractions.joined(separator: "、"))（这些景点必须出现在行程中，请合理安排到每天的活动中）"
         }
         
-        // 添加用户自訂標籤（可能為模糊描述，請 AI 理解為該類型的真實景點）
+        // 添加用户自訂標籤（強制納入行程，不可僅作參考）
         if !customTags.isEmpty {
-            prompt += "\n- 用户自定义兴趣/类型标签：\(customTags.joined(separator: "、"))。这些可能为模糊描述（如「文青咖啡」「网红店」），请理解为目的地周边符合该描述的真实知名景点，安排具体行程时选择该类型的优质地点，避免因标签命名不明确导致行程偏差。"
+            prompt += "\n- **用户自定义标签（强制）**：\(customTags.joined(separator: "、"))。每个标签都必须在行程中有实质对应（具体景点、餐饮或活动），可放在主线、optionalActivities 或 fallbackActivities；禁止忽略。标签可能为模糊描述（如「文青咖啡」），请理解为目的地周边符合该描述的真实地点。若标签过多，优先满足前 2–3 个，其余必须落在可选／备选并写明。"
         }
         
         // 根据节奏给出更具体的指导（以「具體可玩點」為單位，非大區塊）
@@ -2304,6 +2380,10 @@ final class AITripGenerator {
         var accommodationAddress: String?
         var accommodationCoordinate: CLLocationCoordinate2D?
         var transportPreference: TransportPreference?
+        /// 用戶啟程的絕對時間（與行程首日同日時作為第一天時間軸起點）
+        var departureDateTime: Date?
+        /// 出發端→住宿或目的地之交通分段估時（市內／鐵路／航空）
+        var transitEstimate: TransitEstimate?
     }
     
     /// 将AI生成的行程转换为PlanResult（同步版，使用預設交通時間）
@@ -2366,7 +2446,12 @@ final class AITripGenerator {
         
         let defaultStartHour = 9
         let defaultStartMinute = 30
-        var currentTime = calendar.date(bySettingHour: defaultStartHour, minute: defaultStartMinute, second: 0, of: date) ?? date
+        var currentTime: Date
+        if isFirstDay, let depDT = context?.departureDateTime, calendar.isDate(depDT, inSameDayAs: date) {
+            currentTime = depDT
+        } else {
+            currentTime = calendar.date(bySettingHour: defaultStartHour, minute: defaultStartMinute, second: 0, of: date) ?? date
+        }
         
         let dayEnd = calendar.date(bySettingHour: 20, minute: 30, second: 0, of: date) ?? date
         
@@ -2374,14 +2459,22 @@ final class AITripGenerator {
         let accAddr = context?.accommodationAddress ?? ""
         let hasAccommodation = !accAddr.isEmpty || context?.accommodationCoordinate != nil
         let hasDeparture = context?.departureLocation != nil
+        let transitLegSeconds: TimeInterval = context?.transitEstimate?.totalSeconds
+            ?? (hasDeparture ? (hasAccommodation ? 50 * 60 : 60 * 60) : 0)
+        let transitExtraDescription: String = {
+            guard let te = context?.transitEstimate else { return "" }
+            return "\n" + te.summaryLine + "\n" + te.breakdown.joined(separator: "\n")
+        }()
         
         if isFirstDay {
             
             if hasDeparture && hasAccommodation {
                 // 1. 出發 → 住宿：交通塊
-                let transitToAccommodation: TimeInterval = 50 * 60  // 預設約 50 分鐘，PlanDetailView 可依 GPS 更新
+                let transitToAccommodation: TimeInterval = transitLegSeconds
                 let transitEnd = currentTime.addingTimeInterval(transitToAccommodation)
                 if transitEnd <= dayEnd {
+                    let descBase = "從出發地前往住宿辦理入住，建議下午 2–3 點後可入住"
+                    let extra = transitExtraDescription
                     blocks.append(TimeBlock(
                         type: .transit,
                         startTime: currentTime,
@@ -2390,7 +2483,7 @@ final class AITripGenerator {
                         location: context?.accommodationAddress,
                         isAnchor: false,
                         priority: 6,
-                        description: "從出發地前往住宿辦理入住，建議下午 2–3 點後可入住"
+                        description: descBase + extra
                     ))
                     currentTime = transitEnd
                 }
@@ -2413,9 +2506,10 @@ final class AITripGenerator {
                 }
             } else if hasDeparture {
                 // 無住宿資訊：出發 → 目的地（首個活動）
-                let initialTransit: TimeInterval = 60 * 60
+                let initialTransit: TimeInterval = transitLegSeconds
                 let transitEnd = currentTime.addingTimeInterval(initialTransit)
                 if transitEnd <= dayEnd {
+                    let extra = transitExtraDescription
                     blocks.append(TimeBlock(
                         type: .transit,
                         startTime: currentTime,
@@ -2424,12 +2518,25 @@ final class AITripGenerator {
                         location: nil,
                         isAnchor: false,
                         priority: 6,
-                        description: "從出發位置前往目的地"
+                        description: "從出發位置前往目的地" + extra
                     ))
                     currentTime = transitEnd
                 }
             }
         }
+        
+        let activitiesToSchedule: [AITripActivity] = {
+            guard isFirstDay else { return aiDay.activities }
+            guard let dep = context?.departureDateTime, let sec = context?.transitEstimate?.totalSeconds else {
+                return aiDay.activities
+            }
+            let arrival = dep.addingTimeInterval(sec)
+            guard calendar.isDate(arrival, inSameDayAs: date) else { return aiDay.activities }
+            let hour = calendar.component(.hour, from: arrival)
+            if hour >= 20 { return Array(aiDay.activities.prefix(2)) }
+            if hour >= 14 { return Array(aiDay.activities.prefix(min(4, max(1, aiDay.activities.count)))) }
+            return aiDay.activities
+        }()
         
         // MARK: - 最後一天：辦理退房（若有住宿）
         if isLastDay && hasAccommodation {
@@ -2451,7 +2558,7 @@ final class AITripGenerator {
         }
         
         // MARK: - 中間天數：從住宿出發
-        if !isFirstDay && hasAccommodation, let firstActivity = aiDay.activities.first,
+        if !isFirstDay && hasAccommodation, let firstActivity = activitiesToSchedule.first,
            let firstLocation = firstActivity.location, !firstLocation.isEmpty,
            !(firstActivity.category.contains("餐厅") || firstActivity.category.contains("Restaurant")) {
             let transitFromAccommodation: TimeInterval = 30 * 60
@@ -2471,11 +2578,11 @@ final class AITripGenerator {
             }
         }
         
-        for (index, activity) in aiDay.activities.enumerated() {
+        for (index, activity) in activitiesToSchedule.enumerated() {
             // 如果不是第一个活动，添加交通时间
             // 但前往餐厅的交通不需要添加（因为餐厅已经跳转地图可以直接导航过去）
             if index > 0 {
-                let previousActivity = aiDay.activities[index - 1]
+                let previousActivity = activitiesToSchedule[index - 1]
                 let isCurrentRestaurant = activity.category.contains("餐厅") || 
                                          activity.category.contains("Restaurant") ||
                                          activity.title.contains("餐廳") ||
@@ -2671,7 +2778,7 @@ final class AITripGenerator {
         }
         
         // MARK: - 每日結束：返回住宿（考慮住宿與行程距離）
-        if hasAccommodation && !isLastDay, aiDay.activities.contains(where: { $0.location != nil && !($0.location?.isEmpty ?? true) }) {
+        if hasAccommodation && !isLastDay, activitiesToSchedule.contains(where: { $0.location != nil && !($0.location?.isEmpty ?? true) }) {
             let returnTransitDuration: TimeInterval = 30 * 60
             let returnEnd = currentTime.addingTimeInterval(returnTransitDuration)
             if returnEnd <= dayEnd {
@@ -2713,6 +2820,14 @@ final class AITripGenerator {
         blocks.sort { $0.startTime < $1.startTime }
         
         return blocks
+    }
+}
+
+// MARK: - Travel theme modules（UI 与生成器共用数据源）
+extension AITripGenerator {
+    /// 修改内容：供 TravelPlannerContent / AIPlannerView 使用，避免重复定义 TravelThemeModule
+    static var builtInTravelThemeModules: [TravelThemeModule] {
+        shared.builtInTravelThemes
     }
 }
 

@@ -46,12 +46,16 @@ struct TravelPlannerContent: View {
     @State private var selectedTransportation: TransportationType? = .publicTransport
     @State private var selectedPace: Pace = .relaxed  // 預設輕鬆，僅支援輕鬆/緊湊
     @State private var budgetLevel: BudgetLevel = .moderate
+    // 修改内容：旅游主题模块（与 AITripGenerator 内建列表一致）
+    @State private var selectedTravelThemeModuleId: String? = nil
     
     // 步骤3：行程細節優化
     @State private var surroundingAttractions: [SurroundingAttraction] = []
     @State private var selectedSurroundingAttractions: Set<String> = []  // 存储选中的ID
     @State private var customSurroundingTags: [String] = []  // 用戶自訂標籤
     @State private var customTagInput: String = ""  // 自訂標籤輸入框
+    /// 每個自訂標籤必須填寫期望行程內容（與標籤對應）
+    @State private var customTagItineraryNotes: [String: String] = [:]
     @State private var isLoadingSurroundingFeatures = false
     @State private var selectedRestrictions: Set<SpecialRestriction> = []
     @State private var additionalRequirements: String = ""
@@ -71,6 +75,14 @@ struct TravelPlannerContent: View {
     @State private var customDepartureCoordinate: CLLocationCoordinate2D? = nil
     @State private var showDepartureLocationPicker = false
     @State private var hasAutoRequestedGPS = false  // 标记是否已自动请求过GPS
+    
+    /// 出發日期／時間（行程第一天）
+    @State private var departureTripStartDate: Date = Date()
+    @State private var departureTripStartTime: Date = Calendar.current.date(from: DateComponents(hour: 9, minute: 0)) ?? Date()
+    @State private var departurePickerEndDate: Date? = nil
+    @State private var departurePickerEndTime: Date? = nil
+    @State private var departurePickerIsAllDay = false
+    @State private var departurePickerIsHasEnd = false
     
     // 住宿选择（简化为统一地址搜索）
     @State private var accommodationAddress: String = ""
@@ -122,6 +134,31 @@ struct TravelPlannerContent: View {
             return dest
         }
         return Array(cityNames)
+    }
+    
+    // 修改内容：與 AITripGenerator.inferTravelThemeModuleId 單一數據源對齊（避免 UI 與生成器推断不一致）
+    private func inferDefaultTravelThemeId() -> String {
+        AITripGenerator.inferTravelThemeModuleId(
+            children: children,
+            combinedUserText: "\(tripTheme) \(additionalRequirements)",
+            interestTagRawValues: selectedInterests.map { $0.rawValue }
+        )
+    }
+    
+    private var resolvedTravelThemeId: String {
+        selectedTravelThemeModuleId ?? inferDefaultTravelThemeId()
+    }
+    
+    private var resolvedTravelThemeModule: TravelThemeModule? {
+        AITripGenerator.builtInTravelThemeModules.first { $0.id == resolvedTravelThemeId }
+    }
+    
+    private func travelIntensityDisplay(_ level: PlanningIntensityLevel) -> String {
+        switch level {
+        case .relaxed: return "节奏偏轻松"
+        case .standard: return "节奏标准"
+        case .intensive: return "节奏较紧凑"
+        }
     }
     
     var body: some View {
@@ -737,6 +774,39 @@ struct TravelPlannerContent: View {
                 }
             }
             
+            // 修改内容：旅游主题模块（文案为用户语言，id 不展示）
+            VStack(alignment: .leading, spacing: 12) {
+                Text("行程风格（可选）")
+                    .font(.system(size: 20, weight: .semibold))
+                Text("决定节奏与密度；不选则根据行程主题、备注与同行自动匹配。")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                ForEach(AITripGenerator.builtInTravelThemeModules, id: \.id) { module in
+                    Button {
+                        selectedTravelThemeModuleId = module.id
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(module.name).font(.subheadline).fontWeight(.semibold)
+                                Text(module.summary).font(.caption).foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            if selectedTravelThemeModuleId == module.id {
+                                Image(systemName: "checkmark.circle.fill").foregroundColor(.blue)
+                            }
+                        }
+                        .padding(12)
+                        .background(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(selectedTravelThemeModuleId == module.id ? Color.blue : Color(UIColor.systemGray4), lineWidth: 1)
+                        )
+                        .cornerRadius(12)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            
             // 兴趣偏好
             VStack(alignment: .leading, spacing: 16) {
                 Text("ai_planner.interests".localized())
@@ -887,7 +957,10 @@ struct TravelPlannerContent: View {
                             if !customSurroundingTags.isEmpty {
                                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 8) {
                                     ForEach(customSurroundingTags, id: \.self) { tag in
-                                        Button(action: { customSurroundingTags.removeAll { $0 == tag } }) {
+                                        Button(action: {
+                                            customSurroundingTags.removeAll { $0 == tag }
+                                            customTagItineraryNotes.removeValue(forKey: tag)
+                                        }) {
                                             HStack(spacing: 4) {
                                                 Text(tag)
                                                     .font(.caption)
@@ -904,6 +977,24 @@ struct TravelPlannerContent: View {
                                         .buttonStyle(.plain)
                                     }
                                 }
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("請為每個自訂標籤填寫想安排的行程內容（必填）")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    ForEach(customSurroundingTags, id: \.self) { tag in
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(tag)
+                                                .font(.caption)
+                                                .fontWeight(.semibold)
+                                            TextField("例如：想去的區域、停留時間、體驗重點…", text: Binding(
+                                                get: { customTagItineraryNotes[tag] ?? "" },
+                                                set: { customTagItineraryNotes[tag] = $0 }
+                                            ))
+                                            .textFieldStyle(.roundedBorder)
+                                        }
+                                    }
+                                }
+                                .padding(.top, 4)
                             }
                         }
                     }
@@ -1051,6 +1142,22 @@ struct TravelPlannerContent: View {
                         }
                     }
                 }
+                
+                // 出發日期／時間（與建立行程相同的日期時間按鈕）
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("出發日期／時間")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                    DateTimePickerView(
+                        startDate: $departureTripStartDate,
+                        startTime: $departureTripStartTime,
+                        endDate: $departurePickerEndDate,
+                        endTime: $departurePickerEndTime,
+                        isAllDay: $departurePickerIsAllDay,
+                        isHasEnd: $departurePickerIsHasEnd
+                    )
+                }
             }
             .onAppear {
                 // 进入步骤3时，如果未使用自定义地址且未自动请求过GPS，则自动获取当前位置
@@ -1176,6 +1283,22 @@ struct TravelPlannerContent: View {
                 Text("這個過程可能需要一些時間，請稍候")
                     .font(.subheadline)
                             .foregroundColor(.secondary)
+                
+                if let m = resolvedTravelThemeModule {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("已套用：\(m.name)")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        Text("\(travelIntensityDisplay(m.loadPolicy.intensity)) · \(m.summary)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("原则：每天少量核心安排，并预留交通、排队与休息。")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
+                }
                     }
             
             // 任务列表
@@ -1322,9 +1445,10 @@ struct TravelPlannerContent: View {
                             .foregroundColor(.white)
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background(Color.blue)
+                            .background((!customSurroundingTags.isEmpty && !customTagsItineraryComplete) ? Color.gray : Color.blue)
                             .cornerRadius(20)
                     }
+                    .disabled(!customSurroundingTags.isEmpty && !customTagsItineraryComplete)
                 }
             }
         }
@@ -1334,6 +1458,13 @@ struct TravelPlannerContent: View {
     
     private var canProceedToStep2: Bool {
         return !destination.isEmpty && travelDays > 0
+    }
+    
+    /// 有自訂標籤時，每個標籤皆需填寫行程說明
+    private var customTagsItineraryComplete: Bool {
+        customSurroundingTags.allSatisfy { tag in
+            !(customTagItineraryNotes[tag]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+        }
     }
     
     // MARK: - 辅助视图
@@ -1761,6 +1892,7 @@ struct TravelPlannerContent: View {
             return
         }
         customSurroundingTags.append(trimmed)
+        customTagItineraryNotes[trimmed] = ""
         customTagInput = ""
     }
     
@@ -2077,6 +2209,16 @@ struct TravelPlannerContent: View {
                     loadSurroundingFeatures()
                 }
             case .step3:
+                if !customSurroundingTags.isEmpty {
+                    let missing = customSurroundingTags.filter { tag in
+                        (customTagItineraryNotes[tag]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+                    }
+                    if !missing.isEmpty {
+                        errorMessage = "請為每個自訂標籤填寫行程內容後再繼續。"
+                        showErrorAlert = true
+                        return
+                    }
+                }
                 currentStep = .step4
                 if !useCustomDepartureLocation && currentGPSLocation == nil && !isLocatingGPS {
                     requestGPSLocation()
@@ -2138,8 +2280,10 @@ struct TravelPlannerContent: View {
     
     private func generatePlan() async {
         let calendar = Calendar.current
-        let startDate = Date()
-        let endDate = calendar.date(byAdding: .day, value: travelDays - 1, to: startDate) ?? startDate
+        let firstDay = calendar.startOfDay(for: departureTripStartDate)
+        let startDate = combine(date: firstDay, time: departureTripStartTime)
+        let lastDay = calendar.date(byAdding: .day, value: max(0, travelDays - 1), to: firstDay) ?? firstDay
+        let endDate = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: lastDay) ?? lastDay
         let dest = destination
         var slots = ExtractedSlots()
         slots.destination = SlotInfo(value: dest, confidence: 1.0)
@@ -2158,7 +2302,18 @@ struct TravelPlannerContent: View {
             }
         }
         
+        let mergedCustomInstructions: String? = {
+            var parts = [tripTheme, additionalRequirements].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            let tagBlock = customSurroundingTags.compactMap { tag -> String? in
+                let note = customTagItineraryNotes[tag]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                guard !note.isEmpty else { return nil }
+                return "【自訂標籤「\(tag)」行程內容】\(note)"
+            }
+            parts.append(contentsOf: tagBlock)
+            return parts.isEmpty ? nil : parts.joined(separator: "\n")
+        }()
         let request = GenerateRequest(
+            plannerModelType: .multiPhase,
             generateMode: travelDays == 1 ? .singleDay : .multiDay,
             themeKey: "travel_planning",
             themeMode: .generateItinerary,
@@ -2167,14 +2322,18 @@ struct TravelPlannerContent: View {
             assumptions: [],
             riskFlags: [],
             npi: nil,
-            customInstructions: nil,
+            customInstructions: mergedCustomInstructions,
             departureLocation: useCustomDepartureLocation ? (customDepartureCoordinate.map { CLLocation(latitude: $0.latitude, longitude: $0.longitude) }) : currentGPSLocation,
             accommodationAddress: accommodationAddress.isEmpty ? nil : accommodationAddress,
             accommodationCoordinate: accommodationCoordinate,
             selectedAttractionNames: surroundingAttractions.filter { selectedSurroundingAttractions.contains($0.id) }.map { $0.name },
             customSurroundingTags: customSurroundingTags,
+            departureDateTime: startDate,
             adults: adults,
-            children: children
+            children: children,
+            planningDomain: .travel,
+            planningIntensity: nil,
+            travelThemeModuleId: self.resolvedTravelThemeId
         )
         
         let apiTask = Task {
