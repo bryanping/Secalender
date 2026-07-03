@@ -14,6 +14,7 @@ enum GenerationOrchestratorError: LocalizedError {
     case themeRejected(String)
     case contextFailed(String)
     case generationFailed(Error)
+    case modeNotSupported(String)  // 修改内容：Step3 — 未落地的 themeMode 明確報「即將支援」而非通用錯誤
 
     var errorDescription: String? {
         switch self {
@@ -21,6 +22,7 @@ enum GenerationOrchestratorError: LocalizedError {
         case .missingDateInfo: return "請填寫日期範圍"
         case .themeRejected(let msg): return msg
         case .contextFailed(let msg): return msg
+        case .modeNotSupported(let mode): return "此主題型態（\(mode)）即將支援"
         case .generationFailed(let e): return e.localizedDescription
         }
     }
@@ -94,24 +96,30 @@ final class GenerationOrchestrator {
     }
 
     /// 唯一入口：執行生成並回傳 GenerationResult
+    /// 修改内容：Step3 — 依 ThemeOutputContract 分流：taskList（floatingTasks）先於 ThemeResolver 走任務拆解（不需目的地/itinerary 檢查）；
+    /// 未落地契約（availabilityCollection 等在此引擎外處理，matching/booking/info 未支援）明確拋 modeNotSupported。
     func generate(request: GenerateRequest) async throws -> GenerationResult {
-        let needsItinerarySlots = request.generateMode == .singleDay || request.generateMode == .multiDay
-        if needsItinerarySlots {
-            guard request.slots.destination.value != nil else {
-                throw GenerationOrchestratorError.missingDestination
-            }
-            guard request.slots.dateRange.value != nil else {
-                throw GenerationOrchestratorError.missingDateInfo
-            }
+        let contract = ThemeOutputContract.from(themeMode: request.themeMode)
+
+        // 任務拆解：本地 fallback 產生 task candidates，再排程與衝突檢測，統一回傳 GenerationResult
+        if request.generateMode == .taskBreakdown || contract == .taskList {
+            let context = try await contextProvider.fetchContext(for: request)
+            return try runTaskBreakdown(request: request, context: context)
+        }
+
+        guard contract == .itinerary else {
+            throw GenerationOrchestratorError.modeNotSupported(request.themeMode.displayName)
+        }
+
+        guard request.slots.destination.value != nil else {
+            throw GenerationOrchestratorError.missingDestination
+        }
+        guard request.slots.dateRange.value != nil else {
+            throw GenerationOrchestratorError.missingDateInfo
         }
 
         let resolution = try await themeResolver.resolve(request: request)
         let context = try await contextProvider.fetchContext(for: request)
-
-        // 任務拆解：本地 fallback 產生 task candidates，再排程與衝突檢測，統一回傳 GenerationResult
-        if request.generateMode == .taskBreakdown {
-            return try runTaskBreakdown(request: request, context: context)
-        }
 
         let dateRange = request.slots.dateRange.value!
         let destination = request.slots.destination.value!

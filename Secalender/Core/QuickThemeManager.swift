@@ -47,12 +47,28 @@ enum QuickThemeCategory: String, CaseIterable {
 }
 
 // MARK: - 主題表單問題類型
+// 修改内容：Step1 統一模板 Schema — 新增 location / time / toggle 三型
 enum ThemeFormQuestionType: String, Codable {
     case text
     case number
     case select
     case multiSelect
     case date
+    case location   // 地點輸入（可接 Places 自動完成）
+    case time       // 時刻（時:分）
+    case toggle     // 是/否開關（answers 存 "true"/"false"）
+}
+
+// MARK: - 表單欄位角色（取代 id 字串約定）
+// 修改内容：Step1 — 保留欄位改為型別標記；id 僅作儲存鍵，語意由 role 決定
+enum ThemeFormRole: String, Codable {
+    case startDate      // 計劃開始日期（取代固定日期區塊）
+    case durationDays   // 時長（天）
+    case durationWeeks  // 時長（週）
+    case destination    // 目的地／地點
+    case participants   // 參與者
+    case budget         // 預算
+    case other
 }
 
 /// 主題專屬提示詞與表單配置（未來可存 Firestore 分享）
@@ -65,22 +81,55 @@ struct ThemePromptConfig: Codable, Equatable {
     var requiresAI: Bool
 }
 
-/// 表單保留欄位 ID：當 formQuestions 包含這些 id 時，不顯示固定的「計劃開始日期／計劃時長」區塊
-/// - plan_start_date / start_date (type: date) → 取代固定日期選擇器
-/// - plan_duration_days / duration_days / plan_duration_weeks / duration_weeks (type: number) → 取代固定天數 stepper
+/// 表單保留欄位：優先看 role（Step1 新制），無 role 時回退 id 字串約定（相容舊資料）
+/// - role .startDate / id plan_start_date, start_date (type: date) → 取代固定日期選擇器
+/// - role .durationDays/.durationWeeks / id duration_days 等 (type: number) → 取代固定天數 stepper
+// 修改内容：Step1 — role 優先、id 回退；新增集中式 resolveStartDate / resolveDurationDays（原散落 AIPlannerView）
 enum ThemeFormReservedId {
     static let dateIds = ["plan_start_date", "start_date"]
     static let durationDayIds = ["plan_duration_days", "duration_days"]
     static let durationWeekIds = ["plan_duration_weeks", "duration_weeks"]
-    
-    static func hasDateQuestion(in questions: [ThemeFormQuestion]) -> Bool {
-        questions.contains { q in dateIds.contains(q.id) && q.type == .date }
+
+    static func isDateQuestion(_ q: ThemeFormQuestion) -> Bool {
+        if q.role == .startDate { return true }
+        return dateIds.contains(q.id) && q.type == .date
     }
-    
+
+    static func isDurationDayQuestion(_ q: ThemeFormQuestion) -> Bool {
+        if q.role == .durationDays { return true }
+        return durationDayIds.contains(q.id) && q.type == .number
+    }
+
+    static func isDurationWeekQuestion(_ q: ThemeFormQuestion) -> Bool {
+        if q.role == .durationWeeks { return true }
+        return durationWeekIds.contains(q.id) && q.type == .number
+    }
+
+    static func hasDateQuestion(in questions: [ThemeFormQuestion]) -> Bool {
+        questions.contains { isDateQuestion($0) }
+    }
+
     static func hasDurationQuestion(in questions: [ThemeFormQuestion]) -> Bool {
-        questions.contains { q in
-            (durationDayIds.contains(q.id) || durationWeekIds.contains(q.id)) && q.type == .number
+        questions.contains { isDurationDayQuestion($0) || isDurationWeekQuestion($0) }
+    }
+
+    /// 從表單答案解析計劃開始日期；無對應問題或答案時回傳 nil
+    static func resolveStartDate(questions: [ThemeFormQuestion], answers: [String: String]) -> Date? {
+        for q in questions where isDateQuestion(q) {
+            if let s = answers[q.id], let d = ISO8601DateFormatter().date(from: s) { return d }
         }
+        return nil
+    }
+
+    /// 從表單答案解析計劃時長（天）；週題自動 ×7；無對應時回傳 nil
+    static func resolveDurationDays(questions: [ThemeFormQuestion], answers: [String: String]) -> Int? {
+        for q in questions where isDurationDayQuestion(q) {
+            if let s = answers[q.id], let v = Int(s), v > 0 { return v }
+        }
+        for q in questions where isDurationWeekQuestion(q) {
+            if let s = answers[q.id], let v = Int(s), v > 0 { return v * 7 }
+        }
+        return nil
     }
 }
 
@@ -96,6 +145,7 @@ struct ThemeFormQuestion: Identifiable, Codable, Equatable {
     var minValue: Int?
     var maxValue: Int?
     var description: String?  // 說明，可編輯後用於 AI 生成新選項
+    var role: ThemeFormRole? = nil  // 修改内容：Step1 — 欄位語意角色（優先於 id 約定；舊資料無此欄位自動為 nil）
 }
 
 // MARK: - 快速主題（支援自定義）
@@ -196,9 +246,9 @@ extension QuickThemeManager {
     /// 週末快閃：交通 1 小時內、逛街生活景點、可選主題後生周邊特色
     static func weekendFlashFormQuestions() -> [ThemeFormQuestion] {
         [
-            ThemeFormQuestion(id: "start_date", label: "weekend_flash.form.start_date", type: .date, options: nil, unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "計劃日期"),
-            ThemeFormQuestion(id: "duration_days", label: "weekend_flash.form.duration_days", type: .number, options: nil, unit: "天", placeholder: nil, defaultValue: "1", minValue: 1, maxValue: 1, description: "固定 1 天"),
-            ThemeFormQuestion(id: "destination", label: "weekend_flash.form.destination", type: .text, options: nil, unit: nil, placeholder: "weekend_flash.form.destination_placeholder", defaultValue: nil, minValue: nil, maxValue: nil, description: "地點（城市或區域）"),
+            ThemeFormQuestion(id: "start_date", label: "weekend_flash.form.start_date", type: .date, options: nil, unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "計劃日期", role: .startDate),
+            ThemeFormQuestion(id: "duration_days", label: "weekend_flash.form.duration_days", type: .number, options: nil, unit: "天", placeholder: nil, defaultValue: "1", minValue: 1, maxValue: 1, description: "固定 1 天", role: .durationDays),
+            ThemeFormQuestion(id: "destination", label: "weekend_flash.form.destination", type: .text, options: nil, unit: nil, placeholder: "weekend_flash.form.destination_placeholder", defaultValue: nil, minValue: nil, maxValue: nil, description: "地點（城市或區域）", role: .destination),
             ThemeFormQuestion(id: "travel_limit_minutes", label: "weekend_flash.form.travel_limit", type: .number, options: nil, unit: "分鐘", placeholder: nil, defaultValue: "60", minValue: 30, maxValue: 120, description: "交通時間上限"),
             ThemeFormQuestion(id: "theme_type", label: "weekend_flash.form.theme_type", type: .multiSelect, options: ["逛街", "生活景點", "咖啡輕食", "文創市集", "自然風光", "美食街區", "藝術空間"], unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "主題（選後生周邊特色）")
         ]
@@ -207,9 +257,9 @@ extension QuickThemeManager {
     /// 深度文化：當前城市、古蹟／古城／美術／展覽等
     static func deepCultureFormQuestions() -> [ThemeFormQuestion] {
         [
-            ThemeFormQuestion(id: "start_date", label: "deep_culture.form.start_date", type: .date, options: nil, unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "計劃開始日期"),
-            ThemeFormQuestion(id: "duration_days", label: "deep_culture.form.duration_days", type: .number, options: nil, unit: "天", placeholder: nil, defaultValue: "1", minValue: 1, maxValue: 14, description: "天數"),
-            ThemeFormQuestion(id: "city", label: "deep_culture.form.city", type: .text, options: nil, unit: nil, placeholder: "deep_culture.form.city_placeholder", defaultValue: nil, minValue: nil, maxValue: nil, description: "當前／目標城市"),
+            ThemeFormQuestion(id: "start_date", label: "deep_culture.form.start_date", type: .date, options: nil, unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "計劃開始日期", role: .startDate),
+            ThemeFormQuestion(id: "duration_days", label: "deep_culture.form.duration_days", type: .number, options: nil, unit: "天", placeholder: nil, defaultValue: "1", minValue: 1, maxValue: 14, description: "天數", role: .durationDays),
+            ThemeFormQuestion(id: "city", label: "deep_culture.form.city", type: .text, options: nil, unit: nil, placeholder: "deep_culture.form.city_placeholder", defaultValue: nil, minValue: nil, maxValue: nil, description: "當前／目標城市", role: .destination),
             ThemeFormQuestion(id: "culture_type", label: "deep_culture.form.culture_type", type: .multiSelect, options: ["古蹟", "古城", "美術館", "博物館", "短期展覽", "歷史建築", "文化活動"], unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "類型")
         ]
     }
@@ -217,8 +267,8 @@ extension QuickThemeManager {
     /// 充實行程：行程目標、周圍推薦（購物／美食／休憩等）
     static func enrichTripFormQuestions() -> [ThemeFormQuestion] {
         [
-            ThemeFormQuestion(id: "start_date", label: "enrich_trip.form.start_date", type: .date, options: nil, unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "計劃開始日期"),
-            ThemeFormQuestion(id: "duration_days", label: "enrich_trip.form.duration_days", type: .number, options: nil, unit: "天", placeholder: nil, defaultValue: "3", minValue: 1, maxValue: 30, description: "天數"),
+            ThemeFormQuestion(id: "start_date", label: "enrich_trip.form.start_date", type: .date, options: nil, unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "計劃開始日期", role: .startDate),
+            ThemeFormQuestion(id: "duration_days", label: "enrich_trip.form.duration_days", type: .number, options: nil, unit: "天", placeholder: nil, defaultValue: "3", minValue: 1, maxValue: 30, description: "天數", role: .durationDays),
             ThemeFormQuestion(id: "trip_goal", label: "enrich_trip.form.trip_goal", type: .text, options: nil, unit: nil, placeholder: "enrich_trip.form.trip_goal_placeholder", defaultValue: nil, minValue: nil, maxValue: nil, description: "行程目標或目的地"),
             ThemeFormQuestion(id: "surrounding_categories", label: "enrich_trip.form.surrounding", type: .multiSelect, options: ["購物", "美食", "休憩", "景點", "夜生活", "親子", "其他"], unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "周圍推薦類型")
         ]
@@ -356,6 +406,7 @@ final class QuickThemeManager: ObservableObject {
     }
     
     // MARK: - 自定義主題 CRUD
+    // 修改内容：Step4 — CRUD 同步 Firestore（users/{uid}/quick_themes），UserDefaults 為本地快取
     func addCustomTheme(_ theme: QuickTheme, userId: String = "") {
         var themes = loadCustomThemesForUser(userId)
         var t = theme
@@ -364,27 +415,50 @@ final class QuickThemeManager: ObservableObject {
         saveCustomThemes(themes, userId: userId)
         objectWillChange.send()
         ActivityRecorder.recordThemeCreated(title: t.title, themeId: t.id.uuidString)
+        let synced = t
+        Task { await QuickThemeService.shared.upsert(theme: synced, userId: userId) }
     }
-    
+
     func updateCustomTheme(_ theme: QuickTheme, userId: String = "") {
         var themes = loadCustomThemesForUser(userId)
         if let i = themes.firstIndex(where: { $0.id == theme.id }) {
             themes[i] = theme
             saveCustomThemes(themes, userId: userId)
             objectWillChange.send()
+            Task { await QuickThemeService.shared.upsert(theme: theme, userId: userId) }
         }
     }
-    
+
     func deleteCustomTheme(id: UUID, userId: String = "") {
         var themes = loadCustomThemesForUser(userId)
         guard let removed = themes.first(where: { $0.id == id }) else { return }
         themes.removeAll { $0.id == id }
         saveCustomThemes(themes, userId: userId)
         objectWillChange.send()
-        // 同步刪除 Firebase 中的主題提示詞
+        // 同步刪除 Firebase 中的主題提示詞與雲端主題
         Task {
             await ThemePromptService.shared.deletePrompt(themeKey: removed.key, userId: userId)
+            await QuickThemeService.shared.delete(themeId: id, userId: userId)
         }
+    }
+
+    /// 修改内容：Step4 — 雲端拉取合併（remote wins；本地獨有保留並回傳補推清單）
+    func syncFromCloud(userId: String) async {
+        guard !userId.isEmpty else { return }
+        let remote = await QuickThemeService.shared.fetchAll(userId: userId)
+        guard !remote.isEmpty else {
+            // 雲端為空：把本地既有主題補推上雲（首次遷移）
+            let local = loadCustomThemesForUser(userId)
+            for t in local { await QuickThemeService.shared.upsert(theme: t, userId: userId) }
+            return
+        }
+        var merged = remote
+        let remoteIds = Set(remote.map(\.id))
+        let localOnly = loadCustomThemesForUser(userId).filter { !remoteIds.contains($0.id) }
+        merged.append(contentsOf: localOnly)
+        for t in localOnly { await QuickThemeService.shared.upsert(theme: t, userId: userId) }
+        saveCustomThemes(merged.sorted { $0.sortOrder < $1.sortOrder }, userId: userId)
+        objectWillChange.send()
     }
     
     func toggleFavorite(themeId: UUID, userId: String = "") {

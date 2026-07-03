@@ -44,18 +44,21 @@ final class ThemeResolver {
     static let shared = ThemeResolver()
     private init() {}
 
-    /// 解析請求中的主題（非同步）：若提供 userId 則從 ThemePromptService 讀取 promptPrefix，否則用內建。
-    /// 修改内容：此處只負責 QuickTheme/Firebase 的通用 prefix；**travel 專用策略** 由 `GenerateRequest.travelThemeModuleId` + `AITripGenerator` 處理（見檔案頂部說明）。
+    /// 解析請求中的主題（非同步）。
+    /// 修改内容：Step1 — 改走 ThemeTemplate 統一模板：prefix = promptLayers.composedPrefix（base 內建約束 → user Firebase 前綴，固定順序）。
+    /// 原本僅取 Firebase prefix、遺漏內建 aiPromptBase 導致主題偏題；travel 專用策略仍由 `GenerateRequest.travelThemeModuleId` + `AITripGenerator` 疊加處理（見檔案頂部說明）。
     func resolve(request: GenerateRequest) async throws -> ThemeResolution {
         let mode = request.themeMode
         let key = request.themeKey ?? "travel_planning"
         if mode != .generateItinerary {
             throw ThemeResolverError.itineraryNotAllowed(themeMode: mode)
         }
-        var prefix: String? = nil
-        if let uid = request.userId, !uid.isEmpty {
-            prefix = await ThemePromptService.shared.fetchPrompt(themeKey: key, userId: uid)
-        }
-        return ThemeResolution(allowsItinerary: true, themeKey: key, promptPrefix: prefix, themeMode: mode)
+        let template = await ThemeTemplate.resolve(themeKey: key, userId: request.userId)
+        return ThemeResolution(
+            allowsItinerary: template.outputContract == .itinerary,
+            themeKey: key,
+            promptPrefix: template.promptLayers.composedPrefix,
+            themeMode: mode
+        )
     }
 }

@@ -38,6 +38,10 @@ struct AIPlanningWelcomeView: View {
             VStack(spacing: 28) {
                 Spacer()
                     .frame(height: 8)
+                    // 修改内容：Step4 — 進頁拉取雲端自訂主題（跨裝置同步）
+                    .task {
+                        await themeManager.syncFromCloud(userId: userManager.userOpenId)
+                    }
                 
                 // 中央主入口（與 Time OS / 智能規劃為同一畫面）
                 VStack(spacing: 18) {

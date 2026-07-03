@@ -56,9 +56,8 @@ final class AuthenticationManager {
         for provider in providerData {
             if let option = AuthProviderOption(rawValue: provider.providerID) {
                 providers.append(option)
-            } else {
-                assertionFailure("Provider option not found: \(provider.providerID)")
             }
+            // 修改内容：Step6 — 移植 Core 副本修正：略過未知 provider（如 firebase、anonymous），不再 assertionFailure
         }
         return providers
     }

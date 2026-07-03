@@ -16,10 +16,12 @@ import UIKit
 // 共用類型（PlanningStep, SurroundingAttraction, InterestTag, SpecialRestriction, BudgetLevel 擴展）定義於 AIPlannerView.swift；特色體驗目錄見 TravelSpecialExperienceCatalog.swift。
 
 /// 旅遊行程專用內容視圖：僅四步驟（目的地→偏好→細節→生成），無主題表單。
+/// 修改内容：Step2 — 新增 customTheme：AIPlannerView 無表單主題流程改共用本視圖（刪除其重複四步驟實作），主題指令/路由鍵由此帶入。
 struct TravelPlannerContent: View {
+    var customTheme: QuickTheme? = nil
     @EnvironmentObject var userManager: FirebaseUserManager
     @Environment(\.dismiss) var dismiss
-    
+
     // 步骤控制
     @State private var currentStep: PlanningStep = .step1
     
@@ -237,6 +239,10 @@ struct TravelPlannerContent: View {
                 // 从缓存加载用户所在国家（如果已有）
                 if let cachedCountry = LocationCacheManager.shared.loadUserCountry() {
                     userCountryName = cachedCountry
+                }
+                // 修改内容：Step2 — 帶入主題標題（原 AIPlannerView travel 流程行為）
+                if let theme = customTheme, tripTheme.isEmpty {
+                    tripTheme = theme.title
                 }
             }
             .onChange(of: tripRangeStartDate) { _, _ in
@@ -1887,7 +1893,14 @@ struct TravelPlannerContent: View {
     
     private func startGeneration() {
         guard !destination.isEmpty, computedTripDayCount > 0 else { return }
-        
+
+        // 修改内容：Step2 — 主題分流守衛（原 AIPlannerView 行為）：非 generateItinerary 不呼叫 AITripGenerator
+        if let theme = customTheme, theme.themeMode != .generateItinerary {
+            errorMessage = "theme_mode.no_itinerary".localized()
+            showErrorAlert = true
+            return
+        }
+
         guard enableAIGeneration else {
             errorMessage = "theme.ai_generation_premium_hint".localized()
             showErrorAlert = true
@@ -1936,14 +1949,15 @@ struct TravelPlannerContent: View {
         )
         slots.plannerConstraintLines = selectedRestrictions.map { $0.aiPlannerConstraintLine }
         
+        // 修改内容：Step2 — 主題指令置頂拼入；themeKey 依 customTheme 路由（原 AIPlannerView travel 流程行為）
         let mergedCustomInstructions: String? = {
-            let parts = [tripTheme, additionalRequirements].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            let parts = [customTheme?.aiInstruction ?? "", tripTheme, additionalRequirements].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
             return parts.isEmpty ? nil : parts.joined(separator: "\n")
         }()
         let request = GenerateRequest(
             plannerModelType: .multiPhase,
             generateMode: dayCount == 1 ? .singleDay : .multiDay,
-            themeKey: "travel_planning",
+            themeKey: customTheme.map { "custom_\($0.key)" } ?? "travel_planning",
             themeMode: .generateItinerary,
             userId: userManager.userOpenId.isEmpty ? nil : userManager.userOpenId,
             slots: slots,

@@ -157,7 +157,7 @@ enum NPIMapper {
         // 3. 依 type 映射各欄位
         for q in formQuestions {
             guard let raw = formAnswers[q.id], !raw.trimmingCharacters(in: .whitespaces).isEmpty else { continue }
-            guard NPIFieldWhitelist.isAllowed(q.id) else { continue }
+            guard NPIFieldWhitelist.isAllowed(q.id) || (q.role != nil && q.role != .other) else { continue }  // 修改内容：Step1 — 具語意角色者不受 id 白名單限制
             
             switch q.type {
             case .date:
@@ -206,7 +206,7 @@ enum NPIMapper {
                     npi.must_do = raw.split(separator: "\n").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
                 } else if q.id == "constraints_text" {
                     npi.constraints_text = raw
-                } else if ["travel_destination", "destination"].contains(q.id) {
+                } else if ["travel_destination", "destination"].contains(q.id) || q.role == .destination {  // 修改内容：Step1 — role 優先判定目的地
                     npi.destination = raw
                 } else if q.id == "city" {
                     npi.destination = raw
@@ -218,6 +218,16 @@ enum NPIMapper {
                     } else {
                         npi.constraints_text = "\(q.id): \(raw)"
                     }
+                }
+            // 修改内容：Step1 — 新增三型映射
+            case .location:
+                npi.destination = raw
+            case .time, .toggle:
+                let line = "\(q.label): \(raw)"
+                if npi.constraints_text != nil {
+                    npi.constraints_text! += "\n\(line)"
+                } else {
+                    npi.constraints_text = line
                 }
             }
         }

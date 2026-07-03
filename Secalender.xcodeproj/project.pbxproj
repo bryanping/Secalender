@@ -76,6 +76,8 @@
 		A2CC0C042F38A0020054E3F1 /* LocalAvatarCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2CC0C032F38A0020054E3F1 /* LocalAvatarCache.swift */; };
 		A2CC0C062F38A0030054E3F1 /* ImageCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2CC0C052F38A0030054E3F1 /* ImageCacheService.swift */; };
 		A2CF37282F285E1500A38B6F /* GoogleMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2CF37272F285E1500A38B6F /* GoogleMapView.swift */; };
+		A2D22AD22FF8001E0070D920 /* ThemeTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D22AD12FF8001E0070D920 /* ThemeTemplate.swift */; };
+		A2D22ADA2FF805CD0070D920 /* StandardFormUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D22AD92FF805CD0070D920 /* StandardFormUnit.swift */; };
 		A2D3F72A2F4F58B60012AC99 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = A2D3F7292F4F58B60012AC99 /* FirebaseStorage */; };
 		A2DB300A2F160DCC00ADB775 /* FriendsAndGroupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2DB30092F160DCC00ADB775 /* FriendsAndGroupsView.swift */; };
 		A2DB300C2F161CD000ADB775 /* LiquidGlassStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2DB300B2F161CD000ADB775 /* LiquidGlassStyle.swift */; };
@@ -196,6 +198,8 @@
 		A2GEN0132F24B10000DA4FC9 /* GenerationOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2GEN0142F24B10000DA4FC9 /* GenerationOrchestrator.swift */; };
 		A2KE00012F4E7D22000736C8 /* KeyboardDismissExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2KE00002F4E7D22000736C8 /* KeyboardDismissExtension.swift */; };
 		A2PLAN002F24B10000DA4FC9 /* PlannerAutoRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2PLAN012F24B10000DA4FC9 /* PlannerAutoRouter.swift */; };
+		AA10E0000000000000000005 /* PlannerIntentClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E0000000000000000006 /* PlannerIntentClassifier.swift */; };
+		AA10E0000000000000000003 /* QuickThemeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E0000000000000000004 /* QuickThemeService.swift */; };
 		B1C2D3E4F5A6B7C8D9E0F1A3 /* SyncTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6B7C8D9E0F1A2 /* SyncTypes.swift */; };
 		B2C3D4E5F6A7B8C9D0E1F2A4 /* SyncQueueService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6A7B8C9D0E1F2A3 /* SyncQueueService.swift */; };
 		B2E0FA452F21F30D00DA4FC9 /* TravelSpecialExperienceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E0FA442F21F30D00DA4FC9 /* TravelSpecialExperienceCatalog.swift */; };
@@ -289,6 +293,8 @@
 		A2CC0C032F38A0020054E3F1 /* LocalAvatarCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalAvatarCache.swift; sourceTree = "<group>"; };
 		A2CC0C052F38A0030054E3F1 /* ImageCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCacheService.swift; sourceTree = "<group>"; };
 		A2CF37272F285E1500A38B6F /* GoogleMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleMapView.swift; sourceTree = "<group>"; };
+		A2D22AD12FF8001E0070D920 /* ThemeTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeTemplate.swift; sourceTree = "<group>"; };
+		A2D22AD92FF805CD0070D920 /* StandardFormUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandardFormUnit.swift; sourceTree = "<group>"; };
 		A2DB30092F160DCC00ADB775 /* FriendsAndGroupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsAndGroupsView.swift; sourceTree = "<group>"; };
 		A2DB300B2F161CD000ADB775 /* LiquidGlassStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassStyle.swift; sourceTree = "<group>"; };
 		A2DB300D2F17317A00ADB775 /* EventUIStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventUIStyle.swift; sourceTree = "<group>"; };
@@ -412,6 +418,8 @@
 		A2GEN0142F24B10000DA4FC9 /* GenerationOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationOrchestrator.swift; sourceTree = "<group>"; };
 		A2KE00002F4E7D22000736C8 /* KeyboardDismissExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardDismissExtension.swift; sourceTree = "<group>"; };
 		A2PLAN012F24B10000DA4FC9 /* PlannerAutoRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerAutoRouter.swift; sourceTree = "<group>"; };
+		AA10E0000000000000000006 /* PlannerIntentClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerIntentClassifier.swift; sourceTree = "<group>"; };
+		AA10E0000000000000000004 /* QuickThemeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickThemeService.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6B7C8D9E0F1A2 /* SyncTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncTypes.swift; sourceTree = "<group>"; };
 		B2C3D4E5F6A7B8C9D0E1F2A3 /* SyncQueueService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncQueueService.swift; sourceTree = "<group>"; };
 		B2E0FA442F21F30D00DA4FC9 /* TravelSpecialExperienceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelSpecialExperienceCatalog.swift; sourceTree = "<group>"; };
@@ -678,6 +686,7 @@
 				A2FD9DE32F2BA9D400595BAB /* EnrichTripView.swift */,
 				A2F153E52E45D57300158F94 /* TemplateStoreView.swift */,
 				A2E0F9EE2F21157000DA4FC9 /* CreatorProfileView.swift */,
+				A2D22AD92FF805CD0070D920 /* StandardFormUnit.swift */,
 			);
 			path = Template;
 			sourceTree = "<group>";
@@ -735,6 +744,7 @@
 				A2F0A0042F90000100DA4FC9 /* ../TimeOS */,
 				A2E0FA0B2F21F31B00DA4FC9 /* NPI.swift */,
 				A2E0FA032F21F31A00DA4FC9 /* QuickThemeManager.swift */,
+				AA10E0000000000000000004 /* QuickThemeService.swift */,
 				A2E0FA0D2F21F31D00DA4FC9 /* ThemePromptService.swift */,
 				A2E0FA3B2F24B00300DA4FC9 /* TimeItemService.swift */,
 				A2E0FA3E2F24B00600DA4FC9 /* SchedulerService.swift */,
@@ -751,6 +761,7 @@
 				BC2A6D0ADCAE4056802B261C /* Location */,
 				F6A7B8C9D0E1F2A3B4C5D6 /* Share */,
 				A2BD0C262F3700280054E3F1 /* Attractions */,
+				A2D22AD12FF8001E0070D920 /* ThemeTemplate.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -855,6 +866,7 @@
 				A2GEN0122F24B10000DA4FC9 /* GenerationSchedulerService.swift */,
 				A2GEN0142F24B10000DA4FC9 /* GenerationOrchestrator.swift */,
 				A2PLAN012F24B10000DA4FC9 /* PlannerAutoRouter.swift */,
+				AA10E0000000000000000006 /* PlannerIntentClassifier.swift */,
 			);
 			path = GenerationEngine;
 			sourceTree = "<group>";
@@ -1078,6 +1090,7 @@
 				A2E0F9C92F1B8F6300DA4FC9 /* FriendSelectionRow.swift in Sources */,
 				A2E66AB32E35C1800025E244 /* RepeatOptionsView.swift in Sources */,
 				A2BD0C272F3700280054E3F1 /* CityAttractionsDatabase.swift in Sources */,
+				A2D22AD22FF8001E0070D920 /* ThemeTemplate.swift in Sources */,
 				A2E66AB42E35C1800025E244 /* TravelTimeOptionsView.swift in Sources */,
 				A2E0F9A52F1A77B900DA4FC9 /* PlanGenerator.swift in Sources */,
 				A2E0F9B72F1A89F500DA4FC9 /* PlanDaySectionView.swift in Sources */,
@@ -1120,6 +1133,7 @@
 				A2KE00012F4E7D22000736C8 /* KeyboardDismissExtension.swift in Sources */,
 				A2E66AB02E35C1670025E244 /* CalendarOptionsView.swift in Sources */,
 				A2B0DB402C3C49E200733BD8 /* EventManager.swift in Sources */,
+				A2D22ADA2FF805CD0070D920 /* StandardFormUnit.swift in Sources */,
 				A2FEEA282E09D423006696EC /* ShareHistoryView.swift in Sources */,
 				A2E0F9F82F26649300DA4FC9 /* DeepCultureView.swift in Sources */,
 				A28D306E2F4E7DC8000736C8 /* ProfileHeaderView.swift in Sources */,
@@ -1173,6 +1187,7 @@
 				A2E0F9E12F21154500DA4FC9 /* StoreTemplate.swift in Sources */,
 				A2E0F9DB2F210B6A00DA4FC9 /* AIPlanningWelcomeView.swift in Sources */,
 				A2E0FA022F21F31A00DA4FC9 /* QuickThemeManager.swift in Sources */,
+				AA10E0000000000000000003 /* QuickThemeService.swift in Sources */,
 				A2E0FA0C2F21F31D00DA4FC9 /* ThemePromptService.swift in Sources */,
 				A2E0FA3A2F24B00300DA4FC9 /* TimeItemService.swift in Sources */,
 				A2E0FA3D2F24B00500DA4FC9 /* TimeItem.swift in Sources */,
@@ -1189,6 +1204,7 @@
 				A2GEN0112F24B10000DA4FC9 /* GenerationSchedulerService.swift in Sources */,
 				A2GEN0132F24B10000DA4FC9 /* GenerationOrchestrator.swift in Sources */,
 				A2PLAN002F24B10000DA4FC9 /* PlannerAutoRouter.swift in Sources */,
+				AA10E0000000000000000005 /* PlannerIntentClassifier.swift in Sources */,
 				B3C0B0112F60100100DA4FC9 /* PlannerMissingField.swift in Sources */,
 				B3C0B0122F60100100DA4FC9 /* ParsedParticipant.swift in Sources */,
 				B3C0B0132F60100100DA4FC9 /* ParsedPlannerIntent.swift in Sources */,

@@ -124,6 +124,11 @@ struct QuickThemeManagementView: View {
             .onAppear {
                 refreshThemes()
             }
+            // 修改内容：Step4 — 進頁拉取雲端主題（跨裝置）後刷新
+            .task {
+                await themeManager.syncFromCloud(userId: userManager.userOpenId)
+                refreshThemes()
+            }
             .onChange(of: searchText) { _, _ in refreshThemes() }
             .onChange(of: selectedCategory) { _, _ in refreshThemes() }
             .alert("quick_theme.delete_confirm".localized(), isPresented: $showDeleteAlert) {

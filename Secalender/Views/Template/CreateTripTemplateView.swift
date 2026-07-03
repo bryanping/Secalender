@@ -102,187 +102,191 @@ struct CreateTripTemplateView: View {
     }
     
     // MARK: - 步驟指示
-    private var stepIndicator: some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(currentStep == .step1 ? Color.blue : Color.gray.opacity(0.3))
-                    .frame(width: 8, height: 8)
-                Text("quick_theme.step".localized() + " 1")
-                    .font(.caption)
-                    .foregroundColor(currentStep == .step1 ? .primary : .secondary)
-            }
-            Rectangle()
-                .fill(Color.gray.opacity(0.3))
-                .frame(height: 1)
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(currentStep == .step2 ? Color.blue : Color.gray.opacity(0.3))
-                    .frame(width: 8, height: 8)
-                Text("quick_theme.step".localized() + " 2")
-                    .font(.caption)
-                    .foregroundColor(currentStep == .step2 ? .primary : .secondary)
-            }
+    // 修改内容：Step4 UX — 對齊「行程規劃」進度條樣式（步驟文字＋百分比＋進度條）
+    // 修改内容
+    private var stepIndicatorText: String {
+        let prefix = "quick_theme.step".localized()
+        if currentStep == .step1 {
+            return prefix + " 1/2 · " + "quick_theme.basic_settings".localized()
+        } else {
+            return prefix + " 2/2 · " + "quick_theme.form_questions".localized()
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 12)
-        .background(Color(.systemBackground))
+    }
+
+    private var stepIndicator: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Text(stepIndicatorText)  // 修改内容
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                Text(currentStep == .step1 ? "50%" : "100%")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color(UIColor.systemGray5))
+                        .frame(height: 4)
+
+                    Rectangle()
+                        .fill(Color.blue)
+                        .frame(width: geometry.size.width * (currentStep == .step1 ? 0.5 : 1.0), height: 4)
+                }
+            }
+            .frame(height: 4)
+        }
+        .padding(.horizontal)
+        .padding(.top, 4)
     }
     
     // MARK: - Step 1 內容
+    // 修改内容：Step4 UX — 對齊「行程規劃」樣式：28pt 歡迎標題＋副標、欄位全部收進 StandardFormUnit 卡片
     private var step1Content: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            // 基礎設定
-            sectionHeader(title: "quick_theme.basic_settings".localized())
-            
+        VStack(alignment: .leading, spacing: 18) {
+            // 歡迎標題（與 TravelPlannerContent step1 一致）
+            VStack(alignment: .leading, spacing: 8) {
+                Text("quick_theme.create_template".localized())
+                    .font(.system(size: 28, weight: .bold))
+                Text("quick_theme.basic_settings".localized())
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
             // 圖示：虛線圓框 + 更換圖示按鈕
-            VStack(spacing: 12) {
-                Button {
-                    showIconPicker = true
-                } label: {
-                    ZStack {
-                        Circle()
-                            .stroke(style: StrokeStyle(lineWidth: 2, dash: [6]))
-                            .foregroundColor(.gray.opacity(0.5))
-                            .frame(width: 80, height: 80)
-                        
-                        Image(systemName: selectedIcon)
-                            .font(.system(size: 36))
-                            .foregroundColor(Color(hex: selectedColorHex) ?? .blue)
+            StandardFormUnit(title: "quick_theme.change_icon".localized()) {
+                VStack(spacing: 12) {
+                    Button {
+                        showIconPicker = true
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .stroke(style: StrokeStyle(lineWidth: 2, dash: [6]))
+                                .foregroundColor(.gray.opacity(0.5))
+                                .frame(width: 80, height: 80)
+
+                            Image(systemName: selectedIcon)
+                                .font(.system(size: 36))
+                                .foregroundColor(Color(hex: selectedColorHex) ?? .blue)
+                        }
+                    }
+
+                    Button {
+                        showIconPicker = true
+                    } label: {
+                        Text("quick_theme.change_icon".localized())
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
                 }
-                
-                Button {
-                    showIconPicker = true
-                } label: {
-                    Text("quick_theme.change_icon".localized())
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
-            
+
             // 主題名稱
-            VStack(alignment: .leading, spacing: 8) {
-                Text("quick_theme.theme_title".localized())
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                
+            StandardFormUnit(title: "quick_theme.theme_title".localized(), isRequired: true) {
                 TextField("quick_theme.theme_title_placeholder".localized(), text: $themeTitle)
-                    .textFieldStyle(.roundedBorder)
+                    .standardFieldContainer()
             }
-            
+
             // 主題用途（themeMode）
-            VStack(alignment: .leading, spacing: 8) {
-                Text("quick_theme.theme_mode".localized())
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                
+            StandardFormUnit(title: "quick_theme.theme_mode".localized()) {
+                // 修改内容：Step3 — 僅顯示已落地模式（collectInfoOnly/matching/booking 未支援，暫時隱藏而非報錯）
                 Picker("", selection: $themeMode) {
                     Text("theme_mode.generateItinerary".localized()).tag(ThemeMode.generateItinerary)
                     Text("theme_mode.floatingTasks".localized()).tag(ThemeMode.floatingTasks)
                     Text("theme_mode.collectAvailability".localized()).tag(ThemeMode.collectAvailability)
-                    Text("theme_mode.collectInfoOnly".localized()).tag(ThemeMode.collectInfoOnly)
                 }
                 .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .standardFieldContainer()
             }
-            
+
             // 主題專屬提示詞（僅 generateItinerary 時顯示）
             if themeMode == .generateItinerary {
-                sectionHeader(title: "quick_theme.ai_prompt_prefix".localized(), showSparkle: true)
-                
+                StandardFormUnit(
+                    title: "quick_theme.ai_prompt_prefix".localized(),
+                    subtitle: "quick_theme.ai_prompt_prefix_hint".localized()
+                ) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Spacer()
+                            Button {
+                                generatePromptPrefixWithAI()
+                            } label: {
+                                if isAIGeneratingPromptPrefix {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Label("quick_theme.ai_generate".localized(), systemImage: "sparkles")
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                            .disabled(isAIGeneratingPromptPrefix || themeTitle.isEmpty)
+                        }
+
+                        ZStack(alignment: .topLeading) {
+                            if aiPromptPrefix.isEmpty {
+                                Text("quick_theme.ai_prompt_prefix_placeholder".localized())
+                                    .font(.body)
+                                    .foregroundColor(Color(.placeholderText))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 16)
+                                    .allowsHitTesting(false)
+                            }
+                            TextEditor(text: $aiPromptPrefix)
+                                .frame(minHeight: 80)
+                                .padding(8)
+                                .scrollContentBackground(.hidden)
+                        }
+                        .standardFieldContainer()
+                    }
+                }
+            }
+
+            // AI 指令定義
+            StandardFormUnit(
+                title: "quick_theme.ai_instruction".localized(),
+                subtitle: "quick_theme.ai_instruction_hint".localized()
+            ) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Spacer()
                         Button {
-                            generatePromptPrefixWithAI()
+                            aiCompleteInstruction()
                         } label: {
-                            if isAIGeneratingPromptPrefix {
+                            if isAICompletingInstruction {
                                 ProgressView()
                                     .scaleEffect(0.8)
                             } else {
-                                Text("quick_theme.ai_generate".localized())
+                                Label("quick_theme.ai_complete".localized(), systemImage: "sparkles")
                                     .font(.caption)
                                     .foregroundColor(.blue)
                             }
                         }
-                        .disabled(isAIGeneratingPromptPrefix || themeTitle.isEmpty)
+                        .disabled(isAICompletingInstruction || themeTitle.isEmpty)
                     }
-                    
+
                     ZStack(alignment: .topLeading) {
-                        if aiPromptPrefix.isEmpty {
-                            Text("quick_theme.ai_prompt_prefix_placeholder".localized())
+                        if aiInstruction.isEmpty {
+                            Text("quick_theme.ai_instruction_placeholder".localized())
                                 .font(.body)
                                 .foregroundColor(Color(.placeholderText))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 16)
                                 .allowsHitTesting(false)
                         }
-                        TextEditor(text: $aiPromptPrefix)
-                            .frame(minHeight: 80)
+                        TextEditor(text: $aiInstruction)
+                            .frame(minHeight: 120)
                             .padding(8)
                             .scrollContentBackground(.hidden)
                     }
-                    .background(Color(.systemBackground))
-                .cornerRadius(10)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                )
-                
-                Text("quick_theme.ai_prompt_prefix_hint".localized())
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .standardFieldContainer()
                 }
-            }
-            
-            // AI 指令定義
-            sectionHeader(title: "quick_theme.ai_instruction".localized(), showSparkle: true)
-            
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Spacer()
-                    Button {
-                        aiCompleteInstruction()
-                    } label: {
-                        if isAICompletingInstruction {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        } else {
-                            Text("quick_theme.ai_complete".localized())
-                                .font(.caption)
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    .disabled(isAICompletingInstruction || themeTitle.isEmpty)
-                }
-                
-                ZStack(alignment: .topLeading) {
-                    if aiInstruction.isEmpty {
-                        Text("quick_theme.ai_instruction_placeholder".localized())
-                            .font(.body)
-                            .foregroundColor(Color(.placeholderText))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 16)
-                            .allowsHitTesting(false)
-                    }
-                    TextEditor(text: $aiInstruction)
-                        .frame(minHeight: 120)
-                        .padding(8)
-                        .scrollContentBackground(.hidden)
-                }
-                .background(Color(.systemBackground))
-                .cornerRadius(10)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                )
-                
-                Text("quick_theme.ai_instruction_hint".localized())
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
             }
         }
         .sheet(isPresented: $showIconPicker) {
@@ -376,6 +380,16 @@ struct CreateTripTemplateView: View {
     // MARK: - Step 2 內容：表單問題卡片（EventEditView 風格，每卡含說明＋重新 AI 生成）
     private var step2Content: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // 修改内容：Step4 UX — 歡迎標題（與「行程規劃」一致）
+            VStack(alignment: .leading, spacing: 8) {
+                Text(themeTitle.isEmpty ? "quick_theme.form_questions".localized() : themeTitle)
+                    .font(.system(size: 28, weight: .bold))
+                Text("quick_theme.form_questions".localized())
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             if isGeneratingQuestions {
                 HStack(spacing: 12) {
                     ProgressView()
@@ -420,6 +434,10 @@ struct CreateTripTemplateView: View {
         case .select: return "list.bullet"
         case .multiSelect: return "list.bullet.rectangle"
         case .date: return "calendar"
+        // 修改内容：Step1 — 新增三型圖示
+        case .location: return "mappin.and.ellipse"
+        case .time: return "clock"
+        case .toggle: return "switch.2"
         }
     }
     
@@ -961,7 +979,8 @@ final class AITemplateHelper {
             defaultValue: dto.defaultValue,
             minValue: dto.minValue,
             maxValue: dto.maxValue,
-            description: dto.description
+            description: dto.description,
+            role: currentQuestion.role  // 修改内容：Step1 — 替換問題時保留原欄位角色
         )
     }
     
@@ -980,31 +999,35 @@ final class AITemplateHelper {
         主題：\(themeTitle)
         AI 指令：\(aiInstruction.isEmpty ? "（無）" : aiInstruction)
         
-        【保留欄位 ID】若主題需要「開始日期」或「時長」，請使用以下 id 以取代系統預設區塊：
-        - 開始日期：id 用 "plan_start_date" 或 "start_date"，type 用 "date"
-        - 時長（天）：id 用 "duration_days" 或 "plan_duration_days"，type 用 "number"，unit 用 "天"
-        - 時長（週）：id 用 "duration_weeks" 或 "plan_duration_weeks"，type 用 "number"，unit 用 "週"
-        
+        【欄位角色 role】若問題語意屬於以下角色，「必須」加上 role 欄位（系統據此取代預設日期/天數區塊）：
+        - "startDate"：計劃開始日期（type 用 "date"）
+        - "durationDays"：時長天數（type 用 "number"，unit 用 "天"）
+        - "durationWeeks"：時長週數（type 用 "number"，unit 用 "週"）
+        - "destination"：目的地/地點（type 用 "location" 或 "text"）
+        - "participants"：參與者；"budget"：預算；其餘不填 role
+
         請輸出「純 JSON」陣列，不要加 markdown 或說明。格式範例（學習主題）：
         [
-          {"id":"plan_start_date","label":"計劃開始日期","type":"date","description":"學習計畫的起始日"},
-          {"id":"duration_weeks","label":"持續週數","type":"number","unit":"週","minValue":1,"maxValue":52,"description":"規劃學習計畫的總週數"},
+          {"id":"plan_start_date","label":"計劃開始日期","type":"date","role":"startDate","description":"學習計畫的起始日"},
+          {"id":"duration_weeks","label":"持續週數","type":"number","role":"durationWeeks","unit":"週","minValue":1,"maxValue":52,"description":"規劃學習計畫的總週數"},
           {"id":"session_minutes","label":"每次學習多久","type":"number","unit":"分鐘","minValue":15,"maxValue":180,"description":"單次學習時長"},
           {"id":"subjects","label":"科目選擇","type":"multiSelect","options":["數學","英文","程式"],"description":"欲加強的科目"}
         ]
-        
+
         運動主題範例（完全不同結構）：
         [
-          {"id":"plan_start_date","label":"計劃開始日期","type":"date","description":"運動計畫起始日"},
-          {"id":"duration_weeks","label":"計劃週數","type":"number","unit":"週","minValue":1,"maxValue":24,"description":"運動計畫總週數"},
+          {"id":"plan_start_date","label":"計劃開始日期","type":"date","role":"startDate","description":"運動計畫起始日"},
+          {"id":"duration_weeks","label":"計劃週數","type":"number","role":"durationWeeks","unit":"週","minValue":1,"maxValue":24,"description":"運動計畫總週數"},
           {"id":"sport_type","label":"運動類型","type":"select","options":["跑步","游泳","重訓","瑜伽"],"description":"主要運動項目"},
           {"id":"sessions_per_week","label":"每週幾次","type":"number","unit":"次","minValue":1,"maxValue":7,"description":"每週運動頻率"},
+          {"id":"preferred_time","label":"偏好時段","type":"time","description":"每日運動開始時刻"},
           {"id":"goal","label":"目標","type":"text","placeholder":"例如：減重 5kg、跑半馬","description":"個人目標"}
         ]
-        
-        每個問題需有 description 欄位。支援的 type：text, number, select, multiSelect, date
+
+        每個問題需有 description 欄位。支援的 type：text, number, select, multiSelect, date, location, time, toggle
         - number 可加 unit, minValue, maxValue
         - select/multiSelect 必須有 options 陣列，且選項數量限制 2-8 條
+        - location 用於地點輸入；time 用於「HH:mm」時刻；toggle 用於是/否（defaultValue "true"/"false"）
         - 每個問題必須有 id（英文、全小寫、snake_case）和 label（顯示文字）
         - 每主題問題數量上限 6 條
         
@@ -1031,8 +1054,9 @@ final class AITemplateHelper {
             var minValue: Int?
             var maxValue: Int?
             var description: String?
+            var role: String?  // 修改内容：Step1 — AI 輸出欄位角色
         }
-        
+
         let dtos = try JSONDecoder().decode([QuestionDTO].self, from: data)
         let mapped = dtos.prefix(6).compactMap { dto -> ThemeFormQuestion? in
             guard let qType = ThemeFormQuestionType(rawValue: dto.type) else { return nil }
@@ -1042,6 +1066,13 @@ final class AITemplateHelper {
                 if opts!.count < 2 { opts = nil }
             }
             let id = dto.id.lowercased().replacingOccurrences(of: " ", with: "_")
+            // 修改内容：Step1 — role 解析：AI 給的 role 優先，否則依保留 id 推導（舊行為相容）
+            var role = dto.role.flatMap { ThemeFormRole(rawValue: $0) }
+            if role == nil {
+                if ThemeFormReservedId.dateIds.contains(id), qType == .date { role = .startDate }
+                else if ThemeFormReservedId.durationDayIds.contains(id), qType == .number { role = .durationDays }
+                else if ThemeFormReservedId.durationWeekIds.contains(id), qType == .number { role = .durationWeeks }
+            }
             return ThemeFormQuestion(
                 id: id,
                 label: dto.label,
@@ -1052,7 +1083,8 @@ final class AITemplateHelper {
                 defaultValue: dto.defaultValue,
                 minValue: dto.minValue,
                 maxValue: dto.maxValue,
-                description: dto.description
+                description: dto.description,
+                role: role
             )
         }
         return Array(mapped)

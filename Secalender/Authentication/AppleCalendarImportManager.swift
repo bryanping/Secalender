@@ -229,7 +229,10 @@ final class AppleCalendarImportManager {
         
         let createTimeFormatter = DateFormatter()
         createTimeFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        
+
+        // 修改内容：Step6 — 移植 Core 副本修正：以 Apple 日曆識別符標記外部匯入來源（非 default）
+        let calendarComp = ekEvent.calendar?.calendarIdentifier ?? "apple"
+
         return Event(
             title: ekEvent.title ?? "未命名事件",
             creatorOpenid: userId,
@@ -246,7 +249,7 @@ final class AppleCalendarImportManager {
             information: information.isEmpty ? nil : information,
             isAllDay: isAllDay,
             repeatType: "never",
-            calendarComponent: "default"
+            calendarComponent: calendarComp
         )
     }
 }
