@@ -22,37 +22,6 @@ enum PlanningStep: Int {
 }
 
 
-// MARK: - 交通方式枚举
-enum TransportationType: String, CaseIterable {
-    case publicTransport
-    case selfDrive
-    case charteredCar
-    
-    var icon: String {
-        switch self {
-        case .publicTransport: return "bus.fill"
-        case .selfDrive: return "car.fill"
-        case .charteredCar: return "person.fill"
-        }
-    }
-    @MainActor
-    var displayName: String {
-        switch self {
-        case .publicTransport: return "transport.public_transport".localized()
-        case .selfDrive: return "transport.self_drive".localized()
-        case .charteredCar: return "transport.chartered_car".localized()
-        }
-    }
-    @MainActor
-    var description: String {
-        switch self {
-        case .publicTransport: return "transport.public_transport_desc".localized()
-        case .selfDrive: return "transport.self_drive_desc".localized()
-        case .charteredCar: return "transport.chartered_car_desc".localized()
-        }
-    }
-}
-
 // MARK: - 周邊特色数据结构
 struct SurroundingAttraction: Identifiable, Hashable {
     let id: String
@@ -108,6 +77,16 @@ enum SpecialRestriction: String, CaseIterable {
         case .wheelchairAccess: return "restriction.wheelchair_access".localized()
         case .indoorPriority: return "restriction.indoor_priority".localized()
         case .earlyRest: return "restriction.early_rest".localized()
+        }
+    }
+    
+    /// 供 AI 行程生成 prompt 使用（固定中文，與本地化顯示語意對齊）
+    var aiPlannerConstraintLine: String {
+        switch self {
+        case .childFriendly: return "親子友善（步速、安全與兒童設施）"
+        case .wheelchairAccess: return "無障礙／輪椅友善動線"
+        case .indoorPriority: return "優先室內或可避雨場景"
+        case .earlyRest: return "較早休息、避免過晚戶外高強度安排"
         }
     }
 }
@@ -196,6 +175,7 @@ struct AIPlannerView: View {
     
     // 键盘焦点控制
     @FocusState private var isTextFieldFocused: Bool
+    @FocusState private var isOtherInterestFocused: Bool
     
     // 步骤1：基本信息
     @State private var tripTheme: String = ""
@@ -204,18 +184,15 @@ struct AIPlannerView: View {
     @State private var selectedCountry: String? = nil
     @State private var selectedCity: String? = nil
     @State private var showLocationPicker = false
+    @State private var showTripDateRangePicker = false
     
-    // 旅行天数
-    @State private var travelDays: Int = 3
-    
-    // 同行人数
-    @State private var adults: Int = 1
-    @State private var children: Int = 0
+    /// 旅行日期範圍（主題步驟流；天數由此推算）
+    @State private var tripRangeStartDate: Date = Calendar.current.startOfDay(for: Date())
+    @State private var tripRangeEndDate: Date = Calendar.current.date(byAdding: .day, value: 2, to: Calendar.current.startOfDay(for: Date())) ?? Date()
     
     // 步骤2：偏好设置
     @State private var selectedInterests: Set<InterestTag> = []
-    @State private var selectedTransportation: TransportationType? = .publicTransport
-    @State private var selectedPace: Pace = .relaxed  // 預設輕鬆，僅支援輕鬆/緊湊
+    @State private var loadingInterestPlaceQueries: Set<String> = []
     @State private var budgetLevel: BudgetLevel = .moderate
     // 修改内容：travel theme module 选择（主题优先于单次 prompt）
     @State private var selectedTravelThemeModuleId: String? = nil
@@ -223,13 +200,10 @@ struct AIPlannerView: View {
     // 步骤3：行程細節優化
     @State private var surroundingAttractions: [SurroundingAttraction] = []
     @State private var selectedSurroundingAttractions: Set<String> = []  // 存储选中的ID
-    @State private var customSurroundingTags: [String] = []  // 用戶自訂標籤
-    @State private var customTagInput: String = ""  // 自訂標籤輸入框
-    @State private var customTagItineraryNotes: [String: String] = [:]
-    @State private var isLoadingSurroundingFeatures = false
+    @State private var selectedSupplementKinds: Set<InterestPreferenceSupplementKind> = []
+    @State private var supplementOtherNote: String = ""
     @State private var selectedRestrictions: Set<SpecialRestriction> = []
     @State private var additionalRequirements: String = ""
-    @State private var lastLoadedDestination: String = ""  // 跟踪上次加载的目的地
     
     // GPS定位位置
     @StateObject private var locationManager = LocationPickerManager()
@@ -246,12 +220,7 @@ struct AIPlannerView: View {
     @State private var showDepartureLocationPicker = false
     @State private var hasAutoRequestedGPS = false  // 标记是否已自动请求过GPS
     
-    @State private var departureTripStartDate: Date = Date()
     @State private var departureTripStartTime: Date = Calendar.current.date(from: DateComponents(hour: 9, minute: 0)) ?? Date()
-    @State private var departurePickerEndDate: Date? = nil
-    @State private var departurePickerEndTime: Date? = nil
-    @State private var departurePickerIsAllDay = false
-    @State private var departurePickerIsHasEnd = false
     
     // 住宿选择（简化为统一地址搜索）
     @State private var accommodationAddress: String = ""
@@ -428,6 +397,37 @@ struct AIPlannerView: View {
         return Array(cityNames)
     }
     
+    private var computedTripDayCount: Int {
+        let cal = Calendar.current
+        let s = cal.startOfDay(for: tripRangeStartDate)
+        let e = cal.startOfDay(for: tripRangeEndDate)
+        let d = cal.dateComponents([.day], from: s, to: e).day ?? 0
+        return max(1, d + 1)
+    }
+    
+    private func clampTripEndDateIfNeeded() {
+        let cal = Calendar.current
+        let s = cal.startOfDay(for: tripRangeStartDate)
+        let e = cal.startOfDay(for: tripRangeEndDate)
+        if e < s { tripRangeEndDate = s }
+    }
+    
+    /// 模型驅動頁：依 base 起迄日推算總天數（含首尾）
+    private var modelDrivenTripDayCount: Int {
+        let cal = Calendar.current
+        let s = cal.startOfDay(for: baseStartDate)
+        let e = cal.startOfDay(for: baseEndDate)
+        let d = cal.dateComponents([.day], from: s, to: e).day ?? 0
+        return max(1, d + 1)
+    }
+    
+    private func clampModelDrivenDateRange() {
+        let cal = Calendar.current
+        let s = cal.startOfDay(for: baseStartDate)
+        let e = cal.startOfDay(for: baseEndDate)
+        if e < s { baseEndDate = s }
+    }
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -521,6 +521,10 @@ struct AIPlannerView: View {
                     userCountryName = cachedCountry
                 }
             }
+            .onChange(of: tripRangeStartDate) { _, _ in clampTripEndDateIfNeeded() }
+            .onChange(of: tripRangeEndDate) { _, _ in clampTripEndDateIfNeeded() }
+            .onChange(of: baseStartDate) { _, _ in clampModelDrivenDateRange() }
+            .onChange(of: baseEndDate) { _, _ in clampModelDrivenDateRange() }
             .onAppear {
                 if let theme = customTheme {
                     tripTheme = theme.title
@@ -552,6 +556,9 @@ struct AIPlannerView: View {
             .sheet(isPresented: $showShareSheet) {
                 ShareSheet(activityItems: [shareText])
             }
+            .sheet(isPresented: $showTripDateRangePicker) {
+                TravelDateRangePickerSheet(startDate: $tripRangeStartDate, endDate: $tripRangeEndDate)
+            }
             .sheet(isPresented: $showLocationPicker) {
                 NavigationView {
                     CountryCityPickerView(
@@ -566,7 +573,7 @@ struct AIPlannerView: View {
                             saveDestinationToHistory(newDestination)
                             showLocationPicker = false
                             // 如果目的地改变，清空周边特色
-                            if newDestination != lastLoadedDestination {
+                            if newDestination != destination {
                                 clearSurroundingFeatures()
                             }
                         }
@@ -601,8 +608,7 @@ struct AIPlannerView: View {
                 }
             }
             .onChange(of: destination) { oldValue, newValue in
-                // 当目的地改变时，如果与上次加载的不同，清空周边特色
-                if !newValue.isEmpty && newValue != lastLoadedDestination && !surroundingAttractions.isEmpty {
+                if oldValue != newValue {
                     clearSurroundingFeatures()
                 }
             }
@@ -890,18 +896,16 @@ struct AIPlannerView: View {
         destination = ""
         selectedCountry = nil
         selectedCity = nil
-        travelDays = 3
         let cal = Calendar.current
-        baseStartDate = Date()
-        baseEndDate = Date()
+        let today = cal.startOfDay(for: Date())
+        baseStartDate = today
+        baseEndDate = cal.date(byAdding: .day, value: 2, to: today) ?? today
         baseIsAllDay = false
         baseIsHasEnd = true
         taskDeadline = cal.date(byAdding: .day, value: 7, to: Date()) ?? Date()
         taskAvailableHoursPerDay = 4
         taskPriorityStrategy = "by_deadline"
         taskComplexity = "medium"
-        selectedPace = .relaxed
-        selectedTransportation = .publicTransport
         budgetLevel = .moderate
         coordinationFormState = AvailabilityCoordinationFormState() // 修改内容
         coordinationPreviewResult = nil // 修改内容
@@ -952,18 +956,13 @@ struct AIPlannerView: View {
                 if intent.displayType == "主題規劃" { return 3 }
                 return 1
             }()
-            travelDays = days
             let cal = Calendar.current
-            baseStartDate = Date()
-            baseEndDate = cal.date(byAdding: .day, value: days - 1, to: baseStartDate) ?? baseStartDate
+            let start = cal.startOfDay(for: Date())
+            baseStartDate = start
+            baseEndDate = cal.date(byAdding: .day, value: max(0, days - 1), to: start) ?? start
             baseIsAllDay = true
             baseIsHasEnd = true
             taskDeadline = cal.date(byAdding: .day, value: 7, to: Date()) ?? Date()
-            if intent.pace == "packed" {
-                selectedPace = .tight
-            } else if intent.pace == "relaxed" {
-                selectedPace = .relaxed
-            }
         }
     }
     
@@ -1168,19 +1167,6 @@ struct AIPlannerView: View {
     private var singleDayFields: some View {
         VStack(spacing: 12) {
             destinationField
-            HStack {
-                Text("行程節奏")
-                Spacer()
-                Picker("", selection: $selectedPace) {
-                    Text("輕鬆").tag(Pace.relaxed)
-                    Text("緊湊").tag(Pace.tight)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 160)
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
             budgetField
         }
     }
@@ -1189,36 +1175,15 @@ struct AIPlannerView: View {
     private var multiDayFields: some View {
         VStack(spacing: 12) {
             destinationField
-            HStack {
-                Text("天數")
-                Spacer()
-                Stepper("\(travelDays) 天", value: $travelDays, in: 1...30)
-                    .padding()
-            }
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            HStack {
-                Text("交通偏好")
-                Spacer()
-                Picker("", selection: $selectedTransportation) {
-                    Text("大眾運輸").tag(TransportationType?.some(.publicTransport))
-                    Text("自駕").tag(TransportationType?.some(.selfDrive))
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 180)
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            HStack {
-                Text("節奏")
-                Spacer()
-                Picker("", selection: $selectedPace) {
-                    Text("輕鬆").tag(Pace.relaxed)
-                    Text("緊湊").tag(Pace.tight)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 160)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("行程日期")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                DatePicker("開始", selection: $baseStartDate, displayedComponents: .date)
+                DatePicker("結束", selection: $baseEndDate, displayedComponents: .date)
+                Text("天數：\(modelDrivenTripDayCount) 天（依起迄日自動推算）")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             .padding()
             .background(Color(.systemBackground))
@@ -1379,13 +1344,7 @@ struct AIPlannerView: View {
         slots.dateRange = SlotInfo(value: DateRange(startDate: startDateForRange, endDate: endDateForRange), confidence: 1.0)
         slots.interestTags = selectedInterests.map { $0.rawValue }
         slots.budgetLevel = SlotInfo(value: budgetLevel, confidence: 1.0)
-        slots.pace = SlotInfo(value: selectedPace, confidence: 1.0)
-        if let t = selectedTransportation {
-            switch t {
-            case .publicTransport: slots.transportPreference = SlotInfo(value: .publicTransport, confidence: 1.0)
-            case .selfDrive, .charteredCar: slots.transportPreference = SlotInfo(value: .taxi, confidence: 0.9)
-            }
-        }
+        slots.durationDays = SlotInfo(value: modelDrivenTripDayCount, confidence: 1.0)
         let mode = GenerateRequest.deriveGenerateMode(from: plannerModelType)
         var taskBreakdownParams: TaskBreakdownParams? = nil
         if plannerModelType == .floatingTask {
@@ -1421,8 +1380,8 @@ struct AIPlannerView: View {
             selectedAttractionNames: [],
             customSurroundingTags: [],
             departureDateTime: nil,
-            adults: adults,
-            children: children,
+            adults: 1,
+            children: 0,
             taskBreakdown: taskBreakdownParams
         )
         do {
@@ -1507,7 +1466,7 @@ struct AIPlannerView: View {
     // 修改内容：未手动选择时自动匹配默认主题
     private func inferDefaultTravelThemeId() -> String {
         AITripGenerator.inferTravelThemeModuleId(
-            children: children,
+            children: 0,
             combinedUserText: "\(tripTheme) \(additionalRequirements)",
             interestTagRawValues: selectedInterests.map { $0.rawValue }
         )
@@ -1608,24 +1567,24 @@ struct AIPlannerView: View {
             
             // 固定：計劃開始日期（僅當 formQuestions 未包含 plan_start_date/start_date 時顯示）
             if showFixedPlanDate {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("ai_planner.plan_start_date".localized())
-                        .font(.headline)
+                ThemeStandardFormCell(
+                    title: "ai_planner.plan_start_date".localized(),
+                    description: nil
+                ) {
                     DatePicker("", selection: $themeFormStartDate, displayedComponents: .date)
                         .datePickerStyle(.graphical)
                         .labelsHidden()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding()
-                .background(Color(UIColor.systemBackground))
-                .cornerRadius(20)
             }
             
             // 固定：計劃時長（僅當 formQuestions 未包含 duration 相關問題時顯示）
             if showFixedPlanDuration {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("ai_planner.plan_duration".localized())
-                        .font(.headline)
-                    HStack {
+                ThemeStandardFormCell(
+                    title: "ai_planner.plan_duration".localized(),
+                    description: nil
+                ) {
+                    HStack(spacing: 14) {
                         Button(action: { if themeFormDurationDays > 1 { themeFormDurationDays -= 1 } }) {
                             Image(systemName: "minus.circle.fill")
                                 .font(.system(size: 24))
@@ -1641,10 +1600,12 @@ struct AIPlannerView: View {
                                 .foregroundColor(themeFormDurationDays < 365 ? .blue : .gray)
                         }
                         .disabled(themeFormDurationDays >= 365)
+                        Spacer(minLength: 0)
                     }
-                    .padding()
-                    .background(Color(UIColor.systemBackground))
-                    .cornerRadius(20)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(UIColor.secondarySystemBackground))
+                    .cornerRadius(14)
                 }
             }
             
@@ -1661,20 +1622,25 @@ struct AIPlannerView: View {
     private func themeFormQuestionView(question: ThemeFormQuestion) -> some View {
         let labelText = (question.label.contains(".") ? question.label.localized() : question.label)
         let placeholderText = (question.placeholder?.contains(".") == true ? (question.placeholder ?? "").localized() : (question.placeholder ?? ""))
-        VStack(alignment: .leading, spacing: 8) {
-            Text(labelText)
-                .font(.headline)
-            
+        ThemeStandardFormCell(
+            title: labelText,
+            description: question.description
+        ) {
             switch question.type {
             case .text:
                 TextField(placeholderText, text: Binding(
                     get: { themeFormAnswers[question.id] ?? question.defaultValue ?? "" },
                     set: { updateThemeFormAnswer(question.id, value: $0) }
                 ))
-                .textFieldStyle(.roundedBorder)
-                .padding()
-                .background(Color(UIColor.systemBackground))
-                .cornerRadius(12)
+                .textFieldStyle(.plain)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(UIColor.secondarySystemBackground))
+                .cornerRadius(14)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(Color(UIColor.systemGray4).opacity(0.6), lineWidth: 1)
+                )
                 
             case .number:
                 let minV = question.minValue ?? 0
@@ -1683,7 +1649,7 @@ struct AIPlannerView: View {
                     get: { Int(themeFormAnswers[question.id] ?? question.defaultValue ?? "\(minV)") ?? minV },
                     set: { updateThemeFormAnswer(question.id, value: "\($0)") }
                 )
-                HStack {
+                HStack(spacing: 14) {
                     Button(action: {
                         let v = binding.wrappedValue
                         if v > minV { binding.wrappedValue = v - 1 }
@@ -1695,7 +1661,7 @@ struct AIPlannerView: View {
                     .disabled(binding.wrappedValue <= minV)
                     Text("\(binding.wrappedValue) \(question.unit ?? "")")
                         .font(.system(size: 18, weight: .semibold))
-                        .frame(minWidth: 80)
+                        .frame(minWidth: 80, alignment: .leading)
                     Button(action: {
                         let v = binding.wrappedValue
                         if v < maxV { binding.wrappedValue = v + 1 }
@@ -1705,14 +1671,16 @@ struct AIPlannerView: View {
                             .foregroundColor(binding.wrappedValue < maxV ? .blue : .gray)
                     }
                     .disabled(binding.wrappedValue >= maxV)
+                    Spacer(minLength: 0)
                 }
-                .padding()
-                .background(Color(UIColor.systemBackground))
-                .cornerRadius(12)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(UIColor.secondarySystemBackground))
+                .cornerRadius(14)
                 
             case .select:
                 if let options = question.options {
-                    Picker(labelText, selection: Binding(
+                    Picker("", selection: Binding(
                         get: { themeFormAnswers[question.id] ?? question.defaultValue ?? "" },
                         set: { updateThemeFormAnswer(question.id, value: $0) }
                     )) {
@@ -1722,29 +1690,71 @@ struct AIPlannerView: View {
                         }
                     }
                     .pickerStyle(.menu)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(UIColor.secondarySystemBackground))
+                    .cornerRadius(14)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color(UIColor.systemGray4).opacity(0.6), lineWidth: 1)
+                    )
+                } else {
+                    Text("--")
+                        .foregroundColor(.secondary)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .cornerRadius(14)
                 }
                 
             case .multiSelect:
                 if let options = question.options {
-                    let selected = Set((themeFormAnswers[question.id] ?? "").split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
+                    let selected = Set((themeFormAnswers[question.id] ?? "")
+                        .split(separator: ",")
+                        .map { String($0).trimmingCharacters(in: .whitespaces) }
+                        .filter { !$0.isEmpty }
+                    )
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                         ForEach(options, id: \.self) { opt in
+                            let isSelected = selected.contains(opt)
                             Button(action: {
                                 var s = selected
                                 if s.contains(opt) { s.remove(opt) } else { s.insert(opt) }
                                 updateThemeFormAnswer(question.id, value: s.sorted().joined(separator: ", "))
                             }) {
-                                Text(opt)
-                                    .font(.subheadline)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(selected.contains(opt) ? Color.blue : Color(.systemGray6))
-                                    .foregroundColor(selected.contains(opt) ? .white : .primary)
-                                    .cornerRadius(12)
+                                HStack(spacing: 8) {
+                                    if isSelected {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundColor(.blue)
+                                    } else {
+                                        Image(systemName: "circle")
+                                            .foregroundColor(Color(UIColor.systemGray3))
+                                    }
+                                    Text(opt)
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.primary)
+                                        .lineLimit(1)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 12)
+                                .background(isSelected ? Color.blue.opacity(0.1) : Color(UIColor.secondarySystemBackground))
+                                .cornerRadius(20)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(isSelected ? Color.blue : Color(UIColor.systemGray4), lineWidth: isSelected ? 2 : 1)
+                                )
                             }
+                            .buttonStyle(.plain)
                         }
                     }
+                } else {
+                    Text("--")
+                        .foregroundColor(.secondary)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .cornerRadius(14)
                 }
                 
             case .date:
@@ -1757,9 +1767,48 @@ struct AIPlannerView: View {
                         updateThemeFormAnswer(question.id, value: ISO8601DateFormatter().string(from: $0))
                     }
                 )
-                DatePicker(labelText, selection: binding, displayedComponents: .date)
+                DatePicker("", selection: binding, displayedComponents: .date)
                     .datePickerStyle(.compact)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(UIColor.secondarySystemBackground))
+                    .cornerRadius(14)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color(UIColor.systemGray4).opacity(0.6), lineWidth: 1)
+                    )
             }
+        }
+    }
+
+    private struct ThemeStandardFormCell<Content: View>: View {
+        let title: String
+        let description: String?
+        @ViewBuilder let content: () -> Content
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    if let d = description?.trimmingCharacters(in: .whitespacesAndNewlines), !d.isEmpty {
+                        Text(d)
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                content()
+            }
+            .padding(16)
+            .background(Color(UIColor.systemBackground))
+            .cornerRadius(20)
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color(UIColor.systemGray4), lineWidth: 1)
+            )
         }
     }
     
@@ -1835,7 +1884,7 @@ struct AIPlannerView: View {
                                 let fullDestination = findFullDestination(for: cityName)
                                 let newDestination = fullDestination ?? cityName
                                 // 如果目的地改变，清空周边特色
-                                if newDestination != destination && newDestination != lastLoadedDestination {
+                                if newDestination != destination {
                                     clearSurroundingFeatures()
                                 }
                                 destination = newDestination
@@ -1863,481 +1912,60 @@ struct AIPlannerView: View {
                 }
             }
     
-            // 旅行天数
-            VStack(alignment: .leading, spacing: 8) {
-                Text("ai_planner.travel_days".localized())
-                    .font(.headline)
-                
-                HStack {
-                    Image(systemName: "calendar")
-                        .foregroundColor(.blue)
-                    
-                    Text("ai_planner.total_days".localized())
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    // 天数选择器（带增减按钮）
-                    HStack(spacing: 16) {
-                        Button(action: {
-                            if travelDays > 1 {
-                                travelDays -= 1
-                            }
-                        }) {
-                            Image(systemName: "minus.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(travelDays > 1 ? .blue : .gray)
-                        }
-                        .disabled(travelDays <= 1)
-                        
-                        Text("ai_planner.days".localized(with: travelDays))
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.primary)
-                            .frame(minWidth: 50)
-                        
-                        Button(action: {
-                            if travelDays < 30 {
-                                travelDays += 1
-                            }
-                        }) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(travelDays < 30 ? .blue : .gray)
-                        }
-                        .disabled(travelDays >= 30)
-                    }
-                }
-                .padding()
-                .background(Color(UIColor.systemBackground))
-                .cornerRadius(20)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color(UIColor.systemGray4), lineWidth: 1)
-                )
-            }
-            
-            // 同行人数
-            VStack(alignment: .leading, spacing: 8) {
-                Text("ai_planner.travelers".localized())
-                    .font(.headline)
-                
-                VStack(spacing: 12) {
-                    // 大人 - 独立容器
-                    HStack {
-                        // 左侧：文字信息
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("ai_planner.adults".localized())
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.primary)
-                            
-                            Text("ai_planner.adults_description".localized())
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        // 右侧：控制器（水平排列）
-                        HStack(spacing: 16) {
-                            // 减号按钮（圆形，灰色边框，蓝色图标）
-                            Button(action: {
-                                if adults > 1 {
-                                    adults -= 1
-                                }
-                            }) {
-                                ZStack {
-                                    Circle()
-                                        .stroke(adults > 1 ? Color.blue : Color(UIColor.systemGray4), lineWidth: 1.5)
-                                        .frame(width: 32, height: 32)
-                                    
-                                    Image(systemName: "minus")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(adults > 1 ? .blue : Color(UIColor.systemGray3))
-                                }
-                            }
-                            .disabled(adults <= 1)
-                            
-                            // 数字显示
-                            Text("\(adults)")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.primary)
-                                .frame(minWidth: 30)
-                            
-                            // 加号按钮（圆形，蓝色填充，白色图标）
-                            Button(action: {
-                                if adults < 20 {
-                                    adults += 1
-                                }
-                            }) {
-                                ZStack {
-                                    Circle()
-                                        .fill(adults < 20 ? Color.blue : Color(UIColor.systemGray4))
-                                        .frame(width: 32, height: 32)
-                                    
-                                    Image(systemName: "plus")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            .disabled(adults >= 20)
-                        }
-                    }
-                    .padding()
-                    .background(Color(UIColor.systemBackground))
-                    .cornerRadius(25)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 25)
-                            .stroke(Color(UIColor.systemGray4), lineWidth: 1)
-                    )
-                    
-                    // 小孩 - 独立容器
-                    HStack {
-                        // 左侧：文字信息
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("ai_planner.children".localized())
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.primary)
-                            
-                            Text("ai_planner.children_description".localized())
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        // 右侧：控制器（水平排列）
-                        HStack(spacing: 16) {
-                            // 减号按钮（圆形，灰色边框，蓝色图标）
-                            Button(action: {
-                                if children > 0 {
-                                    children -= 1
-                                }
-                            }) {
-                                ZStack {
-                                    Circle()
-                                        .stroke(children > 0 ? Color.blue : Color(UIColor.systemGray4), lineWidth: 1.5)
-                                        .frame(width: 32, height: 32)
-                                    
-                                    Image(systemName: "minus")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(children > 0 ? .blue : Color(UIColor.systemGray3))
-                                }
-                            }
-                            .disabled(children <= 0)
-                            
-                            // 数字显示
-                            Text("\(children)")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.primary)
-                                .frame(minWidth: 30)
-                            
-                            // 加号按钮（圆形，蓝色填充，白色图标）
-                            Button(action: {
-                                if children < 20 {
-                                    children += 1
-                                }
-                            }) {
-                                ZStack {
-                                    Circle()
-                                        .fill(children < 20 ? Color.blue : Color(UIColor.systemGray4))
-                                        .frame(width: 32, height: 32)
-                                    
-                                    Image(systemName: "plus")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            .disabled(children >= 20)
-                        }
-                    }
-                    .padding()
-                    .background(Color(UIColor.systemBackground))
-                    .cornerRadius(25)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 25)
-                            .stroke(Color(UIColor.systemGray4), lineWidth: 1)
-                    )
-                }
-            }
-                }
-            }
-            
-    // MARK: - 步骤2：偏好设置
-    private var step2View: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            
-            
-            // 交通方式
-            VStack(alignment: .leading, spacing: 16) {
-                Text("ai_planner.transportation".localized())
-                    .font(.system(size: 20, weight: .semibold))
-                
-                VStack(spacing: 12) {
-                    ForEach(TransportationType.allCases, id: \.self) { transport in
-                        TransportationCard(
-                            type: transport,
-                            isSelected: selectedTransportation == transport
-                        ) {
-                            selectedTransportation = transport
-                        }
-                    }
-                }
-            }
-            
-            // 修改内容：travel planning 主题模块选择
+            // 旅行日期範圍（日曆區間選擇）；天數自動推算
             VStack(alignment: .leading, spacing: 12) {
-                Text("行程风格（可选）")
-                    .font(.system(size: 20, weight: .semibold))
-                Text("决定节奏与密度；不选则根据行程主题、备注与同行自动匹配。")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                ForEach(travelThemeModules, id: \.id) { module in
-                    Button {
-                        selectedTravelThemeModuleId = module.id
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(module.name).font(.subheadline).fontWeight(.semibold)
-                                Text(module.summary).font(.caption).foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            if selectedTravelThemeModuleId == module.id {
-                                Image(systemName: "checkmark.circle.fill").foregroundColor(.blue)
-                            }
+                
+                Button {
+                    showTripDateRangePicker = true
+                } label: {
+                    HStack {
+                        Image(systemName: "calendar")
+                            .foregroundColor(.blue)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(TravelTripDateRangeDisplay.formattedLine(start: tripRangeStartDate, end: tripRangeEndDate))
+                                .font(.body)
+                                .foregroundColor(.primary)
                         }
-                        .padding(12)
-                        .background(Color(.systemBackground))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(selectedTravelThemeModuleId == module.id ? Color.blue : Color(UIColor.systemGray4), lineWidth: 1)
-                        )
-                        .cornerRadius(12)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                    .buttonStyle(.plain)
+                    .padding()
+                    .background(Color(UIColor.secondarySystemBackground))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
+                DatePicker("首日啟程時間", selection: $departureTripStartTime, displayedComponents: .hourAndMinute)
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar.badge.clock")
+                        .foregroundColor(.blue)
+                    Text("\(computedTripDayCount) 天行程")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
             }
+            .padding()
+            .background(Color(UIColor.systemBackground))
+            .cornerRadius(20)
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color(UIColor.systemGray4), lineWidth: 1)
+            )
             
-            // 兴趣偏好
-            VStack(alignment: .leading, spacing: 16) {
-                Text("ai_planner.interests".localized())
-                    .font(.system(size: 20, weight: .semibold))
-                
-                // 按钮布局（2列，与特殊限制一致）
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    ForEach(InterestTag.allCases.prefix(6), id: \.self) { tag in
-                        InterestTagButton(
-                            tag: tag,
-                            isSelected: selectedInterests.contains(tag)
-                        ) {
-                            if selectedInterests.contains(tag) {
-                                selectedInterests.remove(tag)
-                            } else {
-                                selectedInterests.insert(tag)
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // 特殊限制
-            VStack(alignment: .leading, spacing: 16) {
-                Text("ai_planner.special_requirements".localized())
-                    .font(.system(size: 20, weight: .semibold))
-                
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    ForEach(SpecialRestriction.allCases, id: \.self) { restriction in
-                        SpecialRestrictionButton(
-                            restriction: restriction,
-                            isSelected: selectedRestrictions.contains(restriction)
-                        ) {
-                            if selectedRestrictions.contains(restriction) {
-                                selectedRestrictions.remove(restriction)
-                            } else {
-                                selectedRestrictions.insert(restriction)
-                            }
-                        }
-                    }
-                }
-            }
-            
-            
-            // 預算等級
-            VStack(alignment: .leading, spacing: 16) {
-                Text("ai_planner.budget_level".localized())
-                    .font(.system(size: 20, weight: .semibold))
-                
-                Picker("預算等級", selection: $budgetLevel) {
-                    ForEach(BudgetLevel.allCases, id: \.self) { level in
-                        Text(level.displayName).tag(level)
-                    }
-                }
-                .pickerStyle(.segmented)
+            step1LocationSections
+        }
+        .onAppear {
+            if !useCustomDepartureLocation && !hasAutoRequestedGPS && currentGPSLocation == nil {
+                hasAutoRequestedGPS = true
+                requestGPSLocation()
             }
         }
     }
     
-    
-    // MARK: - 步骤3：行程細節優化
-    private var step3View: some View {
-        VStack(alignment: .leading, spacing: 32) {
-            // 标题和副标题
-            VStack(alignment: .leading, spacing: 8) {
-                Text("行程細節優化")
-                    .font(.system(size: 28, weight: .bold))
-                
-                Text("微調細節,讓我們為您推薦最精確的地點。")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            
-            // 周邊特色
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 8) {
-                    Image(systemName: "sparkles")
-                        .foregroundColor(.blue)
-                    Text("周邊特色")
-                        .font(.system(size: 20, weight: .semibold))
-                }
-                
-                if isLoadingSurroundingFeatures {
-                    HStack {
-                        ProgressView()
-                            .padding(.trailing, 8)
-                        Text("正在搜尋周邊特色...")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                } else if surroundingAttractions.isEmpty && customSurroundingTags.isEmpty {
-                    Text("暫無周邊特色推薦")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .padding()
-                } else {
-                    // 计算最多可选择数量（天数+1），含 API 推薦與自訂標籤
-                    let maxSelection = travelDays + 1
-                    let currentSelectionCount = selectedSurroundingAttractions.count + customSurroundingTags.count
-                    
-                    VStack(alignment: .leading, spacing: 12) {
-                        // API 推薦的周邊特色
-                        if !surroundingAttractions.isEmpty {
-                            if currentSelectionCount > 0 {
-                                Text("ai_planner.selected_attractions".localized(with: currentSelectionCount, maxSelection))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                ForEach(surroundingAttractions) { attraction in
-                                    let isSelected = selectedSurroundingAttractions.contains(attraction.id)
-                                    let isDisabled = !isSelected && currentSelectionCount >= maxSelection
-                                    SurroundingAttractionButton(
-                                        attraction: attraction,
-                                        isSelected: isSelected
-                                    ) {
-                                        if isSelected {
-                                            selectedSurroundingAttractions.remove(attraction.id)
-                                        } else if currentSelectionCount < maxSelection {
-                                            selectedSurroundingAttractions.insert(attraction.id)
-                                        }
-                                    }
-                                    .opacity(isDisabled ? 0.5 : 1.0)
-                                    .disabled(isDisabled)
-                                }
-                            }
-                        }
-                        
-                        // 自訂標籤區塊
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("ai_planner.custom_tags".localized())
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.secondary)
-                            HStack(spacing: 8) {
-                                TextField("ai_planner.custom_tag_placeholder".localized(), text: $customTagInput)
-                                    .textFieldStyle(.roundedBorder)
-                                    .onSubmit { addCustomTag() }
-                                Button(action: { addCustomTag() }) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.title2)
-                                        .foregroundColor(customTagInput.trimmingCharacters(in: .whitespaces).isEmpty ? .gray : .blue)
-                                }
-                                .disabled(customTagInput.trimmingCharacters(in: .whitespaces).isEmpty || currentSelectionCount >= maxSelection)
-                            }
-                            if !customSurroundingTags.isEmpty {
-                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 8) {
-                                    ForEach(customSurroundingTags, id: \.self) { tag in
-                                        Button(action: {
-                                            customSurroundingTags.removeAll { $0 == tag }
-                                            customTagItineraryNotes.removeValue(forKey: tag)
-                                        }) {
-                                            HStack(spacing: 4) {
-                                                Text(tag)
-                                                    .font(.caption)
-                                                    .lineLimit(1)
-                                                Image(systemName: "xmark.circle.fill")
-                                                    .font(.caption2)
-                                            }
-                                            .padding(.horizontal, 10)
-                                            .padding(.vertical, 6)
-                                            .background(Color.blue.opacity(0.15))
-                                            .foregroundColor(.primary)
-                                            .cornerRadius(16)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("請為每個自訂標籤填寫想安排的行程內容（必填）")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    ForEach(customSurroundingTags, id: \.self) { tag in
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(tag)
-                                                .font(.caption)
-                                                .fontWeight(.semibold)
-                                            TextField("例如：想去的區域、停留時間、體驗重點…", text: Binding(
-                                                get: { customTagItineraryNotes[tag] ?? "" },
-                                                set: { customTagItineraryNotes[tag] = $0 }
-                                            ))
-                                            .textFieldStyle(.roundedBorder)
-                                        }
-                                    }
-                                }
-                                .padding(.top, 4)
-                            }
-                        }
-                    }
-                }
-            }
-            // 移除 onAppear 中的自动加载，改为在步骤1点击下一步时开始加载
-            // 如果进入步骤3时还在加载，显示加载状态；如果已加载完成，显示结果
-            // 行程節奏
-            VStack(alignment: .leading, spacing: 16) {
-                Text("行程節奏")
-                    .font(.system(size: 20, weight: .semibold))
-                
-                VStack(spacing: 12) {
-                    PaceOption(
-                        title: "輕鬆",
-                        description: "步調悠閒",
-                        isSelected: selectedPace == .relaxed
-                    ) {
-                        selectedPace = .relaxed
-                    }
-                    
-                    PaceOption(
-                        title: "緊湊",
-                        description: "不留遺憾",
-                        isSelected: selectedPace == .tight
-                    ) {
-                        selectedPace = .tight
-                    }
-                }
-            }
-            
-            
-            // GPS定位位置
+    /// 步驟一：出發位置與住宿（行程基礎）
+    private var step1LocationSections: some View {
+        VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
                     Image(systemName: "location.fill")
@@ -2346,7 +1974,6 @@ struct AIPlannerView: View {
                         .font(.system(size: 20, weight: .semibold))
                 }
                 
-                // Switch: 切换自定义地址
                 HStack {
                     Text(useCustomDepartureLocation ? "自定義地址" : "定位位置")
                         .font(.subheadline)
@@ -2363,9 +1990,7 @@ struct AIPlannerView: View {
                         .stroke(Color(UIColor.systemGray4), lineWidth: 1)
                 )
                 
-                // 根据 switch 状态显示不同的内容
                 if useCustomDepartureLocation {
-                    // 自定义地址模式
                     Button {
                         showDepartureLocationPicker = true
                     } label: {
@@ -2391,7 +2016,6 @@ struct AIPlannerView: View {
                         )
                     }
                 } else {
-                    // GPS定位模式
                     if isLocatingGPS {
                         HStack {
                             ProgressView()
@@ -2409,7 +2033,6 @@ struct AIPlannerView: View {
                             HStack {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundColor(.green)
-                                // 显示名字+地址的组合格式
                                 let displayText = buildGPSDisplayText(name: gpsLocationName, address: gpsLocationAddress)
                                 Text(displayText.isEmpty ? "定位位置" : displayText)
                                     .font(.subheadline)
@@ -2452,31 +2075,8 @@ struct AIPlannerView: View {
                         }
                     }
                 }
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("出發日期／時間")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
-                    DateTimePickerView(
-                        startDate: $departureTripStartDate,
-                        startTime: $departureTripStartTime,
-                        endDate: $departurePickerEndDate,
-                        endTime: $departurePickerEndTime,
-                        isAllDay: $departurePickerIsAllDay,
-                        isHasEnd: $departurePickerIsHasEnd
-                    )
-                }
-            }
-            .onAppear {
-                // 进入步骤3时，如果未使用自定义地址且未自动请求过GPS，则自动获取当前位置
-                if !useCustomDepartureLocation && !hasAutoRequestedGPS && currentGPSLocation == nil {
-                    hasAutoRequestedGPS = true
-                    requestGPSLocation()
-                }
             }
             
-            // 住宿选择（统一地址搜索）
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 8) {
                     Image(systemName: "bed.double.fill")
@@ -2520,11 +2120,163 @@ struct AIPlannerView: View {
                     )
                 }
             }
+        }
+    }
+    
+    // MARK: - 步骤2：偏好设置
+    private var step2View: some View {
+        VStack(alignment: .leading, spacing: 20) {
             
-            // 其他需求
-            VStack(alignment: .leading, spacing: 16) {
-                Text("其他需求")
+            // 修改内容：travel planning 主题模块选择
+            VStack(alignment: .leading, spacing: 12) {
+                Text("行程风格（可选）")
                     .font(.system(size: 20, weight: .semibold))
+                Text("决定节奏与密度；不选则根据行程主题与备注自动匹配。")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                ForEach(travelThemeModules, id: \.id) { module in
+                    Button {
+                        selectedTravelThemeModuleId = module.id
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(module.name).font(.subheadline).fontWeight(.semibold)
+                                Text(module.summary).font(.caption).foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            if selectedTravelThemeModuleId == module.id {
+                                Image(systemName: "checkmark.circle.fill").foregroundColor(.blue)
+                            }
+                        }
+                        .padding(12)
+                        .background(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(selectedTravelThemeModuleId == module.id ? Color.blue : Color(UIColor.systemGray4), lineWidth: 1)
+                        )
+                        .cornerRadius(12)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            
+            // 兴趣偏好
+            VStack(alignment: .leading, spacing: 16) {
+                Text("ai_planner.interests".localized())
+                    .font(.system(size: 20, weight: .semibold))
+                
+                // 按钮布局（2列，与特殊限制一致）
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    ForEach(InterestTag.allCases.prefix(6), id: \.self) { tag in
+                        InterestTagButton(
+                            tag: tag,
+                            isSelected: selectedInterests.contains(tag)
+                        ) {
+                            if selectedInterests.contains(tag) {
+                                selectedInterests.remove(tag)
+                                removeInterestPlaceSuggestions(for: tag)
+                            } else {
+                                selectedInterests.insert(tag)
+                                loadInterestPlaces(for: tag)
+                            }
+                        }
+                    }
+                    
+                    // 其他（興趣補充）：點選後直接開啟鍵盤輸入
+                    Button {
+                        if selectedSupplementKinds.contains(.other) {
+                            // 收起：清空與移除
+                            selectedSupplementKinds.remove(.other)
+                            supplementOtherNote = ""
+                            removeSupplementPlaceSuggestions(for: .other)
+                            isOtherInterestFocused = false
+                        } else {
+                            selectedSupplementKinds.insert(.other)
+                            isOtherInterestFocused = true
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "ellipsis.circle")
+                                .font(.system(size: 18))
+                                .foregroundColor(selectedSupplementKinds.contains(.other) ? .blue : .primary)
+                            Text("其他")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(.primary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(selectedSupplementKinds.contains(.other) ? Color.blue.opacity(0.1) : Color(.systemBackground))
+                        .cornerRadius(20)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(selectedSupplementKinds.contains(.other) ? Color.blue : Color(UIColor.systemGray4), lineWidth: selectedSupplementKinds.contains(.other) ? 2 : 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+                
+                if selectedSupplementKinds.contains(.other) {
+                    TextField("請輸入其他興趣偏好（必填）", text: $supplementOtherNote, axis: .vertical)
+                        .lineLimit(2...4)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($isOtherInterestFocused)
+                        .submitLabel(.done)
+                        .onChange(of: supplementOtherNote) { _, newVal in
+                            guard selectedSupplementKinds.contains(.other), !destination.isEmpty else { return }
+                            let t = newVal.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if t.isEmpty {
+                                removeSupplementPlaceSuggestions(for: .other)
+                            } else {
+                                loadSupplementPlaces(for: .other)
+                            }
+                        }
+                }
+            }
+            
+            if !selectedInterests.isEmpty {
+                interestPlacesStep2Section
+            }
+            
+            // 已合併到「興趣偏好」內的「其他」
+        }
+    }
+    
+    
+    // MARK: - 步骤3：行程細節優化
+    private var step3View: some View {
+        VStack(alignment: .leading, spacing: 32) {
+            // 标题和副标题
+            VStack(alignment: .leading, spacing: 8) {
+                Text("行程細節優化")
+                    .font(.system(size: 28, weight: .bold))
+                
+                Text("勾選限制條件，並補充想告知 AI 的細節。")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            // 特殊需求與其他說明（合併）
+            VStack(alignment: .leading, spacing: 16) {
+                Text("特殊需求與其他說明")
+                    .font(.system(size: 20, weight: .semibold))
+                
+                Text("ai_planner.special_requirements".localized())
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    ForEach(SpecialRestriction.allCases, id: \.self) { restriction in
+                        SpecialRestrictionButton(
+                            restriction: restriction,
+                            isSelected: selectedRestrictions.contains(restriction)
+                        ) {
+                            if selectedRestrictions.contains(restriction) {
+                                selectedRestrictions.remove(restriction)
+                            } else {
+                                selectedRestrictions.insert(restriction)
+                            }
+                        }
+                    }
+                }
                 
                 ZStack(alignment: .topLeading) {
                     TextEditor(text: $additionalRequirements)
@@ -2532,7 +2284,7 @@ struct AIPlannerView: View {
                         .padding(4)
                     
                     if additionalRequirements.isEmpty {
-                        Text("還有其他想告訴AI的嗎?例如:不吃生食、對花粉過敏...")
+                        Text("其他想告訴 AI 的細節：飲食禁忌、過敏、必去／避雷、體力限制…")
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                             .padding(.horizontal, 8)
@@ -2754,10 +2506,9 @@ struct AIPlannerView: View {
                             .foregroundColor(.white)
                             .padding()
                             .frame(maxWidth: .infinity)
-                            .background((!useThemeFormMode && !customSurroundingTags.isEmpty && !customTagsItineraryComplete) ? Color.gray : Color.blue)
+                            .background(Color.blue)
                             .cornerRadius(20)
                     }
-                    .disabled(!useThemeFormMode && !customSurroundingTags.isEmpty && !customTagsItineraryComplete)
                 }
             }
         }
@@ -2769,12 +2520,315 @@ struct AIPlannerView: View {
         if useThemeFormMode {
             return themeFormResolvedDurationDays > 0
         }
-        return !destination.isEmpty && travelDays > 0
+        let cal = Calendar.current
+        let s = cal.startOfDay(for: tripRangeStartDate)
+        let e = cal.startOfDay(for: tripRangeEndDate)
+        return !destination.isEmpty && e >= s && computedTripDayCount >= 1
     }
     
-    private var customTagsItineraryComplete: Bool {
-        customSurroundingTags.allSatisfy { tag in
-            !(customTagItineraryNotes[tag]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+    private var attractionAndTagPickCount: Int {
+        selectedSurroundingAttractions.count
+    }
+    
+    private var supplementThemeTagsForGeneration: [String] {
+        selectedSupplementKinds.sorted { $0.rawValue < $1.rawValue }.compactMap { k -> String? in
+            if k == .other {
+                let n = supplementOtherNote.trimmingCharacters(in: .whitespacesAndNewlines)
+                return n.isEmpty ? nil : "補充主題·其他：\(n)"
+            }
+            return "補充主題·\(k.promptLabelZh())"
+        }
+    }
+    
+    private var maxAttractionAndTagSelection: Int {
+        computedTripDayCount + 1
+    }
+    
+    private var interestPlacesStep2Section: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("興趣推薦地點")
+                .font(.system(size: 20, weight: .semibold))
+            Text(destination.isEmpty ? "請先在步驟一選擇目的地，將依資料庫與 AI 列出真實可查的地點，勾選後會納入行程生成。" : "可勾選納入行程")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+            ForEach(Array(selectedInterests).sorted(by: { $0.rawValue < $1.rawValue }), id: \.self) { tag in
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("\(tag.displayName) · 推薦地點")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        if loadingInterestPlaceQueries.contains(tag.rawValue) {
+                            ProgressView()
+                                .scaleEffect(0.85)
+                        }
+                    }
+                    interestPlaceGrid(for: tag)
+                }
+            }
+        }
+        .onAppear {
+            for tag in selectedInterests {
+                loadInterestPlaces(for: tag)
+            }
+        }
+    }
+    
+    /// 興趣偏好補充：依主題再載入一批周邊推薦地點
+    private var interestPreferenceSupplementSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .foregroundColor(.blue)
+                Text("興趣偏好補充（可選）")
+                    .font(.system(size: 20, weight: .semibold))
+            }
+            if !selectedSurroundingAttractions.isEmpty {
+                Text("ai_planner.selected_attractions".localized(with: attractionAndTagPickCount, maxAttractionAndTagSelection))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Button {
+                toggleSupplementKind(.other)
+            } label: {
+                let isOn = selectedSupplementKinds.contains(.other)
+                HStack(spacing: 8) {
+                    Text("其他")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Image(systemName: isOn ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isOn ? Color.blue : Color(UIColor.systemGray4), lineWidth: isOn ? 2 : 1)
+                )
+            }
+            .buttonStyle(.plain)
+            
+            if selectedSupplementKinds.contains(.other) {
+                TextField("請輸入你想補充的偏好（必填）", text: $supplementOtherNote, axis: .vertical)
+                    .lineLimit(2...4)
+                    .textFieldStyle(.roundedBorder)
+                    .onChange(of: supplementOtherNote) { _, newVal in
+                        guard selectedSupplementKinds.contains(.other), !destination.isEmpty else { return }
+                        let t = newVal.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if t.isEmpty {
+                            removeSupplementPlaceSuggestions(for: .other)
+                        } else {
+                            loadSupplementPlaces(for: .other)
+                        }
+                    }
+                
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("其他 · 推薦地點")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        if loadingInterestPlaceQueries.contains(InterestPreferenceSupplementKind.other.loadingQueryKey) {
+                            ProgressView()
+                                .scaleEffect(0.85)
+                        }
+                    }
+                    supplementPlaceGrid(for: .other)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func interestPlaceGrid(for tag: InterestTag) -> some View {
+        let places = placesForInterest(tag)
+        if places.isEmpty && !loadingInterestPlaceQueries.contains(tag.rawValue) {
+            Text(destination.isEmpty ? "請先填寫目的地" : "此興趣暫無建議，可略過或換目的地再試")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        } else {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                ForEach(places) { attraction in
+                    let isSelected = selectedSurroundingAttractions.contains(attraction.id)
+                    let isDisabled = !isSelected && attractionAndTagPickCount >= maxAttractionAndTagSelection
+                    SurroundingAttractionButton(
+                        attraction: attraction,
+                        isSelected: isSelected
+                    ) {
+                        if isSelected {
+                            selectedSurroundingAttractions.remove(attraction.id)
+                        } else if attractionAndTagPickCount < maxAttractionAndTagSelection {
+                            selectedSurroundingAttractions.insert(attraction.id)
+                        }
+                    }
+                    .opacity(isDisabled ? 0.5 : 1.0)
+                    .disabled(isDisabled)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func supplementPlaceGrid(for kind: InterestPreferenceSupplementKind) -> some View {
+        let places = placesForSupplementKind(kind)
+        if kind == .other, supplementOtherNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            Text("請填寫上方「其他」說明後，將載入推薦地點。")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        } else if places.isEmpty && !loadingInterestPlaceQueries.contains(kind.loadingQueryKey) {
+            Text(destination.isEmpty ? "請先填寫目的地" : "此主題暫無建議，可略過或稍後再試")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        } else {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                ForEach(places) { attraction in
+                    let isSelected = selectedSurroundingAttractions.contains(attraction.id)
+                    let isDisabled = !isSelected && attractionAndTagPickCount >= maxAttractionAndTagSelection
+                    SurroundingAttractionButton(
+                        attraction: attraction,
+                        isSelected: isSelected
+                    ) {
+                        if isSelected {
+                            selectedSurroundingAttractions.remove(attraction.id)
+                        } else if attractionAndTagPickCount < maxAttractionAndTagSelection {
+                            selectedSurroundingAttractions.insert(attraction.id)
+                        }
+                    }
+                    .opacity(isDisabled ? 0.5 : 1.0)
+                    .disabled(isDisabled)
+                }
+            }
+        }
+    }
+    
+    private func supplementPrefix(_ kind: InterestPreferenceSupplementKind) -> String {
+        "\(kind.placeIdPrefix)_"
+    }
+    
+    private func placesForSupplementKind(_ kind: InterestPreferenceSupplementKind) -> [SurroundingAttraction] {
+        let p = supplementPrefix(kind)
+        return surroundingAttractions.filter { $0.id.hasPrefix(p) }
+    }
+    
+    private func placesForInterest(_ tag: InterestTag) -> [SurroundingAttraction] {
+        let p = "\(tag.rawValue)_"
+        return surroundingAttractions.filter { $0.id.hasPrefix(p) }
+    }
+    
+    private func removeInterestPlaceSuggestions(for tag: InterestTag) {
+        let prefix = "\(tag.rawValue)_"
+        let removedIds = Set(surroundingAttractions.filter { $0.id.hasPrefix(prefix) }.map(\.id))
+        surroundingAttractions.removeAll { $0.id.hasPrefix(prefix) }
+        selectedSurroundingAttractions.subtract(removedIds)
+    }
+    
+    private func loadInterestPlaces(for interest: InterestTag) {
+        guard !destination.isEmpty else { return }
+        let key = interest.rawValue
+        if loadingInterestPlaceQueries.contains(key) { return }
+        loadingInterestPlaceQueries.insert(key)
+        let destSnapshot = destination
+        let exclude = Set(surroundingAttractions.map { $0.name.lowercased() })
+        Task {
+            do {
+                let newPlaces = try await withTimeout(seconds: 25) {
+                    try await TravelInterestPlaceSuggester.fetchPlaces(
+                        destination: destSnapshot,
+                        interest: interest,
+                        excludeLowercasedNames: exclude
+                    )
+                }
+                await MainActor.run {
+                    loadingInterestPlaceQueries.remove(key)
+                    guard destSnapshot == destination else { return }
+                    guard selectedInterests.contains(interest) else { return }
+                    let prefix = "\(interest.rawValue)_"
+                    surroundingAttractions.removeAll { $0.id.hasPrefix(prefix) }
+                    var seen = Set(surroundingAttractions.map { $0.name.lowercased() })
+                    let merged = newPlaces.filter { seen.insert($0.name.lowercased()).inserted }
+                    surroundingAttractions.append(contentsOf: merged)
+                }
+            } catch {
+                print("❌ [AIPlannerView] 興趣地點建議失敗: \(error.localizedDescription)")
+                await MainActor.run {
+                    loadingInterestPlaceQueries.remove(key)
+                }
+            }
+        }
+    }
+    
+    private func toggleSupplementKind(_ kind: InterestPreferenceSupplementKind) {
+        if selectedSupplementKinds.contains(kind) {
+            selectedSupplementKinds.remove(kind)
+            removeSupplementPlaceSuggestions(for: kind)
+            if kind == .other {
+                supplementOtherNote = ""
+            }
+        } else {
+            selectedSupplementKinds.insert(kind)
+            if kind == .other {
+                let t = supplementOtherNote.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !t.isEmpty {
+                    loadSupplementPlaces(for: kind)
+                }
+            } else {
+                loadSupplementPlaces(for: kind)
+            }
+        }
+    }
+    
+    private func removeSupplementPlaceSuggestions(for kind: InterestPreferenceSupplementKind) {
+        let prefix = supplementPrefix(kind)
+        let removedIds = Set(surroundingAttractions.filter { $0.id.hasPrefix(prefix) }.map(\.id))
+        surroundingAttractions.removeAll { $0.id.hasPrefix(prefix) }
+        selectedSurroundingAttractions.subtract(removedIds)
+        loadingInterestPlaceQueries.remove(kind.loadingQueryKey)
+    }
+    
+    private func loadSupplementPlaces(for kind: InterestPreferenceSupplementKind) {
+        guard !destination.isEmpty else { return }
+        if kind == .other {
+            let hint = supplementOtherNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !hint.isEmpty else { return }
+        }
+        let key = kind.loadingQueryKey
+        if loadingInterestPlaceQueries.contains(key) { return }
+        loadingInterestPlaceQueries.insert(key)
+        let destSnapshot = destination
+        let exclude = Set(surroundingAttractions.map { $0.name.lowercased() })
+        let hintSnapshot = supplementOtherNote
+        Task {
+            do {
+                let newPlaces = try await withTimeout(seconds: 25) {
+                    try await TravelInterestPlaceSuggester.fetchSupplementPlaces(
+                        destination: destSnapshot,
+                        kind: kind,
+                        otherUserHint: kind == .other ? hintSnapshot : nil,
+                        excludeLowercasedNames: exclude
+                    )
+                }
+                await MainActor.run {
+                    loadingInterestPlaceQueries.remove(key)
+                    guard destSnapshot == destination else { return }
+                    guard selectedSupplementKinds.contains(kind) else { return }
+                    if kind == .other {
+                        let t = supplementOtherNote.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !t.isEmpty else { return }
+                    }
+                    let prefix = supplementPrefix(kind)
+                    surroundingAttractions.removeAll { $0.id.hasPrefix(prefix) }
+                    var seen = Set(surroundingAttractions.map { $0.name.lowercased() })
+                    let merged = newPlaces.filter { seen.insert($0.name.lowercased()).inserted }
+                    surroundingAttractions.append(contentsOf: merged)
+                }
+            } catch {
+                print("❌ [AIPlannerView] 補充主題地點建議失敗: \(error.localizedDescription)")
+                await MainActor.run {
+                    loadingInterestPlaceQueries.remove(key)
+                }
+            }
         }
     }
     
@@ -2800,95 +2854,6 @@ struct AIPlannerView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
                 .background(isSelected ? Color.blue.opacity(0.1) : Color(.systemBackground))
-                .cornerRadius(20)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(isSelected ? Color.blue : Color(UIColor.systemGray4), lineWidth: isSelected ? 2 : 1)
-                )
-            }
-        }
-    }
-    
-    // 交通方式卡片
-    struct TransportationCard: View {
-        let type: TransportationType
-        let isSelected: Bool
-        let action: () -> Void
-        
-        var body: some View {
-            Button(action: action) {
-                HStack(spacing: 12) {
-                    Image(systemName: type.icon)
-                        .font(.system(size: 24))
-                        .foregroundColor(isSelected ? .blue : .secondary)
-                        .frame(width: 40)
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(type.displayName)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.primary)
-                        
-                        Text(type.description)
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.blue)
-                            .font(.system(size: 24))
-                    }
-                }
-                .padding()
-                .background(isSelected ? Color.blue.opacity(0.1) : Color(.systemBackground))
-                .cornerRadius(20)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(isSelected ? Color.blue : Color(UIColor.systemGray4), lineWidth: isSelected ? 2 : 1)
-                )
-            }
-        }
-    }
-    
-    // 行程節奏选项
-    struct PaceOption: View {
-        let title: String
-        let description: String
-        let isSelected: Bool
-        let action: () -> Void
-        
-        var body: some View {
-            Button(action: action) {
-                HStack(spacing: 12) {
-                    // 单选圆圈
-                    ZStack {
-                        Circle()
-                            .stroke(isSelected ? Color.blue : Color(UIColor.systemGray4), lineWidth: 2)
-                            .frame(width: 24, height: 24)
-                        
-                        if isSelected {
-                            Circle()
-                                .fill(Color.blue)
-                                .frame(width: 12, height: 12)
-                        }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(title)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.primary)
-                        
-                        Text(description)
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                }
-                .padding()
-                .background(isSelected ? Color.blue.opacity(0.05) : Color(.systemBackground))
                 .cornerRadius(20)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
@@ -3187,60 +3152,9 @@ struct AIPlannerView: View {
     private func clearSurroundingFeatures() {
         surroundingAttractions = []
         selectedSurroundingAttractions = []
-        lastLoadedDestination = ""
-        isLoadingSurroundingFeatures = false
-    }
-    
-    /// 新增自訂標籤（限於總選取數 travelDays+1 內）
-    private func addCustomTag() {
-        let trimmed = customTagInput.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        let maxSelection = travelDays + 1
-        let currentCount = selectedSurroundingAttractions.count + customSurroundingTags.count
-        guard currentCount < maxSelection else { return }
-        guard !customSurroundingTags.contains(trimmed) else {
-            customTagInput = ""
-            return
-        }
-        customSurroundingTags.append(trimmed)
-        customTagItineraryNotes[trimmed] = ""
-        customTagInput = ""
-    }
-    
-    // 通过 OpenAI API 获取周邊特色（带超时处理）
-    private func loadSurroundingFeatures() {
-        guard !destination.isEmpty else { return }
-        
-        // 如果目的地没有改变，且已有数据，则不重新加载
-        if destination == lastLoadedDestination && !surroundingAttractions.isEmpty {
-            return
-        }
-        
-        isLoadingSurroundingFeatures = true
-        
-        Task {
-            do {
-                // 使用 withTimeout 包装，避免无限等待
-                let attractions = try await withTimeout(seconds: 20) {
-                    try await self.fetchSurroundingAttractions()
-                }
-                
-                await MainActor.run {
-                    self.surroundingAttractions = attractions
-                    self.lastLoadedDestination = self.destination  // 更新上次加载的目的地
-                    self.isLoadingSurroundingFeatures = false
-                }
-            } catch {
-                print("❌ [AIPlannerView] 获取周边特色失败: \(error.localizedDescription)")
-                await MainActor.run {
-                    self.isLoadingSurroundingFeatures = false
-                    // 如果失败，使用默认的特色（4-8个）
-                    let defaultAttractions = self.getDefaultAttractions()
-                    self.surroundingAttractions = Array(defaultAttractions.prefix(6)) // 默认返回6个
-                    self.lastLoadedDestination = self.destination  // 即使失败也更新，避免重复请求
-                }
-            }
-        }
+        loadingInterestPlaceQueries = []
+        selectedSupplementKinds = []
+        supplementOtherNote = ""
     }
     
     // 超时包装函数
@@ -3267,242 +3181,18 @@ struct AIPlannerView: View {
         }
     }
     
-    // 调用 OpenAI API 获取周边特色（整合城市资料库和兴趣偏好权重）
-    private func fetchSurroundingAttractions() async throws -> [SurroundingAttraction] {
-        // 提取城市名（如果格式是"国家 - 城市"，只取城市部分）
-        let cityName: String
-        let countryName: String?
-        if destination.contains(" - ") {
-            let components = destination.components(separatedBy: " - ")
-            countryName = components.first
-            cityName = components.last ?? destination
-        } else {
-            cityName = destination
-            countryName = nil
-        }
-        
-        // 1. 首先尝试从城市资料库获取（优先使用资料库，避免重复API调用）
-        let database = CityAttractionsDatabase.shared
-        let interestTags = selectedInterests.map { $0.rawValue }
-        let cityAttractions = database.getFilteredAttractions(
-            for: cityName,
-            country: countryName,
-            interestTags: interestTags,
-            sortBy: .popularity,
-            referenceLocation: nil,
-            routeLocations: [],
-            excludeAttractions: [],
-            maxDistance: nil,
-            futureRouteLocations: []
-        )
-        
-        // 2. 转换为SurroundingAttraction格式
-        var attractions: [SurroundingAttraction] = cityAttractions.map { cityAttraction in
-            SurroundingAttraction(
-                id: cityAttraction.id,
-                name: cityAttraction.name,
-                category: cityAttraction.category,
-                icon: cityAttraction.icon
-            )
-        }
-        
-        // 3. 如果资料库中没有足够的数据（少于6个），使用API补充
-        if attractions.count < 6 {
-            // 构建提示词，包含兴趣偏好（增加权重）
-            var prompt = "推荐\(cityName)的4-8个知名地标或景点"
-            if !interestTags.isEmpty {
-                prompt += "，优先推荐与以下兴趣相关的：\(interestTags.joined(separator: "、"))"
-            }
-            prompt += "，只返回JSON数组：[\"景点1\",\"景点2\",...]"
-            
-            // 调用 OpenAI API（带超时处理）
-            let response = try await OpenAIManager.shared.generateSurroundingAttractions(
-                prompt: prompt,
-                timeout: 30.0  // 国外目的地/网络延迟更高时容易超时，适当放宽
-            )
-            
-            // 解析API响应
-            let apiAttractions = parseSurroundingAttractions(response)
-            
-            // 合并并去重
-            let existingNames = Set(attractions.map { $0.name.lowercased() })
-            let newAttractions = apiAttractions.filter { attraction in
-                !existingNames.contains(attraction.name.lowercased())
-            }
-            attractions.append(contentsOf: newAttractions)
-        }
-        
-        // 4. 根据兴趣偏好重新排序（匹配兴趣的排在前面）
-        if !interestTags.isEmpty {
-            attractions.sort { attraction1, attraction2 in
-                let match1 = attraction1.category.lowercased().contains(interestTags.joined(separator: " ").lowercased()) ||
-                             interestTags.contains { tag in attraction1.category.lowercased().contains(tag.lowercased()) }
-                let match2 = attraction2.category.lowercased().contains(interestTags.joined(separator: " ").lowercased()) ||
-                             interestTags.contains { tag in attraction2.category.lowercased().contains(tag.lowercased()) }
-                return match1 && !match2
-            }
-        }
-        
-        return Array(attractions.prefix(8))
-    }
-    
-    // 解析周边特色响应（只包含名称的字符串数组）
-    private func parseSurroundingAttractions(_ jsonString: String) -> [SurroundingAttraction] {
-        // 首先尝试解析为字符串数组
-        if let jsonData = jsonString.data(using: .utf8),
-           let nameArray = try? JSONSerialization.jsonObject(with: jsonData) as? [String] {
-            return parseAttractionsFromNameArray(nameArray)
-        }
-        
-        // 如果失败，尝试提取JSON部分
-        if let jsonStart = jsonString.range(of: "["),
-           let jsonEnd = jsonString.range(of: "]", options: .backwards),
-           let jsonSubstring = jsonString[jsonStart.lowerBound..<jsonEnd.upperBound].data(using: .utf8),
-           let nameArray = try? JSONSerialization.jsonObject(with: jsonSubstring) as? [String] {
-            return parseAttractionsFromNameArray(nameArray)
-        }
-        
-        // 向后兼容：尝试解析为对象数组（旧格式）
-        if let jsonData = jsonString.data(using: .utf8),
-           let jsonArray = try? JSONSerialization.jsonObject(with: jsonData) as? [[String: Any]] {
-            return parseAttractionsFromObjectArray(jsonArray)
-        }
-        
-        return getDefaultAttractions()
-    }
-    
-    // 从名称数组解析周边特色（新格式）
-    private func parseAttractionsFromNameArray(_ nameArray: [String]) -> [SurroundingAttraction] {
-        var attractions: [SurroundingAttraction] = []
-        
-        for (index, name) in nameArray.enumerated() {
-            guard !name.isEmpty else { continue }
-            
-            // 根据名称自动推断分类和图标
-            let (category, icon) = inferCategoryAndIcon(from: name)
-            
-            let attraction = SurroundingAttraction(
-                id: "\(index)",
-                name: name,
-                category: category,
-                icon: icon
-            )
-            attractions.append(attraction)
-        }
-        
-        // 接受4-8个结果，不强制补充
-        // 如果少于4个，用默认值补充到至少4个
-        if attractions.count < 4 {
-            let defaultAttractions = getDefaultAttractions()
-            let needed = 4 - attractions.count
-            attractions.append(contentsOf: defaultAttractions.prefix(needed))
-        }
-        
-        // 最多返回8个
-        return Array(attractions.prefix(8))
-    }
-    
-    // 从对象数组解析周边特色（向后兼容旧格式）
-    private func parseAttractionsFromObjectArray(_ jsonArray: [[String: Any]]) -> [SurroundingAttraction] {
-        var attractions: [SurroundingAttraction] = []
-        
-        for (index, dict) in jsonArray.enumerated() {
-            guard let name = dict["name"] as? String,
-                  !name.isEmpty else { continue }
-            
-            let category = dict["category"] as? String ?? "景点"
-            let icon = dict["icon"] as? String ?? "location.circle"
-            
-            let attraction = SurroundingAttraction(
-                id: "\(index)",
-                name: name,
-                category: category,
-                icon: icon
-            )
-            attractions.append(attraction)
-        }
-        
-        // 接受4-8个结果，不强制补充
-        // 如果少于4个，用默认值补充到至少4个
-        if attractions.count < 4 {
-            let defaultAttractions = getDefaultAttractions()
-            let needed = 4 - attractions.count
-            attractions.append(contentsOf: defaultAttractions.prefix(needed))
-        }
-        
-        // 最多返回8个
-        return Array(attractions.prefix(8))
-    }
-    
-    // 根据名称推断分类和图标
-    private func inferCategoryAndIcon(from name: String) -> (category: String, icon: String) {
-        let lowercasedName = name.lowercased()
-        
-        // 地标/建筑
-        if lowercasedName.contains("塔") || 
-           lowercasedName.contains("大樓") || lowercasedName.contains("大厦") ||
-           lowercasedName.contains("tower") || lowercasedName.contains("building") {
-            return ("地标", "building.2")
-        }
-        
-        // 博物馆/文化
-        if lowercasedName.contains("博物館") || lowercasedName.contains("博物馆") ||
-           lowercasedName.contains("美術館") || lowercasedName.contains("美术馆") ||
-           lowercasedName.contains("museum") || lowercasedName.contains("gallery") {
-            return ("文化", "book")
-        }
-        
-        // 寺庙/宗教
-        if lowercasedName.contains("寺") || lowercasedName.contains("廟") ||
-           lowercasedName.contains("神社") || lowercasedName.contains("temple") ||
-           lowercasedName.contains("shrine") {
-            return ("文化", "building.columns")
-        }
-        
-        // 公园/自然
-        if lowercasedName.contains("公園") || lowercasedName.contains("公园") ||
-           lowercasedName.contains("park") ||
-           lowercasedName.contains("山") || lowercasedName.contains("mountain") {
-            return ("自然", "tree")
-        }
-        
-        // 市场/购物
-        if lowercasedName.contains("市場") || lowercasedName.contains("市场") ||
-           lowercasedName.contains("商店街") || lowercasedName.contains("market") ||
-           lowercasedName.contains("mall") {
-            return ("购物", "bag")
-        }
-        
-        // 美食
-        if lowercasedName.contains("美食") || lowercasedName.contains("餐廳") ||
-           lowercasedName.contains("餐厅") || lowercasedName.contains("restaurant") ||
-           lowercasedName.contains("food") {
-            return ("美食", "fork.knife")
-        }
-        
-        // 默认
-        return ("景点", "location.circle")
-    }
-    
-    // 获取默认周边特色（作为备用）
-    private func getDefaultAttractions() -> [SurroundingAttraction] {
-        return [
-            SurroundingAttraction(id: "default_1", name: "知名地标", category: "地标", icon: "building.2"),
-            SurroundingAttraction(id: "default_2", name: "文化景点", category: "景点", icon: "building.columns"),
-            SurroundingAttraction(id: "default_3", name: "自然景观", category: "景点", icon: "tree"),
-            SurroundingAttraction(id: "default_4", name: "美食街区", category: "美食", icon: "fork.knife"),
-            SurroundingAttraction(id: "default_5", name: "购物中心", category: "购物", icon: "bag"),
-            SurroundingAttraction(id: "default_6", name: "艺术空间", category: "文化", icon: "paintpalette"),
-            SurroundingAttraction(id: "default_7", name: "历史建筑", category: "历史", icon: "building"),
-            SurroundingAttraction(id: "default_8", name: "观景台", category: "景点", icon: "binoculars"),
-            SurroundingAttraction(id: "default_9", name: "主题公园", category: "娱乐", icon: "figure.play"),
-            SurroundingAttraction(id: "default_10", name: "博物馆", category: "文化", icon: "book"),
-            SurroundingAttraction(id: "default_11", name: "夜市", category: "美食", icon: "moon.stars"),
-            SurroundingAttraction(id: "default_12", name: "特色街区", category: "景点", icon: "map")
-        ]
-    }
-    
     // MARK: - 导航方法
+    
+    /// 離開步驟二前：若勾選「其他」但未填寫說明，視為未使用並清空狀態，避免擋住下一步。
+    private func clearOtherSupplementIfEmptyBeforeLeavingStep2() {
+        guard !useThemeFormMode else { return }
+        guard selectedSupplementKinds.contains(.other) else { return }
+        let t = supplementOtherNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.isEmpty else { return }
+        selectedSupplementKinds.remove(.other)
+        supplementOtherNote = ""
+        removeSupplementPlaceSuggestions(for: .other)
+    }
     
     private func goToNextStep() {
         withAnimation {
@@ -3513,28 +3203,11 @@ struct AIPlannerView: View {
                     startGeneration()
                 } else {
                     currentStep = .step2
-                    if !destination.isEmpty {
-                        if destination != lastLoadedDestination || (surroundingAttractions.isEmpty && !isLoadingSurroundingFeatures) {
-                            loadSurroundingFeatures()
-                        }
-                    }
                 }
             case .step2:
+                clearOtherSupplementIfEmptyBeforeLeavingStep2()
                 currentStep = .step3
-                if !destination.isEmpty && destination != lastLoadedDestination {
-                    loadSurroundingFeatures()
-                }
             case .step3:
-                if !useThemeFormMode, !customSurroundingTags.isEmpty {
-                    let missing = customSurroundingTags.filter { tag in
-                        (customTagItineraryNotes[tag]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-                    }
-                    if !missing.isEmpty {
-                        errorMessage = "請為每個自訂標籤填寫行程內容後再繼續。"
-                        showErrorAlert = true
-                        return
-                    }
-                }
                 currentStep = .step4
                 if !useCustomDepartureLocation && currentGPSLocation == nil && !isLocatingGPS {
                     requestGPSLocation()
@@ -3567,7 +3240,7 @@ struct AIPlannerView: View {
         if useThemeFormMode {
             guard themeFormResolvedDurationDays > 0 else { return }
         } else {
-            guard !destination.isEmpty, travelDays > 0 else { return }
+            guard !destination.isEmpty, computedTripDayCount > 0 else { return }
         }
         
         // 主題分流：非 generateItinerary 不呼叫 AITripGenerator（解決「天安門」問題）
@@ -3639,30 +3312,29 @@ struct AIPlannerView: View {
             dest = validNPI.destination ?? "\(defaultCountry) - \(defaultCity)"
             slots.destination = SlotInfo(value: dest, confidence: 1.0)
             slots.dateRange = SlotInfo(value: DateRange(startDate: startDate, endDate: endDate), confidence: 1.0)
+            let sDay = calendar.startOfDay(for: startDate)
+            let eDay = calendar.startOfDay(for: endDate)
+            let tfDays = max(1, (calendar.dateComponents([.day], from: sDay, to: eDay).day ?? 0) + 1)
+            slots.durationDays = SlotInfo(value: tfDays, confidence: 1.0)
             slots.interestTags = []
             slots.budgetLevel = SlotInfo(value: budgetLevel, confidence: 1.0)
-            slots.pace = SlotInfo(value: selectedPace, confidence: 1.0)
         } else {
-            let firstDay = calendar.startOfDay(for: departureTripStartDate)
+            let dayCount = computedTripDayCount
+            let firstDay = calendar.startOfDay(for: tripRangeStartDate)
+            let lastDay = calendar.startOfDay(for: tripRangeEndDate)
             startDate = combine(date: firstDay, time: departureTripStartTime)
-            let lastDay = calendar.date(byAdding: .day, value: max(0, travelDays - 1), to: firstDay) ?? firstDay
             endDate = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: lastDay) ?? lastDay
             dest = destination
             slots.destination = SlotInfo(value: dest, confidence: 1.0)
             slots.dateRange = SlotInfo(value: DateRange(startDate: startDate, endDate: endDate), confidence: 1.0)
+            slots.durationDays = SlotInfo(value: dayCount, confidence: 1.0)
             slots.interestTags = selectedInterests.map { $0.rawValue }
-            slots.budgetLevel = SlotInfo(value: budgetLevel, confidence: 1.0)
-            slots.pace = SlotInfo(value: selectedPace, confidence: 1.0)
-            if let transport = selectedTransportation {
-                switch transport {
-                case .publicTransport:
-                    slots.transportPreference = SlotInfo(value: .publicTransport, confidence: 1.0)
-                case .selfDrive:
-                    slots.transportPreference = SlotInfo(value: .taxi, confidence: 0.8)
-                case .charteredCar:
-                    slots.transportPreference = SlotInfo(value: .taxi, confidence: 1.0)
-                }
-            }
+            slots.budgetLevel = SlotInfo(value: BudgetLevel.moderate, confidence: 1.0)
+            slots.specialExperiencePreferenceTitles = TravelSpecialExperienceCatalog.flattenedPlacePromptLines(
+                selectedIds: selectedSurroundingAttractions,
+                allAttractions: surroundingAttractions
+            )
+            slots.plannerConstraintLines = selectedRestrictions.map { $0.aiPlannerConstraintLine }
         }
         
         let themeKeyForRequest = customTheme != nil ? "custom_\(customTheme!.key)" : "travel_planning"
@@ -3675,13 +3347,7 @@ struct AIPlannerView: View {
                 s = (s.isEmpty ? "" : s + "\n\n") + "【標準輸入 NPI】\n\(npiJson)"
             }
             // 修改内容：行程主題／備註併入，與 inferTravelThemeModuleId、resolveTravelTheme 使用同一文本來源
-            var parts = [tripTheme, additionalRequirements].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-            let tagLines = customSurroundingTags.compactMap { tag -> String? in
-                let note = customTagItineraryNotes[tag]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                guard !note.isEmpty else { return nil }
-                return "【自訂標籤「\(tag)」行程內容】\(note)"
-            }
-            parts.append(contentsOf: tagLines)
+            let parts = [tripTheme, additionalRequirements].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
             let hints = parts.joined(separator: "\n")
             if !hints.isEmpty {
                 s = s.isEmpty ? hints : s + "\n\n" + hints
@@ -3689,10 +3355,15 @@ struct AIPlannerView: View {
             return s.isEmpty ? nil : s
         }()
         let modelType: PlannerModelType = .multiPhase
-        let departureDT: Date? = useThemeFormMode ? nil : combine(date: Calendar.current.startOfDay(for: departureTripStartDate), time: departureTripStartTime)
+        let itineraryDayCount: Int = {
+            let sDay = calendar.startOfDay(for: startDate)
+            let eDay = calendar.startOfDay(for: endDate)
+            return max(1, (calendar.dateComponents([.day], from: sDay, to: eDay).day ?? 0) + 1)
+        }()
+        let departureDT: Date? = useThemeFormMode ? nil : combine(date: Calendar.current.startOfDay(for: tripRangeStartDate), time: departureTripStartTime)
         let request = GenerateRequest(
             plannerModelType: modelType,
-            generateMode: travelDays == 1 ? .singleDay : .multiDay,
+            generateMode: itineraryDayCount == 1 ? .singleDay : .multiDay,
             themeKey: themeKeyForRequest,
             themeMode: customTheme?.themeMode ?? .generateItinerary,
             userId: userManager.userOpenId.isEmpty ? nil : userManager.userOpenId,
@@ -3705,10 +3376,10 @@ struct AIPlannerView: View {
             accommodationAddress: accommodationAddress.isEmpty ? nil : accommodationAddress,
             accommodationCoordinate: accommodationCoordinate,
             selectedAttractionNames: surroundingAttractions.filter { selectedSurroundingAttractions.contains($0.id) }.map { $0.name },
-            customSurroundingTags: customSurroundingTags,
+            customSurroundingTags: useThemeFormMode ? [] : supplementThemeTagsForGeneration,
             departureDateTime: departureDT,
-            adults: adults,
-            children: children,
+            adults: 1,
+            children: 0,
             planningDomain: .travel,
             planningIntensity: nil,
             travelThemeModuleId: resolvedTravelThemeId

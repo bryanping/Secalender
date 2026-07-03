@@ -357,6 +357,16 @@
 "friend_detail.templates_placeholder" = "模板功能開發中";
 "friend_detail.edit_friend_profile" = "編輯朋友資料";
 "friend_detail.friend_profile" = "朋友資料";
+"friend_detail.alias_format" = "別名 · %@";
+"friend_detail.remarks_name" = "備註名稱";
+"friend_detail.phone_label" = "電話";
+"friend_detail.privacy_label" = "分享權限";
+"friend_detail.friends_since" = "成為好友";
+"friend_detail.privacy_normal" = "普通";
+"friend_detail.privacy_limited" = "受限";
+"friend_detail.privacy_full" = "完整";
+"friend_detail.remarks_placeholder" = "僅自己可見的備註";
+"friend_detail.phone_placeholder" = "電話號碼";
 
 // MARK: - Friend Card
 "friend_card.public_plans" = "公開行程";

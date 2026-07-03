@@ -39,6 +39,10 @@ struct ExtractedSlots {
     var budgetLevel: SlotInfo<BudgetLevel> = SlotInfo(value: nil, confidence: 0.0)
     var interestTags: [String] = []
     var transportPreference: SlotInfo<TransportPreference> = SlotInfo(value: nil, confidence: 0.0)
+    /// 旅遊規劃：用戶依興趣勾選的特色體驗取向（已展平為人類可讀短語，供 prompt）
+    var specialExperiencePreferenceTitles: [String] = []
+    /// 旅遊規劃：特殊需求／無障礙等短句，供 prompt
+    var plannerConstraintLines: [String] = []
     
     // 人数信息（用于计算餐饮时间）
     var adults: SlotInfo<Int> = SlotInfo(value: nil, confidence: 0.0)

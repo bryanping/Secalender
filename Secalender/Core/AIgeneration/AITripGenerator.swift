@@ -221,6 +221,7 @@ final class AITripGenerator {
         - 输出时请区分：1) 核心主线 2) 可选活动 3) 备选活动。
         - JSON 中请尽量填写 mainlineActivities、optionalActivities、fallbackActivities；若模型仅能提供 activities，则 activities 视为核心主线为主。
         - **自定义标签（custom tags）为强制约束**：凡用户提供的每一个自定义标签，必须在行程中得到实质体现（主线、optionalActivities 或 fallbackActivities 至少一处），不得以「仅供参考」忽略。若标签过多，优先满足最重要的 2–3 个，其余必须落入 optional 或 fallback，并在 daySummary 或 bufferNote 中说明已纳入方式。
+        - **首日長途交通**：若出發地與目的地為跨城、跨國或航空，必須先完整預留「門到門」交通（含前往機場、報到、飛行、入境、機場至市區）；**禁止**出現「啟程後數十分鐘即入住／開始景點」的不實時間軸。首日僅能：抵達 → 入住或寄存 → 鄰近輕鬆活動／晚餐。
         """
     
     // 修改内容：内建 travel theme modules（先内建，后续可迁移 Firebase）
@@ -292,6 +293,35 @@ final class AITripGenerator {
         return "efficient_highlights"
     }
     
+    /// 行程風格模組強度 → 與 `Pace` 對齊（用於未單獨填寫「行程節奏」時由主題推導）
+    static func pace(forThemeIntensity intensity: PlanningIntensityLevel) -> Pace {
+        switch intensity {
+        case .relaxed: return .relaxed
+        case .standard: return .moderate
+        case .intensive: return .tight
+        }
+    }
+    
+    /// 優先使用 `slots.pace`；為 nil 時依 `travelThemeModuleId`（或自動推断）對應模組強度推導節奏
+    static func resolvedPaceForGeneration(
+        slots: ExtractedSlots,
+        travelThemeModuleId: String?,
+        children: Int,
+        combinedInferenceText: String,
+        interestTags: [String]
+    ) -> Pace {
+        if let p = slots.pace.value { return p }
+        let tid = travelThemeModuleId ?? inferTravelThemeModuleId(
+            children: children,
+            combinedUserText: combinedInferenceText,
+            interestTagRawValues: interestTags
+        )
+        if let m = builtInTravelThemeModules.first(where: { $0.id == tid }) {
+            return pace(forThemeIntensity: m.loadPolicy.intensity)
+        }
+        return .moderate
+    }
+    
     /// 使用OpenAI生成包含真实地点的行程
     /// - Parameter themeKey: 主題識別（weekend_flash, deep_culture, travel_planning, enrich_trip 或自訂 key），用於選擇專屬提示詞
     /// - Parameter themePromptPrefix: 主題專屬提示詞（優先於 themeKey 的內建提示）。若提供則直接使用，確保行程符合主題（如寵物餵養→寵物相關景點）。
@@ -317,7 +347,11 @@ final class AITripGenerator {
         themePromptPrefix: String? = nil,
         travelThemeId: String? = nil,
         departureDateTime: Date? = nil,
-        transitEstimate: TransitEstimate? = nil
+        transitEstimate: TransitEstimate? = nil,
+        budgetLevel: BudgetLevel? = nil,
+        specialExperienceSelections: [String] = [],
+        plannerConstraintLines: [String] = [],
+        useOpenTransportGuidance: Bool = false
     ) async throws -> AITripPlan {
         
         // 检查 OpenAI 开关
@@ -362,7 +396,11 @@ final class AITripGenerator {
             accommodationType: accommodationType,
             hasOtherOption: hasOtherOption,
             adults: adults,
-            children: children
+            children: children,
+            budgetLevel: budgetLevel,
+            specialExperienceSelections: specialExperienceSelections,
+            plannerConstraintLines: plannerConstraintLines,
+            useOpenTransportGuidance: useOpenTransportGuidance
         )
         
         // 修改内容：Firebase/QuickTheme 的 themePromptPrefix 與 TravelThemeModule.promptPrefix 疊加（見 ThemeResolver.swift 頂部）；硬規則在 mandatoryTravelConstraintsFooter，置於最末。
@@ -404,17 +442,25 @@ final class AITripGenerator {
     private func appendDepartureAndTransitPrompt(transitEstimate: TransitEstimate?, departureDateTime: Date?) -> String {
         var out = ""
         if let te = transitEstimate {
-            out += "\n\n【交通估時與抵達現實約束】（引擎依直線距離與是否跨國粗估，實際路程可能更長）\n"
+            out += "\n\n【交通估時與抵達現實約束】（引擎分段啟發式：市內／城際鐵路／航空；航空含市區↔機場、報到、落地、機場至市區；實際可能更長）\n"
             out += "- 分段模式：\(te.mode.rawValue)\n"
-            out += "- 預估門到門全程：約 \(Int(te.totalSeconds / 60)) 分鐘\n"
+            out += "- 預估門到門全程：約 \(te.totalMinutes) 分鐘\n"
             out += te.breakdown.map { "- \($0)" }.joined(separator: "\n")
-            out += "\n- 請依此安排**第一天**：若抵達已午後／晚間，主線僅能少量輕量點；傍晚後僅入住、用餐、附近散步，勿排滿。"
+            if let dep = departureDateTime {
+                let arrival = dep.addingTimeInterval(te.totalSeconds)
+                let df = DateFormatter()
+                df.dateFormat = "yyyy-MM-dd HH:mm"
+                out += "\n- **粗估抵達住宿／市區可安頓時間**：不早於 \(df.string(from: arrival))（僅供日程編排，勿寫死為航班號）"
+            }
+            out += "\n- **首日硬性規則**：在上述抵達時間之前，不得安排觀光主線、購物血拼或密集景點；僅允許交通、候機／候車、簡餐休息。"
+            out += "\n- 若模式為 flight 或跨國：**禁止**上午抵達景點或「啟程後 1～2 小時內辦理入住並開始行程」類表述。"
+            out += "\n- 若抵達已午後：主線至多 1～2 個輕量點；若抵達已傍晚後：僅入住、晚餐、鄰近散步。"
         }
         if let dep = departureDateTime {
             let df = DateFormatter()
             df.dateFormat = "yyyy-MM-dd HH:mm"
             out += "\n\n【用戶啟程時間】\(df.string(from: dep))\n"
-            out += "- 以該時間為首日交通段起點，反推可遊玩時段；禁止假設一律上午已抵達景點。"
+            out += "- 以該時間為首日交通段起點，反推可遊玩時段；禁止假設上午已抵達首個景點。"
         }
         return out
     }
@@ -733,6 +779,51 @@ final class AITripGenerator {
         return countryToLanguage[country]
     }
     
+    /// 結構化偏好（預算、特色體驗、特殊需求、未指定交通方式時的原則）— 置於本地化主 prompt 之後、硬規則之前
+    private func appendStructuredPlannerHints(
+        to prompt: inout String,
+        language: AppLanguage,
+        budgetLevel: BudgetLevel?,
+        specialExperienceSelections: [String],
+        plannerConstraintLines: [String],
+        useOpenTransportGuidance: Bool
+    ) {
+        var block = ""
+        if useOpenTransportGuidance {
+            switch language {
+            case .simplifiedChinese, .traditionalChinese:
+                block += "\n\n【交通原則】勿在行程敘述中寫死單一交通方式（如全程地鐵或全程自駕）；接駁時間僅依距離與城市型態做合理估時，實際方式由用戶到現場決定。"
+            default:
+                block += "\n\n【Transportation】Do not commit the itinerary text to a single mode (e.g. all metro or all driving). Estimate transfer segments plausibly from distance and urban layout; the traveler chooses the actual mode on site."
+            }
+        }
+        if let b = budgetLevel {
+            switch language {
+            case .simplifiedChinese, .traditionalChinese:
+                block += "\n【預算取向】\(b.rawValue)（低＝經濟／控制花費；中＝均衡；高＝可安排品質體驗與較舒適選擇）。"
+            default:
+                block += "\n【Budget】Level: \(b.rawValue) (low=economy; moderate=balanced; high=quality & comfort OK)."
+            }
+        }
+        if !plannerConstraintLines.isEmpty {
+            switch language {
+            case .simplifiedChinese, .traditionalChinese:
+                block += "\n【特殊需求】\(plannerConstraintLines.joined(separator: "；"))。"
+            default:
+                block += "\n【Accessibility & constraints】\(plannerConstraintLines.joined(separator: "; "))."
+            }
+        }
+        if !specialExperienceSelections.isEmpty {
+            switch language {
+            case .simplifiedChinese, .traditionalChinese:
+                block += "\n【特色體驗取向】用戶勾選的重點類型（含餐飲、體驗、街區氛圍、購物、夜間、雨天備案等）：\(specialExperienceSelections.joined(separator: "、"))。請在行程中實質安排對應活動，可分布在主線、可選或備用。"
+            default:
+                block += "\n【Experience preferences】User-selected focus types (food, hands-on, neighborhood vibe, shopping, nightlife, rainy-day fallback, etc.): \(specialExperienceSelections.joined(separator: ", ")). Reflect these concretely across main, optional, or fallback stops."
+            }
+        }
+        prompt += block
+    }
+    
     /// 构建详细的提示词（参考 ChatGPT 高质量行程风格）
     private func buildPrompt(
         destination: String,
@@ -750,7 +841,11 @@ final class AITripGenerator {
         accommodationType: String? = nil,
         hasOtherOption: Bool = false,
         adults: Int? = nil,
-        children: Int? = nil
+        children: Int? = nil,
+        budgetLevel: BudgetLevel? = nil,
+        specialExperienceSelections: [String] = [],
+        plannerConstraintLines: [String] = [],
+        useOpenTransportGuidance: Bool = false
     ) -> String {
         // 检测目的地国家
         let dataManager = DestinationDataManager.shared
@@ -790,6 +885,15 @@ final class AITripGenerator {
             hasOtherOption: hasOtherOption,
             adults: adults,
             children: children
+        )
+        
+        appendStructuredPlannerHints(
+            to: &prompt,
+            language: language,
+            budgetLevel: budgetLevel,
+            specialExperienceSelections: specialExperienceSelections,
+            plannerConstraintLines: plannerConstraintLines,
+            useOpenTransportGuidance: useOpenTransportGuidance
         )
         
         // 修改内容：统一加入“真实可执行”硬约束（避免塞满式攻略）
@@ -1213,10 +1317,10 @@ final class AITripGenerator {
             prompt += "\n    - **建议餐饮时间：\(finalMealTime)分钟**（请确保在行程中预留充足时间）"
         }
         
-        // 添加GPS位置信息
+        // 添加GPS位置信息（實際門到門耗時以文末【交通估時】分段為準，勿自行壓成數十分鐘）
         if let gpsLocation = currentGPSLocation {
             prompt += "\n- 出发位置：GPS坐标 (\(gpsLocation.coordinate.latitude), \(gpsLocation.coordinate.longitude))"
-            prompt += "\n- 请计算从出发位置到目的地的交通时间和距离，并在第一天行程开始时添加交通时间块"
+            prompt += "\n- 跨城／跨國時交通必須依【交通估時與抵達現實約束】中的門到門分鐘數安排首日，禁止臆測過短（例如啟程後一小時內即入住）。"
         }
         
         // 添加住宿信息
@@ -2458,9 +2562,12 @@ final class AITripGenerator {
         // MARK: - 第一天：出發 → 住宿(Check-in) → 放行李 → 首個景點
         let accAddr = context?.accommodationAddress ?? ""
         let hasAccommodation = !accAddr.isEmpty || context?.accommodationCoordinate != nil
-        let hasDeparture = context?.departureLocation != nil
-        let transitLegSeconds: TimeInterval = context?.transitEstimate?.totalSeconds
-            ?? (hasDeparture ? (hasAccommodation ? 50 * 60 : 60 * 60) : 0)
+        let hasDeparture = (context?.departureLocation != nil) || (context?.departureDateTime != nil)
+        let transitLegSeconds: TimeInterval = {
+            if let s = context?.transitEstimate?.totalSeconds, s > 60 { return s }
+            if context?.departureDateTime != nil { return 5 * 3600 }
+            return hasDeparture ? (hasAccommodation ? 50 * 60 : 60 * 60) : 0
+        }()
         let transitExtraDescription: String = {
             guard let te = context?.transitEstimate else { return "" }
             return "\n" + te.summaryLine + "\n" + te.breakdown.joined(separator: "\n")
@@ -2527,14 +2634,23 @@ final class AITripGenerator {
         
         let activitiesToSchedule: [AITripActivity] = {
             guard isFirstDay else { return aiDay.activities }
-            guard let dep = context?.departureDateTime, let sec = context?.transitEstimate?.totalSeconds else {
-                return aiDay.activities
-            }
+            guard let dep = context?.departureDateTime else { return aiDay.activities }
+            let sec: TimeInterval = {
+                if let s = context?.transitEstimate?.totalSeconds, s > 60 { return s }
+                return 5 * 3600
+            }()
             let arrival = dep.addingTimeInterval(sec)
-            guard calendar.isDate(arrival, inSameDayAs: date) else { return aiDay.activities }
+            guard calendar.isDate(arrival, inSameDayAs: date) else { return Array(aiDay.activities.prefix(2)) }
             let hour = calendar.component(.hour, from: arrival)
+            let minute = calendar.component(.minute, from: arrival)
+            // 長途／航空：首日更嚴格縮減主線
+            let mode = context?.transitEstimate?.mode
+            let isHeavy = (mode == .flight || mode == .unknown)
+            if isHeavy || hour >= 19 { return Array(aiDay.activities.prefix(min(2, max(1, aiDay.activities.count)))) }
             if hour >= 20 { return Array(aiDay.activities.prefix(2)) }
-            if hour >= 14 { return Array(aiDay.activities.prefix(min(4, max(1, aiDay.activities.count)))) }
+            if hour >= 14 || (hour == 13 && minute >= 30) {
+                return Array(aiDay.activities.prefix(min(isHeavy ? 2 : 4, max(1, aiDay.activities.count))))
+            }
             return aiDay.activities
         }()
         

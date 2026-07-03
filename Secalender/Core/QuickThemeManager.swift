@@ -220,7 +220,7 @@ extension QuickThemeManager {
             ThemeFormQuestion(id: "start_date", label: "enrich_trip.form.start_date", type: .date, options: nil, unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "計劃開始日期"),
             ThemeFormQuestion(id: "duration_days", label: "enrich_trip.form.duration_days", type: .number, options: nil, unit: "天", placeholder: nil, defaultValue: "3", minValue: 1, maxValue: 30, description: "天數"),
             ThemeFormQuestion(id: "trip_goal", label: "enrich_trip.form.trip_goal", type: .text, options: nil, unit: nil, placeholder: "enrich_trip.form.trip_goal_placeholder", defaultValue: nil, minValue: nil, maxValue: nil, description: "行程目標或目的地"),
-            ThemeFormQuestion(id: "surrounding_categories", label: "enrich_trip.form.surrounding", type: .multiSelect, options: ["購物", "美食", "休憩", "景點", "夜生活", "親子"], unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "周圍推薦類型")
+            ThemeFormQuestion(id: "surrounding_categories", label: "enrich_trip.form.surrounding", type: .multiSelect, options: ["購物", "美食", "休憩", "景點", "夜生活", "親子", "其他"], unit: nil, placeholder: nil, defaultValue: nil, minValue: nil, maxValue: nil, description: "周圍推薦類型")
         ]
     }
 }
@@ -235,10 +235,10 @@ final class QuickThemeManager: ObservableObject {
     
     // 內建主題（預設）
     private let builtInThemes: [QuickTheme] = [
-        .builtIn(key: "weekend_flash", icon: "bolt.fill", iconColorHex: "#FF9500", title: "weekend_flash.template_name"),
+        .builtIn(key: "travel_planning", icon: "map.fill", iconColorHex: "#007AFF", title: "travel_planning.template_name"),
         .builtIn(key: "deep_culture", icon: "building.columns.fill", iconColorHex: "#AF52DE", title: "deep_culture.template_name"),
         .builtIn(key: "enrich_trip", icon: "fork.knife", iconColorHex: "#34C759", title: "enrich_trip.template_name"),
-        .builtIn(key: "travel_planning", icon: "map.fill", iconColorHex: "#007AFF", title: "travel_planning.template_name")
+        .builtIn(key: "weekend_flash", icon: "bolt.fill", iconColorHex: "#FF9500", title: "weekend_flash.template_name")
     ]
     
     /// 內建主題專屬提示詞與問題集（還原週末快閃／深度文化／充實行程各自問題集）

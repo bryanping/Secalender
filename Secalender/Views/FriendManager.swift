@@ -39,6 +39,19 @@ struct FriendEntry: Identifiable, Equatable, Codable {
     }
 }
 
+extension FriendEntry {
+    /// 列表／卡片用：略過空白字串，順序為顯示名、別名、信箱（需在主執行緒：與 `String.localized` 一致）
+    @MainActor
+    var resolvedListDisplayName: String {
+        for value in [name, alias, email] {
+            if let t = value?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty {
+                return t
+            }
+        }
+        return "friends.unknown".localized()
+    }
+}
+
 // MARK: - FriendManager
 final class FriendManager {
     static let shared = FriendManager()
@@ -154,16 +167,16 @@ final class FriendManager {
                     
                     return snapshot.documents.compactMap { doc in
                         let data = doc.data()
-                        let name = (data["name"] as? String) ?? (data["display_name"] as? String) ?? (data["displayName"] as? String)
                         let photoUrl = (data["photo_url"] as? String) ?? (data["photoUrl"] as? String)
-                        let uid = (data["openid"] as? String) ?? (data["user_id"] as? String) ?? doc.documentID
+                        // 與 friends.friend、UserManager 一致：以 users 文件 ID 為準，避免 openid 與 docId 不一致時刪除／查關係失敗
+                        let canonicalId = doc.documentID
                         return FriendEntry(
-                            id: uid,
-                            alias: data["alias"] as? String,
-                            name: name,
-                            email: data["email"] as? String,
+                            id: canonicalId,
+                            alias: Self.trimmedString(data["alias"] as? String),
+                            name: Self.resolvedFriendDisplayName(from: data),
+                            email: Self.trimmedString(data["email"] as? String),
                             photoUrl: photoUrl,
-                            gender: data["gender"] as? String
+                            gender: Self.trimmedString(data["gender"] as? String)
                         )
                     }
                 }
@@ -179,6 +192,22 @@ final class FriendManager {
         results.sort { (order[$0.id] ?? Int.max) < (order[$1.id] ?? Int.max) }
         
         return results
+    }
+
+    /// 略過 nil／純空白字串
+    private static func trimmedString(_ s: String?) -> String? {
+        guard let t = s?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+        return t
+    }
+
+    /// 與 FirebaseUserManager／FriendDetailView 一致：display_name 優先，並跳過空字串的 name
+    private static func resolvedFriendDisplayName(from data: [String: Any]) -> String? {
+        trimmedString(data["display_name"] as? String)
+            ?? trimmedString(data["displayName"] as? String)
+            ?? trimmedString(data["name"] as? String)
+            ?? trimmedString(data["provider_display_name"] as? String)
+            ?? trimmedString(data["alias"] as? String)
+            ?? trimmedString(data["email"] as? String)
     }
     
     /// 初始化读取当前使用者的好友清单（建议在登入后调用一次）

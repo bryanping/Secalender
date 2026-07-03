@@ -59,14 +59,20 @@ struct FriendDetailView: View {
                         Button {
                             showShareActivitySheet = true
                         } label: {
-                            Text("event_share_action.share_event".localized())
+                            Label("event_share_action.share_event".localized(), systemImage: "square.and.arrow.up")
                                 .font(.headline)
                                 .fontWeight(.semibold)
-                                .foregroundColor(.primary)
+                                .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
-                                .background(Color(.systemGray5))
-                                .cornerRadius(12)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color.accentColor, Color.accentColor.opacity(0.85)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
                         .buttonStyle(.plain)
                         
@@ -130,7 +136,7 @@ struct FriendDetailView: View {
         .sheet(isPresented: $showShareActivitySheet) {
             ShareActivitiesToFriendSheet(
                 friendId: friendId,
-                friendName: friendInfo?.name ?? friendInfo?.email ?? ""
+                friendName: friendInfo.map { FriendDetailView.shareSheetName(for: $0) } ?? ""
             )
             .environmentObject(userManager)
         }
@@ -155,154 +161,253 @@ struct FriendDetailView: View {
             .padding()
     }
     
-    // MARK: - 第一栏：基本信息
+    // MARK: - 第一栏：頭像與公開資訊
     @ViewBuilder
     private func friendBasicInfoSection(info: FriendDetailInfo) -> some View {
-        VStack(spacing: 16) {
-            // 头像
-            if let photoUrl = info.photoUrl, let url = URL(string: photoUrl) {
-                AsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
+        let headline = info.profileHeadline
+        let aliasLine = info.distinctAliasLine
+        
+        VStack(spacing: 0) {
+            ZStack(alignment: .bottom) {
+                LinearGradient(
+                    colors: [
+                        Color.accentColor.opacity(0.12),
+                        Color(.secondarySystemGroupedBackground)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: 72)
+                .frame(maxWidth: .infinity)
+                
+                Group {
+                    if let photoUrl = info.photoUrl, let url = URL(string: photoUrl) {
+                        AsyncImage(url: url) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } placeholder: {
+                            Circle()
+                                .fill(Color(.systemGray4))
+                        }
+                    } else {
+                        Circle()
+                            .fill(Color(.systemGray4))
+                            .overlay(
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 40))
+                                    .foregroundStyle(.secondary)
+                            )
+                    }
                 }
-                .frame(width: 100, height: 100)
+                .frame(width: 96, height: 96)
                 .clipShape(Circle())
                 .overlay(
                     Circle()
-                        .stroke(Color.white, lineWidth: 3)
+                        .stroke(Color(.systemBackground), lineWidth: 4)
                 )
-                .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
-            } else {
-                Circle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 100, height: 100)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 50))
-                            .foregroundColor(.gray)
-                    )
+                .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 6)
+                .offset(y: 36)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 36)
             
             VStack(spacing: 8) {
-                // 名称
-                Text(info.name ?? info.email ?? "未知用户")
+                Text(headline.isEmpty ? "friends.unknown".localized() : headline)
                     .font(.title2)
                     .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                 
-                // 昵称
-                if let alias = info.alias, !alias.isEmpty {
-                    Text(alias)
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                }
-                
-                // ID
-                Text("ID: \(info.id)")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
-                // 地区
-                if let region = info.region, !region.isEmpty {
-                    HStack(spacing: 4) {
-                        Image(systemName: "location.fill")
-                            .font(.caption)
-                        Text(region)
-                            .font(.subheadline)
-                    }
-                    .foregroundColor(.secondary)
+                if let aliasLine {
+                    Text(String(format: "friend_detail.alias_format".localized(), aliasLine))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
+            
+            if info.hasPublicMetaRows {
+                VStack(spacing: 0) {
+                    if let region = info.region?.trimmingCharacters(in: .whitespacesAndNewlines), !region.isEmpty {
+                        profileMetaRow(icon: "mappin.and.ellipse", text: region)
+                        if info.hasNonEmptyEmail {
+                            Divider().padding(.leading, 44)
+                        }
+                    }
+                    if let email = info.email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
+                        profileMetaRow(icon: "envelope.fill", text: email)
+                    }
+                }
+                .padding(.vertical, 4)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 20)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding()
         .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
     }
     
-    // MARK: - 第二栏：朋友资料
+    private func profileMetaRow(icon: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.body.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 24, alignment: .center)
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+    
+    // MARK: - 第二栏：僅你可見的朋友資料（對齊分組列表）
     @ViewBuilder
     private func friendDataSection(info: FriendDetailInfo) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("friend_detail.friend_profile".localized())
-                .font(.headline)
+                .font(.caption)
                 .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.4)
+                .padding(.horizontal, 4)
             
-            VStack(spacing: 12) {
-                // 备注名
-                HStack {
-                    Text("备注名")
-                        .foregroundColor(.secondary)
-                        .frame(width: 80, alignment: .leading)
-                    if isEditing {
-                        TextField("请输入备注名", text: $remarksName)
-                            .textFieldStyle(.roundedBorder)
-                    } else {
-                        Text(remarksName.isEmpty ? "未设置" : remarksName)
-                            .foregroundColor(remarksName.isEmpty ? .secondary : .primary)
-                    }
-                }
-                
-                // 电话
-                HStack {
-                    Text("电话")
-                        .foregroundColor(.secondary)
-                        .frame(width: 80, alignment: .leading)
-                    if isEditing {
-                        TextField("请输入电话", text: $remarksPhone)
-                            .textFieldStyle(.roundedBorder)
+            VStack(spacing: 0) {
+                friendProfileFieldRow(
+                    titleKey: "friend_detail.remarks_name",
+                    isEditing: isEditing,
+                    editContent: {
+                        TextField("friend_detail.remarks_placeholder".localized(), text: $remarksName)
+                            .textFieldStyle(.plain)
+                            .multilineTextAlignment(.trailing)
+                    },
+                    displayText: remarksName.isEmpty ? "profile.not_set".localized() : remarksName,
+                    displaySecondary: remarksName.isEmpty
+                )
+                Divider().padding(.leading, 16)
+                friendProfileFieldRow(
+                    titleKey: "friend_detail.phone_label",
+                    isEditing: isEditing,
+                    editContent: {
+                        TextField("friend_detail.phone_placeholder".localized(), text: $remarksPhone)
+                            .textFieldStyle(.plain)
                             .keyboardType(.phonePad)
-                    } else {
-                        Text(remarksPhone.isEmpty ? "未设置" : remarksPhone)
-                            .foregroundColor(remarksPhone.isEmpty ? .secondary : .primary)
-                    }
-                }
-                
-                // 权限（隐私设定）
-                HStack {
-                    Text("权限")
-                        .foregroundColor(.secondary)
-                        .frame(width: 80, alignment: .leading)
-                    if isEditing {
-                        Picker("权限", selection: $privacyLevel) {
-                            Text("普通").tag("normal")
-                            Text("受限").tag("limited")
-                            Text("完整").tag("full")
+                            .multilineTextAlignment(.trailing)
+                    },
+                    displayText: remarksPhone.isEmpty ? "profile.not_set".localized() : remarksPhone,
+                    displaySecondary: remarksPhone.isEmpty
+                )
+                Divider().padding(.leading, 16)
+                friendProfileFieldRow(
+                    titleKey: "friend_detail.privacy_label",
+                    isEditing: isEditing,
+                    editContent: {
+                        Picker("", selection: $privacyLevel) {
+                            Text("friend_detail.privacy_normal".localized()).tag("normal")
+                            Text("friend_detail.privacy_limited".localized()).tag("limited")
+                            Text("friend_detail.privacy_full".localized()).tag("full")
                         }
+                        .labelsHidden()
                         .pickerStyle(.menu)
-                    } else {
-                        Text(privacyLevelText)
-                            .foregroundColor(.primary)
-                    }
-                }
-                
-                // 新增时间
-                HStack {
-                    Text("新增时间")
-                        .foregroundColor(.secondary)
-                        .frame(width: 80, alignment: .leading)
-                    Text(info.addedDateText)
-                        .foregroundColor(.primary)
+                    },
+                    displayText: privacyLevelText,
+                    displaySecondary: false
+                )
+                Divider().padding(.leading, 16)
+                friendProfileReadOnlyRow(titleKey: "friend_detail.friends_since", value: info.addedDateText)
+            }
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
+        }
+    }
+    
+    private func friendProfileFieldRow<Edit: View>(
+        titleKey: String,
+        isEditing: Bool,
+        @ViewBuilder editContent: () -> Edit,
+        displayText: String,
+        displaySecondary: Bool
+    ) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            Text(titleKey.localized())
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 96, alignment: .leading)
+            Group {
+                if isEditing {
+                    editContent()
+                } else {
+                    Text(displayText)
+                        .font(.body)
+                        .foregroundStyle(displaySecondary ? .secondary : .primary)
+                        .multilineTextAlignment(.trailing)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+    }
+    
+    private func friendProfileReadOnlyRow(titleKey: String, value: String) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            Text(titleKey.localized())
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 96, alignment: .leading)
+            Text(value)
+                .font(.body)
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
     
     private var privacyLevelText: String {
         switch privacyLevel {
-        case "normal": return "普通"
-        case "limited": return "受限"
-        case "full": return "完整"
-        default: return "普通"
+        case "normal": return "friend_detail.privacy_normal".localized()
+        case "limited": return "friend_detail.privacy_limited".localized()
+        case "full": return "friend_detail.privacy_full".localized()
+        default: return "friend_detail.privacy_normal".localized()
         }
+    }
+    
+    private static func shareSheetName(for info: FriendDetailInfo) -> String {
+        let h = info.profileHeadline
+        if !h.isEmpty { return h }
+        if let e = info.email?.trimmingCharacters(in: .whitespacesAndNewlines), !e.isEmpty { return e }
+        return ""
+    }
+    
+    private static func trimmedString(_ s: String?) -> String? {
+        guard let t = s?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+        return t
+    }
+    
+    /// 與 FriendManager 一致：優先 display_name，並略過空字串的 name
+    private static func resolvedUserDisplayName(from data: [String: Any]) -> String? {
+        trimmedString(data["display_name"] as? String)
+            ?? trimmedString(data["displayName"] as? String)
+            ?? trimmedString(data["name"] as? String)
+            ?? trimmedString(data["provider_display_name"] as? String)
+            ?? trimmedString(data["alias"] as? String)
+            ?? trimmedString(data["email"] as? String)
+    }
+    
+    private static func resolvedUserAlias(from data: [String: Any]) -> String? {
+        trimmedString(data["alias"] as? String)
     }
     
     // MARK: - 第三栏：好友行程
@@ -401,17 +506,19 @@ struct FriendDetailView: View {
             let sinceTimestamp = friendData["since"] as? Timestamp
             let addedDate = sinceTimestamp?.dateValue() ?? Date()
             let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy年MM月dd日"
+            dateFormatter.dateStyle = .medium
+            dateFormatter.timeStyle = .none
+            dateFormatter.locale = Locale.current
             let addedDateText = dateFormatter.string(from: addedDate)
             
             await MainActor.run {
                 friendInfo = FriendDetailInfo(
                     id: friendId,
-                    name: (userData["name"] as? String) ?? (userData["displayName"] as? String) ?? (userData["display_name"] as? String),
-                    alias: userData["alias"] as? String,
-                    email: userData["email"] as? String,
+                    name: Self.resolvedUserDisplayName(from: userData),
+                    alias: Self.resolvedUserAlias(from: userData),
+                    email: Self.trimmedString(userData["email"] as? String),
                     photoUrl: userData["photo_url"] as? String ?? userData["photoUrl"] as? String,
-                    region: userData["region"] as? String,
+                    region: Self.trimmedString(userData["region"] as? String),
                     addedDate: addedDate,
                     addedDateText: addedDateText
                 )
@@ -599,6 +706,32 @@ struct FriendDetailInfo {
     let region: String?
     let addedDate: Date
     let addedDateText: String
+    
+    /// 大標題：顯示名優先，否則信箱
+    var profileHeadline: String {
+        if let n = name, !n.isEmpty { return n }
+        if let e = email, !e.isEmpty { return e }
+        return ""
+    }
+    
+    /// 與主標題不同時才顯示的別名一行
+    var distinctAliasLine: String? {
+        guard let raw = alias, !raw.isEmpty else { return nil }
+        let head = profileHeadline
+        guard !head.isEmpty else { return nil }
+        if raw.caseInsensitiveCompare(head) == .orderedSame { return nil }
+        return raw
+    }
+    
+    var hasNonEmptyEmail: Bool {
+        guard let e = email else { return false }
+        return !e.isEmpty
+    }
+    
+    var hasPublicMetaRows: Bool {
+        let reg = region?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return !reg.isEmpty || hasNonEmptyEmail
+    }
 }
 
 // MARK: - 事件行视图

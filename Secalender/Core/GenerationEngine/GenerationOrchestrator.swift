@@ -62,29 +62,35 @@ final class GenerationOrchestrator {
         }
     }
 
-    /// 門到門交通粗估（市內／城際鐵路／航空），優先「出發→住宿座標」，否則「出發→目的地」
-    private func computeTransitEstimate(request: GenerateRequest, destination: String) async -> TransitEstimate? {
-        guard let dep = request.departureLocation else { return nil }
-        let toLoc: CLLocation
+    /// 門到門交通粗估（市內／城際鐵路／航空／文字回退），優先「出發→住宿座標」，否則「出發→目的地」地理編碼
+    private func computeTransitEstimate(request: GenerateRequest, destination: String) async -> TransitEstimate {
+        let toLoc: CLLocation?
         if let c = request.accommodationCoordinate {
             toLoc = CLLocation(latitude: c.latitude, longitude: c.longitude)
-        } else if let loc = await geocodeLocation(from: destination) {
-            toLoc = loc
         } else {
-            return nil
+            toLoc = await geocodeLocation(from: destination)
         }
-        let originCC = await isoCountryCode(for: dep)
+        let originCC: String?
+        if let dep = request.departureLocation {
+            originCC = await isoCountryCode(for: dep) ?? TransitEstimateCalculator.roughISOCountryCode(for: dep)
+        } else {
+            originCC = nil
+        }
         let destCC: String?
-        if request.accommodationCoordinate != nil {
-            destCC = await isoCountryCode(for: toLoc)
+        if let loc = toLoc {
+            destCC = await isoCountryCode(for: loc) ?? TransitEstimateCalculator.roughISOCountryCode(for: loc)
         } else {
             destCC = await isoCountryCodeFromAddress(destination)
         }
-        let international: Bool = {
-            guard let a = originCC, let b = destCC else { return false }
-            return a != b
-        }()
-        return TransitEstimateCalculator.estimate(from: dep, to: toLoc, isInternational: international)
+        return TransitEstimateCalculator.estimateForPlanningRequest(
+            departureLocation: request.departureLocation,
+            destinationDisplay: destination,
+            destinationLocation: toLoc,
+            originISOCountryCode: originCC,
+            destinationISOCountryCode: destCC,
+            customInstructions: request.customInstructions,
+            startLocationText: request.slots.startLocation.value
+        )
     }
 
     /// 唯一入口：執行生成並回傳 GenerationResult
@@ -115,13 +121,22 @@ final class GenerationOrchestrator {
 
         let transitEst = await computeTransitEstimate(request: request, destination: destination)
 
+        let resolvedPace = AITripGenerator.resolvedPaceForGeneration(
+            slots: request.slots,
+            travelThemeModuleId: request.travelThemeModuleId,
+            children: request.children,
+            combinedInferenceText: request.customInstructions ?? "",
+            interestTags: request.slots.interestTags
+        )
+        let useOpenTransportGuidance = request.slots.transportPreference.value == nil
+
         let aiPlan = try await AITripGenerator.shared.generateAIItinerary(
             destination: destination,
             startDate: dateRange.startDate,
             endDate: dateRange.endDate,
             durationDays: numberOfDays,
             interestTags: request.slots.interestTags,
-            pace: request.slots.pace.value ?? .relaxed,
+            pace: resolvedPace,
             walkingLevel: request.slots.walkingLevel.value,
             transportPreference: request.slots.transportPreference.value,
             selectedAttractions: request.selectedAttractionNames,
@@ -136,7 +151,11 @@ final class GenerationOrchestrator {
             themePromptPrefix: resolution.promptPrefix,
             travelThemeId: request.travelThemeModuleId,
             departureDateTime: request.departureDateTime,
-            transitEstimate: transitEst
+            transitEstimate: transitEst,
+            budgetLevel: request.slots.budgetLevel.value,
+            specialExperienceSelections: request.slots.specialExperiencePreferenceTitles,
+            plannerConstraintLines: request.slots.plannerConstraintLines,
+            useOpenTransportGuidance: useOpenTransportGuidance
         )
 
         let missingTagCoverage = AITripGenerator.validateCustomTagCoverage(plan: aiPlan, tags: request.customSurroundingTags)

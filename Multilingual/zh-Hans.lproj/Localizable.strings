@@ -239,6 +239,16 @@
 "friend_detail.templates_placeholder" = "模板功能开发中";
 "friend_detail.edit_friend_profile" = "编辑朋友资料";
 "friend_detail.friend_profile" = "朋友资料";
+"friend_detail.alias_format" = "别名 · %@";
+"friend_detail.remarks_name" = "备注名称";
+"friend_detail.phone_label" = "电话";
+"friend_detail.privacy_label" = "分享权限";
+"friend_detail.friends_since" = "成为好友";
+"friend_detail.privacy_normal" = "普通";
+"friend_detail.privacy_limited" = "受限";
+"friend_detail.privacy_full" = "完整";
+"friend_detail.remarks_placeholder" = "仅自己可见的备注";
+"friend_detail.phone_placeholder" = "电话号码";
 "profile_page.title" = "个人资料";
 "profile_page.following" = "追踪中";
 "profile_page.saves" = "Saves";

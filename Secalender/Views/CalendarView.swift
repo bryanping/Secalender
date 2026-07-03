@@ -41,7 +41,6 @@ struct CalendarView: View {
     @State private var currentMonth: Date = Date()
     @State private var events: [Event] = []
     @State private var allEvents: [Event] = []  // 存储所有事件
-    @State private var scrollToDate: Date?
     @State private var showCreateEvent = false
     @State private var selectedDateForNewEvent: Date?
     @State private var selectedEvent: Event?
@@ -96,6 +95,7 @@ struct CalendarView: View {
                                         isMultiSelectMode: $isMultiSelectMode,
                                         selectedEventIds: $selectedEventIds
                                     )
+                                    .id(calendarDayScrollID(for: date))
                                     .onTapGesture(count: 2) {
                                         selectedDateForNewEvent = date
                                         showCreateEvent = true
@@ -108,17 +108,27 @@ struct CalendarView: View {
                     }
                     .refreshable {
                         // 只在用户主动下拉刷新时才加载
-                        await loadEvents(proxy: proxy)
+                        await loadEvents()
                     }
                     .task {
                         // 使用task替代onAppear，只在视图首次出现时加载一次
-                        await loadEvents(proxy: proxy)
+                        await loadEvents()
                         // 执行GPS定位并保存国家信息
                         await requestGPSLocationAndSaveCountry()
                         // 检查最近行程并计算距离
                         checkUpcomingTripDistance()
                         // 执行自动导入（如果启用）
                         await performAutoImportIfEnabled()
+                    }
+                    .onChange(of: isLoading) { _, loading in
+                        if !loading {
+                            scrollTodayRowToTop(proxy: proxy)
+                        }
+                    }
+                    .onAppear {
+                        if !isLoading {
+                            scrollTodayRowToTop(proxy: proxy)
+                        }
                     }
                     .onChange(of: selectedFilter) { _, _ in
                         // 当筛选器改变时，重新过滤事件
@@ -217,7 +227,7 @@ struct CalendarView: View {
     }
 
     // MARK: - 数据加载方法
-    private func loadEvents(proxy: ScrollViewProxy? = nil) async {
+    private func loadEvents() async {
         await MainActor.run {
             isLoading = true
         }
@@ -367,7 +377,6 @@ struct CalendarView: View {
                 self.friendIds = friendIdSet
                 self.groupIds = groupIdSet
                 self.events = filterEvents(uniqueEvents)  // 根据当前筛选类型过滤
-                self.scrollToDate = Calendar.current.startOfDay(for: Date())
                 self.isLoading = false
             }
 
@@ -383,6 +392,29 @@ struct CalendarView: View {
                     self.events = filterEvents(activeCachedEvents)
                 }
                 self.isLoading = false
+            }
+        }
+    }
+
+    /// `ScrollViewReader.scrollTo` 使用的穩定 id，對應當月某一天。
+    private func calendarDayScrollID(for date: Date) -> String {
+        let cal = Calendar.current
+        let d = cal.startOfDay(for: date)
+        let y = cal.component(.year, from: d)
+        let m = cal.component(.month, from: d)
+        let day = cal.component(.day, from: d)
+        return "calendarDay-\(y)-\(m)-\(day)"
+    }
+
+    /// 當前檢視月份包含「今天」時，將該日區塊捲至頂部。
+    private func scrollTodayRowToTop(proxy: ScrollViewProxy) {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        guard cal.isDate(today, equalTo: currentMonth, toGranularity: .month) else { return }
+        let id = calendarDayScrollID(for: today)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                proxy.scrollTo(id, anchor: .top)
             }
         }
     }

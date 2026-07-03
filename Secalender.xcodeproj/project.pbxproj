@@ -198,6 +198,10 @@
 		A2PLAN002F24B10000DA4FC9 /* PlannerAutoRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2PLAN012F24B10000DA4FC9 /* PlannerAutoRouter.swift */; };
 		B1C2D3E4F5A6B7C8D9E0F1A3 /* SyncTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6B7C8D9E0F1A2 /* SyncTypes.swift */; };
 		B2C3D4E5F6A7B8C9D0E1F2A4 /* SyncQueueService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F6A7B8C9D0E1F2A3 /* SyncQueueService.swift */; };
+		B2E0FA452F21F30D00DA4FC9 /* TravelSpecialExperienceCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E0FA442F21F30D00DA4FC9 /* TravelSpecialExperienceCatalog.swift */; };
+		B2E0FA482F21F30E00DA4FC9 /* TravelInterestPlaceSuggester.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E0FA472F21F30E00DA4FC9 /* TravelInterestPlaceSuggester.swift */; };
+		B2E0FA4B2F21F31000DA4FC9 /* InterestPreferenceSupplement.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E0FA4A2F21F31000DA4FC9 /* InterestPreferenceSupplement.swift */; };
+		B2E0FA4D2F21F32000DA4FC9 /* TravelDateRangeCalendarPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E0FA4C2F21F32000DA4FC9 /* TravelDateRangeCalendarPicker.swift */; };
 		B3C0B0112F60100100DA4FC9 /* PlannerMissingField.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C0R0112F60100100DA4FC9 /* PlannerMissingField.swift */; };
 		B3C0B0122F60100100DA4FC9 /* ParsedParticipant.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C0R0122F60100100DA4FC9 /* ParsedParticipant.swift */; };
 		B3C0B0132F60100100DA4FC9 /* ParsedPlannerIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C0R0132F60100100DA4FC9 /* ParsedPlannerIntent.swift */; };
@@ -410,6 +414,10 @@
 		A2PLAN012F24B10000DA4FC9 /* PlannerAutoRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerAutoRouter.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6B7C8D9E0F1A2 /* SyncTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncTypes.swift; sourceTree = "<group>"; };
 		B2C3D4E5F6A7B8C9D0E1F2A3 /* SyncQueueService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncQueueService.swift; sourceTree = "<group>"; };
+		B2E0FA442F21F30D00DA4FC9 /* TravelSpecialExperienceCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelSpecialExperienceCatalog.swift; sourceTree = "<group>"; };
+		B2E0FA472F21F30E00DA4FC9 /* TravelInterestPlaceSuggester.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelInterestPlaceSuggester.swift; sourceTree = "<group>"; };
+		B2E0FA4A2F21F31000DA4FC9 /* InterestPreferenceSupplement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestPreferenceSupplement.swift; sourceTree = "<group>"; };
+		B2E0FA4C2F21F32000DA4FC9 /* TravelDateRangeCalendarPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelDateRangeCalendarPicker.swift; sourceTree = "<group>"; };
 		B3C0R0112F60100100DA4FC9 /* PlannerMissingField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerMissingField.swift; sourceTree = "<group>"; };
 		B3C0R0122F60100100DA4FC9 /* ParsedParticipant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsedParticipant.swift; sourceTree = "<group>"; };
 		B3C0R0132F60100100DA4FC9 /* ParsedPlannerIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsedPlannerIntent.swift; sourceTree = "<group>"; };
@@ -656,6 +664,10 @@
 				A2E0F9E82F21F30A00DA4FC9 /* AIPlannerView.swift */,
 				A2E0FA002F21F30B00DA4FC9 /* TravelPlanningView.swift */,
 				A2E0FA312F21F30C00DA4FC9 /* TravelPlannerContent.swift */,
+				B2E0FA442F21F30D00DA4FC9 /* TravelSpecialExperienceCatalog.swift */,
+				B2E0FA472F21F30E00DA4FC9 /* TravelInterestPlaceSuggester.swift */,
+				B2E0FA4A2F21F31000DA4FC9 /* InterestPreferenceSupplement.swift */,
+				B2E0FA4C2F21F32000DA4FC9 /* TravelDateRangeCalendarPicker.swift */,
 				A2E0F9D52F210B6A00DA4FC9 /* AIPlanningWelcomeView.swift */,
 				A2E0FA052F21F31A00DA4FC9 /* CreateTripTemplateView.swift */,
 				A2E0FA072F21F31A00DA4FC9 /* QuickThemeManagementView.swift */,
@@ -720,7 +732,7 @@
 			isa = PBXGroup;
 			children = (
 				A2E0FA392F24B00200DA4FC9 /* Networking */,
-				A2F0A0042F90000100DA4FC9 /* TimeOS */,
+				A2F0A0042F90000100DA4FC9 /* ../TimeOS */,
 				A2E0FA0B2F21F31B00DA4FC9 /* NPI.swift */,
 				A2E0FA032F21F31A00DA4FC9 /* QuickThemeManager.swift */,
 				A2E0FA0D2F21F31D00DA4FC9 /* ThemePromptService.swift */,
@@ -762,13 +774,6 @@
 			path = Profile;
 			sourceTree = "<group>";
 		};
-		A2E93C5F2C32AD9F00516E52 /* Firestore */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Firestore;
-			sourceTree = "<group>";
-		};
 		A2EDD8F32C2484600098B31A /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
@@ -781,7 +786,7 @@
 			path = Utilities;
 			sourceTree = "<group>";
 		};
-		A2F0A0042F90000100DA4FC9 /* TimeOS */ = {
+		A2F0A0042F90000100DA4FC9 /* ../TimeOS */ = {
 			isa = PBXGroup;
 			children = (
 				A2F0A0022F90000100DA4FC9 /* TimeOSV1.swift */,
@@ -827,7 +832,6 @@
 				A2706CE92C1B2D6F004AB455 /* Authentication */,
 				A2E93C512C32915A00516E52 /* Core */,
 				B3C0GE012F60100100DA4FC9 /* Engines */,
-				A2E93C5F2C32AD9F00516E52 /* Firestore */,
 				A2F229B52D40CC9400B4CA4D /* Models */,
 				A251BF682DF927520024A02C /* Preview */,
 				A2EDD8F32C2484600098B31A /* Utilities */,
@@ -1089,6 +1093,10 @@
 				A2F0A0032F90000100DA4FC9 /* TimeOSV1.swift in Sources */,
 				A2E0FA012F21F30B00DA4FC9 /* TravelPlanningView.swift in Sources */,
 				A2E0FA302F21F30C00DA4FC9 /* TravelPlannerContent.swift in Sources */,
+				B2E0FA452F21F30D00DA4FC9 /* TravelSpecialExperienceCatalog.swift in Sources */,
+				B2E0FA482F21F30E00DA4FC9 /* TravelInterestPlaceSuggester.swift in Sources */,
+				B2E0FA4B2F21F31000DA4FC9 /* InterestPreferenceSupplement.swift in Sources */,
+				B2E0FA4D2F21F32000DA4FC9 /* TravelDateRangeCalendarPicker.swift in Sources */,
 				A2E0F9C12F1B1ECE00DA4FC9 /* PlanEditView.swift in Sources */,
 				A2E0F9B12F1A857000DA4FC9 /* MessageBubble.swift in Sources */,
 				A2BD0C142F303BF70054E3F1 /* SignInEmailViewModel.swift in Sources */,
