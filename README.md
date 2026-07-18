@@ -1,466 +1,168 @@
-# Secalender
+# Secalender（活動曆）
 
-Secalender 是一个用于管理日历和活动的 iOS 应用程序，支持个人行程管理、朋友分享、社群活动和 AI 智能规划等功能。
-
-## 📚 文档索引
-
-**查看完整文档索引**: [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md)
-
-所有项目文档已整理完成，包括：
-- 📖 项目概览和快速入门
-- ⚙️ 配置与设置指南
-- 🎯 功能说明文档
-- 🏗️ 架构设计文档
-- 🔧 问题解决方案
-- ✅ 待办事项清单
+Secalender 是一款 iOS 行事曆與活動管理 App：個人行程、朋友/社群分享、AI 智能規劃、模板市集、Time OS 時間管理。本 README 於 2026-07-18 依全量程式碼審查（iOS 152 檔 + Core 子模組 73 檔 + Web + infra）重寫，取代舊版過期內容。
 
 ---
 
-## 主要功能
+## 1. 實際導航結構
 
-### 核心功能
+TabView 為 **4 個 Tab + 中央動作鈕**（ContentView.swift），非舊文件所稱 5 Tab：
 
-- **日历视图**: 使用卷轴式的排列显示一整个月的行程，支持不同颜色标记不同类型的活动
-  - 🔴 自己发起的活动用红色
-  - 🟢 社群发起的活动用绿色
-  - 🔵 朋友发起的活动用蓝色
+1. **行事曆** `CalendarView`
+2. **智能規劃** `TravelTemplateView`（3 分頁：AI 規劃 `AIPlanningWelcomeView` / 我的模板 `MyTemplatesView` / 模板市集 `TemplateStoreView`；另可進 `TimeOSHomeView`）
+3. （中央 + 鈕）動作選單：新增行程 `EventCreateView`、AI 對話 `AIConversationView`、加好友、建社群
+4. **朋友＆社群** `FriendsAndGroupsView`
+5. **會員中心** `MemberView`（→ 設定 `SettingsView`、影響力中心、商業中心、資產）
 
-- **活动管理**: 
-  - 添加、编辑、删除活动
-  - 支持活动的重复设置（如每周、每月）
-  - 事件筛选功能（全部/我的行程/朋友分享/公开/附近行程）
-  - 双击日期快速创建事件
-
-- **智能规划**: 
-  - AI 行程规划
-  - 模板市集功能
-  - 规划结果展示
-
-- **朋友和社群**: 
-  - 添加和管理好友（支持通过别名、邮箱或用户ID搜索添加）
-  - 创建和管理社群
-  - 查看朋友和社群的活动
-  - 朋友活动分享
-
-- **分享功能**: 
-  - 事件分享
-  - 分享历史记录
-  - 分享通知
-  - 活动邀请
-
-- **用户功能**: 
-  - 个人资料管理
-  - 成就系统
-  - 应用设置
-
-- **其他功能**:
-  - Apple 日历导入
-  - Google 地图与 Places 地点搜索
-  - 地图 App 跳转（Apple Maps、Google Maps）
-  - 好友邀请链接与二维码
-  - 批量分享多个事件
-  - 多语言支持（含 Multilingual 资源）
-
-## 主要导航结构
-
-应用采用 TabView 结构，包含 5 个主要标签页：
-
-1. **行事曆** - 查看和管理所有活动
-2. **智能規劃** - AI 行程规划和模板市集
-3. **新增行程** - 快速创建新行程
-4. **朋友＆社群** - 管理朋友和社群
-5. **功能** - 用户设置和功能入口
+深鏈：`secalender://`（friend / invite / event / addevent / addcalendar）→ `DeepLinkCoordinator` → `RootView` 分派。
 
 ---
 
-## 项目结构
+## 2. 實際專案結構
 
 ```
-Secalender/
-├── SecalenderApp.swift          # 应用入口
-├── ContentView.swift            # 主 TabView 容器
-├── Core/
-│   ├── RootView.swift           # 根视图（处理认证状态）
-│   ├── Authentication/          # 认证相关（含 SignInEmailView、EmailVerificationView）
-│   ├── AIgeneration/            # AI 功能
-│   ├── Attractions/             # 景点数据
-│   ├── Cache/                   # 缓存管理（事件、好友）
-│   ├── Import/                  # 日历导入
-│   ├── Localization/            # 多语言
-│   ├── Location/                # 位置服务（含 Google Places）
-│   ├── Profile/                 # 个人资料
-│   ├── Settings/                # 设置
-│   └── Share/                   # 分享功能（含邀请链接、QR Code）
-├── Views/                       # 所有视图页面
-├── Models/                      # 数据模型
-├── Authentication/              # 认证管理器
-├── Utilities/                   # 工具类
+活動曆/
+├── Secalender/                  # iOS App（CocoaPods + SPM）
+│   ├── Secalender/
+│   │   ├── SecalenderApp.swift / ContentView.swift
+│   │   ├── Core/
+│   │   │   ├── AIgeneration/    # OpenAIManager、AITripGenerator、InputClassifier、TripTemplateManager…（11 檔）
+│   │   │   ├── GenerationEngine/# GenerationOrchestrator、PlannerIntentClassifier、ConflictDetector…（12 檔）
+│   │   │   ├── Attractions/     # CityAttractionsDatabase（75 城硬編碼景點庫，無座標）
+│   │   │   ├── Cache/           # EventCache、FriendCache、SyncQueueService、圖片/頭像快取（7 檔）
+│   │   │   ├── Share/           # DeepLinkCoordinator、邀請連結、QRCode、SharedPlanService（8 檔）
+│   │   │   ├── Location/        # GooglePlaces、TravelTimeCalculator、MapAppManager（6 檔）
+│   │   │   ├── Influence/       # 埋點、XP、遊戲化、關係提醒（8 檔）
+│   │   │   ├── Settings/ Profile/ Networking/ Localization/
+│   │   │   └── RootView、TimeItemService、SchedulerService、QuickThemeManager、NPI、EntitlementService…
+│   │   ├── Authentication/      # Auth 管理、SSO、Apple 日曆（12 檔）
+│   │   ├── Models/（+ Coordination/ Planning/）
+│   │   ├── TimeOS/              # TimeOSHomeView、SuggestionInbox、TodayWorkspace、LifeWorkflow
+│   │   ├── Views/（+ Group/ Loginview/ Member/ Template/）
+│   │   ├── Engines/Coordination/# 多人時間交集引擎
+│   │   └── Utilities/
+│   └── Multilingual/            # 7 語言 Localizable.strings
+├── SecalenderWeb/               # 靜態站：index / events / plan / worldcup.html
+└── infra/
+    ├── firebase/                # firestore.rules、functions（awardXP、social 埋點）
+    └── db/                      # PostgreSQL schema（已標註停用）
 ```
 
----
-
-## 已完成的页面清单
-
-### 主要 Tab 页面
-
-- ✅ **行事曆页面** (`CalendarView.swift`) - 月份导航、事件列表、筛选功能、下拉刷新
-- ✅ **智能規劃页面** (`AIPlannerView.swift`) - AI 规划输入、模板市集、结果展示
-- ✅ **新增行程页面** (`EventCreateView.swift`) - 快速创建、成功提示、自动重置
-- ✅ **朋友＆社群页面** (`FriendsAndGroupsView.swift`) - 朋友和社群管理
-- ✅ **功能页面** (`MemberView.swift`) - 用户信息、功能入口
-
-### 事件相关页面
-
-- ✅ **事件创建/编辑**: `EventCreateView.swift`, `EventEditView.swift`, `EventDetailViewModel.swift`
-- ✅ **事件展示**: `SharedEventSectionView.swift`, `EventShareView.swift`, `EventShareActionView.swift`
-- ✅ **事件邀请**: `EventInvitationsView.swift`
-- ✅ **事件管理**: `EventManager.swift`, `Event.swift`
-
-### 朋友和社群功能
-
-- ✅ **朋友管理**: `AddFriendView.swift`, `MyFriendListView.swift`, `ReceivedFriendRequestsView.swift`, `FriendDetailView.swift`
-- ✅ **社群管理**: `AddGroupView.swift`, `GroupEventsView.swift`, `CommunityView.swift`
-- ✅ **朋友活动**: `FriendEventsView.swift`, `FriendSelectionView.swift`, `FriendMultiSelectView.swift`
-
-### 分享功能
-
-- ✅ `ShareHistoryView.swift` - 分享历史
-- ✅ `ShareNotificationsView.swift` - 分享通知
-- ✅ `InviteFriendsView.swift` - 邀请朋友
-- ✅ `BatchShareEventsView.swift` - 批量分享多个事件
-
-### 其他功能页面
-
-- ✅ `AchievementsView.swift` - 成就页面
-- ✅ `EditProfileView.swift` - 编辑个人资料
-- ✅ `LocationPickerView.swift` - 地点选择器
-- ✅ `CalendarOptionsView.swift` - 日历选项
-- ✅ `RepeatOptionsView.swift` - 重复选项
-- ✅ `TravelTimeOptionsView.swift` - 行程时间选项
-- ✅ `TemplateStoreView.swift` - 模板市集
-- ✅ `TemplateDetailView.swift` - 模板详情
-- ✅ `NearbyEventsView.swift` - 附近活动
-- ✅ `StaticSkeletonView.swift` - 骨架屏加载视图
-- ✅ `ImportAppleCalendarView.swift` - 导入 Apple 日历
-- ✅ `GoogleMapView.swift` - Google 地图视图
-- ✅ `MapAppSelectorView.swift` - 地图 App 选择器
-- ✅ `BasicInfoView.swift` - 基本信息
-- ✅ `BlockEditView.swift` - 行程区块编辑
-- ✅ `EnrichTripView.swift` - 行程丰富化
-
-### 核心功能模块
-
-#### 认证模块 (`Core/Authentication/`、`Authentication/`)
-- ✅ `AuthenticationView.swift` - 认证主视图
-- ✅ `FirebaseUserManager.swift` - Firebase 用户管理
-- ✅ `AuthenticationManager.swift` - 认证管理器
-- ✅ `SignInAppleHelper.swift` - Apple 登录助手
-- ✅ `SignInGoogleHelper.swift` - Google 登录助手
-- ✅ `SignInEmailView.swift`、`EmailVerificationView.swift` - 邮箱登录与验证
-- ✅ `PhoneVerificationManager.swift` - 手机验证管理器
-- ✅ `AppleCalendarManager.swift` - Apple 日历管理
-
-#### AI 功能 (`Core/AIgeneration/`)
-- ✅ `OpenAIManager.swift` - OpenAI 管理器
-- ✅ `ScheduleItem.swift` - 行程项模型
-- ✅ `AITripGenerator.swift`、`PlanGenerator.swift`、`InputClassifier.swift` - AI 行程生成
-
-#### 缓存和存储 (`Core/Cache/`)
-- ✅ `EventCacheManager.swift` - 事件缓存管理器
-- ✅ `FriendCacheManager.swift` - 好友缓存管理器
-
-#### 位置服务 (`Core/Location/`)
-- ✅ `LocationCacheManager.swift` - 位置缓存管理器
-- ✅ `TravelTimeCalculator.swift` - 行程时间计算器
-- ✅ `GooglePlacesManager.swift`、`GooglePlacesAutocompleteManager.swift` - Google Places 搜索
-- ✅ `MapAppManager.swift` - 地图 App 跳转管理
-
-#### 导入 (`Core/Import/`)
-- ✅ `AppleCalendarImportManager.swift` - Apple 日历导入
-
-#### 分享功能 (`Core/Share/`)
-- ✅ `ContactManager.swift` - 联系人管理器
-- ✅ `InviteLinkManager.swift` - 邀请链接管理器
-- ✅ `FriendInviteLinkManager.swift` - 好友邀请链接
-- ✅ `QRCodeGenerator.swift` - 二维码生成
-
-#### 多语言 (`Core/Localization/`)
-- ✅ `LocalizationManager.swift` - 本地化管理
-
-#### 景点数据 (`Core/Attractions/`)
-- ✅ `CityAttractionsDatabase.swift` - 城市景点数据
+註：舊 README 所列 `Core/Import/`、`docs/` 目錄、`miniprogram/` 均不存在。
 
 ---
 
-## 離上線還需完成的功能
+## 3. 功能模組現況（審查結論）
 
-以下依「上線前必做」「上線前建議」「上線後可做」整理，對應 [docs/TODO.md](../docs/TODO.md) 與程式內 TODO。
-
-### 上線前必做（MVP 阻塞項）
-
-與模板市集、後端連線與購買狀態相關，缺一無法完整上線。
-
-| 項目 | 現況 | 需完成 |
-|------|------|--------|
-| **模板列表** | iOS 使用 Mock 資料 | iOS 改為呼叫 `GET /api/templates`（[TODO.md](../docs/TODO.md) 1.4.2） |
-| **模板內容** | 套用時 Mock 生成 | 新增/使用 `GET /api/templates/:id/content`，iOS 套用時改為呼叫 API（1.4.5） |
-| **購買狀態** | 僅存 UserDefaults | 改為讀寫 Firebase `users/{uid}/purchases` 或與 API 同步（1.4.3） |
-| **Web API 與部署** | 部分 API 已改 Firebase | 部署 SecalenderWeb（如 Vercel）、確認 API Base URL（1.2、MVP 檢查清單） |
-| **Firebase 營運** | Rules/索引未全部署 | 部署 `firestore.rules`、建立索引、種子資料 `templates`（1.3.2、MVP 檢查清單） |
-
-### 上線前建議（體驗與穩定性）
-
-不擋上架，但會明顯影響體驗或穩定性，建議上線前處理。
-
-#### 事件與日曆
-- **事件詳情頁**：完整事件詳情展示與操作（目前 README 待完善項）
-- **事件刪除確認**：加強刪除確認流程
-- **事件提醒**：支援事件提醒設定
-- **行程時間計算**：`EventCreateView` 引入 UUID token，只讓最後一次計算結果生效（程式內 TODO）
-
-#### UI/UX
-- **載入與錯誤**：統一載入狀態、錯誤提示樣式與文案
-- **空狀態**：主要列表頁補齊空狀態提示
-
-#### 其他
-- **AI 對話**：`AIConversationView` 取得當前位置（程式內 TODO）
-- **景點資料**：`CityAttractionsDatabase` 持久化存儲（可選）
-
-### 上線後可做（Phase 2/3 與低優先級）
-
-- **事件**：重複規則完善、附件、評論
-- **模板市集**：分頁/篩選/排序、評價、收藏、作者與推薦（見 [TODO.md](../docs/TODO.md) Phase 2/3）
-- **產品**：統計報表、匯出 iCal、主題自訂、多語言擴充
-- **Web/小程序**：事件建立與編輯等進階功能
-
-### 上線檢查清單（對應 docs/TODO.md MVP）
-
-- [ ] Firebase 已建立 `templates`、`orders` 並有種子資料
-- [ ] SecalenderWeb 已部署，API 讀寫 Firebase
-- [ ] Firebase Rules 已部署
-- [ ] iOS 已設定 API Base URL
-- [ ] iOS 模板列表來自 API
-- [ ] iOS 模板內容來自 API（套用時）
-- [ ] 購買狀態可跨裝置（Firebase）
+| 模組 | 完成度 | 狀態摘要 |
+|---|---|---|
+| 登入/註冊（Email/Google/Apple/匿名/手機） | 85% | 可用；但 users 唯一性查詢被 Firestore rules 阻斷（見 P0） |
+| 行事曆月檢視 + 篩選/搜尋/標籤 | 85% | 可用；跨月多日事件漏顯示、「+」建立鈕被註解只剩雙擊 |
+| 事件建立/編輯/刪除 + Local-First 同步佇列 | 75% | 可用；座標不落庫、離線重試產生重複事件、樂觀儲存吞錯 |
+| 重複事件 | 15% | 只有 UI 與欄位，**無展開/顯示/編輯語意**（空殼） |
+| 事件提醒/通知 | 0% | 無任何 UNUserNotification 排程（僅關係提醒有本地推播） |
+| Apple 日曆匯入/寫出 | 60% | iOS 17+ 權限判斷 bug 導致讀寫失敗；匯入紀錄僅存本地 |
+| 好友（搜尋/QR/邀請連結/請求） | 80% | 可用；快取未按用戶隔離會互相污染、刪好友單向、錯誤無 UI 回饋 |
+| 社群 | 70% | 審核制/私密社群可被繞過直接加入；一般成員看不到社群活動列表 |
+| 事件分享/邀請/參與狀態 | 70% | client 邏輯大致齊；**rules 缺 event_shares/event_invitations/notifications 集合**（部署即全斷）；accepted/joined 雙軌狀態 |
+| AI 規劃（統一規劃器 + 旅遊四步驟） | 75% | 真 OpenAI（gpt-4o/4o-mini），但 key 打包在 App 內；生成進度為 16 秒假動畫；JSON 修復邏輯會越修越壞 |
+| Time OS（建議收件匣/今日工作台/生活工作流） | 80% | 可用；套用時未排入項目也被標 done（資料遺失） |
+| 多人時間協調 | 60% | 5 模式僅 3 種真實作；未回覆者被當不存在 |
+| 模板市集 | 55% | 讀取走 APIClient；**購買為假流程**（無金流、僅本地標記）；發布/上架流程不存在 |
+| 會員中心/影響力/XP | 65% | 埋點+Cloud Function awardXP 真實；商業中心/等級權益/分析數字全部寫死 |
+| 設定 | 80% | 14 個子頁多數可用；快取資訊/意見反饋/2FA/錢包為假或空殼 |
+| 多語言（7 語） | 60% | zh-Hant 最全 1117 key；de/es/fr/ja 缺約 44%、zh-Hans 缺 31% |
+| Web（4 頁） | 80% | worldcup 最完整；plan.html 只能看不能確認、無深鏈按鈕 |
+| 金流/IAP | 0% | 無 StoreKit；EntitlementService 無人呼叫、isProUser 恆 false |
 
 ---
 
-## 待完善的页面/功能
+## 4. 審查發現的問題
 
-### 高优先级待完善功能
+### P0 — 阻斷性（部署/上架前必修）
 
-#### 事件相关
-- ⚠️ **事件详情页面** - 需要创建完整的事件详情展示页面
-- ⚠️ **事件删除确认** - 增强删除确认流程
-- ⚠️ **事件重复规则** - 完善重复事件的创建和编辑逻辑
-- ⚠️ **事件提醒设置** - 添加事件提醒功能
+1. **Firestore rules 與 client 嚴重脫節**（infra/firebase/firestore.rules）
+   - 缺 `event_shares`、`event_invitations`、`notifications` 三個集合規則 → 部署後分享/邀請/通知全部 permission-denied。
+   - `users` 只許本人讀，但註冊要做 userCode/alias 唯一性 where 查詢 → **新用戶註冊流程被 rules 擋死**；userCode 搜好友亦同。
+   - `groups/{gid}/groupEvents` 任何登入者可讀寫；`shared_plans`/`shared_quick_themes` create 未驗 creatorId；users create 未限欄位可自帶 XP。
+   - 兩份 FIRESTORE_RULES.md 指向不存在的 `EVENT_AND_FIRESTORE_RULES.md`，且彼此不一致 → 收斂為單一真實來源。
+2. **OpenAI API Key 打包進 App**（Info.plist/Secrets.xcconfig，OpenAIManager/PlannerIntentClassifier/CreateTripTemplateView 三處直連）→ 改後端代理。
+3. **事件 ID 體系不穩定**：`abs(UUID().hashValue)`、缺 id 時 fallback `documentID.hashValue`（每次啟動隨機化）→ 去重/參與狀態/多選全不穩定；離線重試會產生新 id 造成重複事件。改用 documentID 字串。
+4. **假購買流程**：TemplateDetailView 無扣款即「購買成功」，僅存本地 → 上架審核風險；接 StoreKit 2 或先下架價格顯示。
+5. **iOS 17 日曆權限 bug**：AppleCalendarManager 多處只判 `.authorized` 未判 `.fullAccess` → 匯入/寫出在 iOS 17+ 失效。
+6. Cloud Functions：`recordMetric` 無白名單可灌任意 metric 刷成就；awardXP 帶 metricKey 路徑 transaction 讀在寫後**必拋錯**（functions/src/index.ts:269）。
 
-#### 朋友和社群
-- ✅ **社群成员管理** - 完善社群成员列表和管理功能（已完成）
-- ✅ **社群权限设置** - 添加社群管理员权限管理（已完成）
-- ✅ **朋友活动同步** - 优化朋友活动同步机制（已完成）
+### P1 — 嚴重功能缺陷
 
-#### 分享功能
-- ✅ **事件分享基础功能** - 支持分享事件给好友、通过链接分享
-- ✅ **分享可见性控制** - 根据观看者身份（创建者/被分享者/好友/陌生人）显示不同功能
-  - 创建者：可分享、删除、编辑行程
-  - 被分享者：可选择参与/不参与
-  - 好友：可查看公开事件
-  - 单一行程分享（非好友）：永远可见，参与状态用颜色区分（参与=蓝色，未参与=浅蓝色）
-  - 陌生人：不可见
-- ✅ **参与状态管理** - 支持记录和显示用户参与状态（已参与/未参与/已拒绝）
-- ✅ **批量分享** - 支持批量分享多个事件（`BatchShareEventsView`）
-- ✅ **分享链接生成** - 事件分享連結完整流程（InviteLinkManager + DeepLink 解析與導航）
+- DateFormatter 全域未設 `en_US_POSIX`/timeZone；日期以裸字串存儲無時區 → 佛曆/和曆裝置寫壞資料、跨時區時間全錯。
+- 跨區間查詢缺陷：TimeItemService 只查 startAt 落在範圍內 → 月曆漏顯示、衝突偵測漏判；CalendarView 月過濾同病。
+- FriendManager 快取污染（getMutualFriendsCount 以對方 id 覆蓋自己的好友集）→ 全 app isFriend 判斷錯誤。
+- EventShareView：管理員刪除按鈕無對應 alert（deleteEvent 永不執行）；分享「+」對非創建者也顯示（違反可見性規則 5.1）。
+- 社群：joinGroupPublicly 不驗 privacy；getGroupMembers `in` 查詢 >10 人直接拋錯。
+- AI 解析：fixJSON 把所有 `'`→`"`、換行→字面 `\n`（越修越壞）；同日重複活動標題 `Dictionary(uniqueKeysWithValues:)` **runtime crash**；GenerationSchedulerService `sorted >=` 未定義行為；排不進空檔的任務被靜默丟棄。
+- 樂觀儲存吞錯：建立/編輯先 dismiss、背景失敗只 print → 幽靈事件；update 找不到文件靜默 no-op。
+- EventCreateView 多日項「結束日期」Binding 寫回開始日期（明確 bug）；多日儲存中途失敗無回滾。
+- ImageCacheService 用 Hasher 當快取鍵（跨啟動失效且垃圾堆積）。
+- PhoneVerificationManager 把 17025（號碼已綁他人）當驗證成功。
+- 錯誤處理普遍 `try?`/print 吞錯，登入失敗、AI 失敗（AIConversationView 無 .alert）用戶無感。
 
-### 中优先级待完善功能
+### P2 — 未完成/假資料/斷頭
 
-#### UI/UX 优化
-- ⚠️ **加载状态优化** - 统一加载状态展示
-- ⚠️ **错误提示优化** - 统一错误提示样式和文案
-- ⚠️ **空状态页面** - 为各列表页面添加空状态提示
-
-#### 功能增强
-- ✅ **事件搜索** - 添加事件搜索功能（標題、地點、備註、標籤）
-- ✅ **事件标签** - 支持事件标签分类（建立/編輯可選標籤，日曆可依標籤篩選）
-- ⚠️ **事件附件** - 支持添加图片、文件等附件
-- ⚠️ **事件评论** - 支持对共享事件进行评论
-
-#### 数据同步
-
-**离线支持（Offline Support）**  
-系统采用 Local First 架构：使用者资料、行程、任务、提醒、最近查看内容等核心资料会保存于本地资料库，画面一律「先读本地」再于背景同步云端。新增 / 编辑 / 删除操作先写入本地并标记 `syncStatus`，再由背景同步模块在 App 启动、回前台、网路恢复、手动刷新等时机自动上传，并透过同步伫列与重试机制确保在无网 / 弱网 / Firebase 或 API 不可用时操作不会丢失。删除采软删除（`deletedAt`）避免离线期间资料消失但删除指令无法同步的情况。
-
-**冲突解决（Conflict Resolution）**  
-所有可同步资料都带有 `updatedAt`、`serverUpdatedAt`、`syncVersion`、`syncStatus` 等栏位，用于版本判定与冲突处理。私有资料使用「Last Write Wins + 备份」策略；共享 / 协作资料则尽量做到栏位级合并：不同栏位修改自动合并，同一栏位修改则依角色权限（`owner > editor > invited user > viewer`）决定优先权，无法自动判定时标记为冲突并在 UI 中提示使用者选择本地版、云端版或手动合并。删除与修改同时发生时预设以删除为准，但会将本地修改保存为草稿，避免内容遗失。
-
-详细设计（缓存分层、同步伫列、冲突策略、实作分级）见：[离线与同步设计文档](../docs/OFFLINE_SYNC_DESIGN.md)。
-
-### 低优先级/未来功能
-
-- ⚠️ **统计报表** - 活动参与统计
-- ⚠️ **导出功能** - 导出日历为 iCal 格式
-- ⚠️ **主题定制** - 支持自定义主题颜色
-- ⚠️ **多语言支持** - 国际化支持（已有基础结构）
+- **確認孤兒頁 25 個**（有程式無入口，含約 120KB legacy）：CommunityView、NearbyEventsView*、FriendEventsView*、ShareNotificationsView、EventShareActionView（且與他檔重複宣告）、FriendMultiSelectView、TravelTimeOptionsView、DaySectionView、PlanDaySectionView、StaticSkeletonView、TimeSecretaryView(TimeOSV1)、WeekendFlashView、DeepCultureView、EnrichTripView、TravelPlanningView、CustomThemePlannerView、AchievementsView、AIPlanResultView、FavoritesDetailView、RecentViewsDetailView、SocialAssetsManagementView、PublishingHistoryView、CreatorPublicHubView、Core/Profile/ProfileView、ReviewView（*經由孤兒 CommunityView 連帶斷頭）。→ 接上導航或刪除。
+- 無人呼叫的服務：EntitlementService、TimeItemMigration、CalendarEventRealtimeListener、OpenAIManager.generateSchedule、AIPlanner.generatePlan/suggestEvents（endpoint 早已下線）。
+- 寫死假資料：商業中心全部數字、LevelBenefits、影響力分析卡、TemplateStore mock 創作者、FriendCard 統計、SettingsView 快取資訊/錢包、CreatorPublicHub 樣本卡、QR 佔位圖。
+- 空殼/斷頭按鈕：MyPlansDetail/MyThemesDetail/Drafts（空殼）、PersonalProfileView 4 顆按鈕、ContentBatchManagement 4 卡、MyFriendListView 3 鈕、EventShareView 陌生人加好友、市集「創作者」分類、SettingsView 設密碼鈕未掛載、切換帳號空實作、AIConversationView「查看詳情/添加到日曆」無 sheet、MultiEventView 拖拽排序未綁定、轉存模板 stub。
+- 其他：CalendarView「+」被註解、CityAttractionsDatabase 全庫無座標（距離排序失效）、聊天記錄只存不載、seed_worldcup.js 缺資料檔、plan.html 無法確認參與、域名三分裂（secalender.app / secalender.com / huodonli.cn）。
 
 ---
 
-## 安装与配置
+## 5. 多語言現況
 
-### 安装
+| 語言 | 唯一 key | 相對 zh-Hant 缺漏 |
+|---|---|---|
+| zh-Hant | 1117 | 基準（另缺 en 的 24 個深鏈/repeat key） |
+| en | 1014 | 缺 127（徽章牆、AI 規劃、行程豐富化） |
+| zh-Hans | 773 | 缺 347 |
+| es / de / fr | ~625 | 各缺 ~492（44%） |
+| ja | 613 | 缺 525 |
 
-1. 确保已安装 CocoaPods。
-2. 在项目根目录下运行 `pod install`。
-3. 打开生成的 `.xcworkspace` 文件。
-
-### 配置
-
-1. 确保 `GoogleService-Info.plist` 文件已添加到项目中。
-2. 在 Xcode 中选择正确的 Scheme。
-3. 配置 Firebase 项目（如果需要使用 Firebase 功能）。
-
-**详细配置指南**:
-- [Google Maps 配置指南](./GOOGLE_MAPS_GUIDE.md)
-- [AI 功能配置指南](./AI_GUIDE.md)
-- [数据库架构文档](../docs/DATABASE_ARCHITECTURE.md)
+另：程式內仍有大量硬編碼中文（EventCreate/Edit、CalendarView、EventUIStyle 等）與 `zh_TW` 寫死 locale；Web 支援 ar 而 iOS 不支援。建議建 CI 腳本比對 key 差集與重複 key（現 64 處重複）。
 
 ---
 
-## 技术栈
+## 6. 上線前檢查清單（依審查重排）
 
-- **开发语言**: Swift
-- **UI 框架**: SwiftUI
-- **后端服务**: Firebase (Authentication, Firestore)
-- **AI 服务**: OpenAI API
-- **地图服务**: Google Maps SDK, Google Places SDK
-- **依赖管理**: CocoaPods, Swift Package Manager (SPM)
-
----
-
-## 数据库架构
-
-### 架构总览
-
-Secalender 采用「Web 服务（内容商品）+ Firebase（人/权限/私有资料）」架构：
-
-| 资料类型 | 存放位置 | 说明 |
-|---------|---------|------|
-| **行程模板市集** | PostgreSQL | 可搜寻、可排序、可运营的内容商品 |
-| **订单/付款** | PostgreSQL | 金流、发票、对帐 |
-| **评价系统** | PostgreSQL | 公开评价、审核 |
-| **用户资料** | Firebase Firestore | 个人资料、隐私设定 |
-| **私有行程 (Events)** | Firebase Firestore | 用户自己建立的行程 |
-| **购买记录索引** | Firebase Firestore | 快速判断授权 |
-| **好友/群组** | Firebase Firestore | 社交关系、权限管理 |
-| **媒体档案** | Object Storage + CDN | 图片、影片 |
-
-### 代码对应关系
-
-| 现有档案 | 新架构对应 |
-|---------|-----------|
-| `UserManager.swift` → `DBUser` | Firestore `users/{uid}` |
-| `EventManager.swift` → `Event` | Firestore `users/{uid}/events/{eventId}` |
-| `TripTemplateManager.swift` → `SavedTripTemplate` | Firestore `users/{uid}/library/{templateId}`（未来） |
-| `FriendManager.swift` | Firestore `friends/{docId}`, `friend_requests/{docId}` |
-| `GroupManager.swift` → `CommunityGroup` | Firestore `groups/{groupId}` |
-
-### 实施阶段
-
-#### Phase 1: 基础架构（MVP）
-- [ ] Web 服务（PostgreSQL + API）
-- [ ] Firebase 购买记录索引
-- [ ] iOS App 整合
-
-#### Phase 2: 进阶功能
-- [ ] 评价系统
-- [ ] 搜寻与筛选
-- [ ] 收藏功能
-
-#### Phase 3: 运营功能
-- [ ] 作者系统
-- [ ] 推荐系统
-- [ ] 统计与分析
-
-**详细架构文档**: 请参考 [docs/DATABASE_ARCHITECTURE.md](../docs/DATABASE_ARCHITECTURE.md)
+- [ ] 修 firestore.rules 四項（P0-1）並用 Emulator 實測後部署
+- [ ] OpenAI 改後端代理，移除 client key（P0-2）
+- [ ] 事件 ID 改 documentID 字串（P0-3）
+- [ ] 假購買下架或接 StoreKit 2（P0-4）
+- [ ] iOS 17 日曆權限修復（P0-5）
+- [ ] Cloud Functions：metric 白名單 + transaction 讀寫順序（P0-6）
+- [ ] DateFormatter/時區統一工具
+- [ ] 跨區間查詢修復（月曆 + 衝突偵測）
+- [ ] EventShareView 刪除 alert、分享鈕權限 gating、accepted/joined 統一
+- [ ] 孤兒頁與 legacy（~120KB）清理決策
+- [ ] 多語言 key 補齊 + CI 校驗
+- [ ] 重複事件引擎與本地通知提醒（核心行事曆期待功能）
+- [ ] 補單元測試：NPI、SchedulerService、EventAccessManager、AvailabilityIntersectionEngine、fixJSON
 
 ---
 
-## 使用指南
+## 7. 安裝與配置
 
-### 快速开始
+1. 安裝 CocoaPods，專案根目錄執行 `pod install`，開啟 `.xcworkspace`。
+2. 確認 `GoogleService-Info.plist` 已加入。
+3. `Config/Secrets.xcconfig` 提供 API Key（GOOGLE_MAPS / OPENAI；OPENAI 將移往後端）。
+4. Firebase：`infra/firebase/` 內 `deploy_rules.sh` 部署 rules 與索引（**先完成 P0-1 修復**）；functions 為 XP/埋點引擎。
+5. `infra/db/` PostgreSQL schema 目前停用，模板市集讀取走 `APIClient`（GET /api/templates）。
 
-- 启动应用程序后，首先需要进行登录（支持 Apple、Google、邮箱及手机验证登录）。
-- 登录后可以在日历视图中查看和管理活动。
-- 点击活动可以查看详情或进行编辑。
-- 使用底部 Tab 栏切换不同功能模块。
-
-### 多平台支持
-
-#### iOS 应用
-- ✅ 完整的日历和事件管理功能
-- ✅ 好友管理（支持别名、邮箱、用户ID搜索）
-- ✅ 事件分享与批量分享
-- ✅ Apple 日历导入
-- ✅ Google 地图与地点搜索
-
-#### Web 应用 (SecalenderWeb)
-- ✅ 好友管理功能
-- ✅ 事件分享查看
-- ✅ 支持部署到 https://huodonli.cn/
-- 📝 位置：`/Users/linping/Desktop/活動歷/MyFirstProgram/SecalenderWeb/`
-
-#### 小程序 (miniprogram)
-- ✅ 好友管理功能
-- ✅ 事件分享查看
-- 📝 位置：`/Users/linping/Desktop/活動歷/MyFirstProgram/SecalenderWeb/miniprogram/`
+技術棧：Swift / SwiftUI、Firebase（Auth、Firestore、Functions、Storage）、OpenAI（gpt-4o / gpt-4o-mini）、Google Maps & Places、CocoaPods + SPM。
 
 ---
 
-## 开发进度
+## 8. 相關文件
 
-- ✅ 核心功能已实现
-- ✅ 主要页面已完成
-- ✅ 数据库架构设计完成（全 Firebase，見 [docs/TODO.md](../docs/TODO.md)）
-- ⚠️ 離上線必做與建議項目見「**離上線還需完成的功能**」
-- ⚠️ 資料庫架構實施中（Phase 1 MVP，詳見 [docs/TODO.md](../docs/TODO.md)）
-
----
-
-## 下一步行动计划
-
-1. **上線必做**：完成「離上線還需完成的功能」中的 MVP 阻塞項（模板 API、購買狀態、Firebase 部署、iOS 連線）
-2. **事件體驗**：完善事件詳情頁、刪除確認、提醒設定；必要時補上行程時間計算的 token 機制
-3. **UI/UX**：統一載入狀態、錯誤提示與空狀態
-4. **穩定性**：依 [docs/TODO.md](../docs/TODO.md) 完成上線檢查清單與部署前檢查
-5. **上線後**：Phase 2/3（評價、搜尋、收藏、作者）、Web/小程序進階功能、統計與匯出
-
----
-
-## 相关文档
-
-### 配置指南
-- [Google Maps 配置指南](./GOOGLE_MAPS_GUIDE.md) - Google Maps SDK 集成配置
-- [AI 功能配置指南](./AI_GUIDE.md) - AI 行程生成功能配置
-
-### 功能说明
-- [页面清单](./PAGE_INVENTORY.md) - 所有已实现和待实现的页面
-- [事件分享规则](./EVENT_SHARE_VISIBILITY_RULES.md) - 事件分享可见性规则
-
-### 架构设计
-- [数据库架构设计](../docs/DATABASE_ARCHITECTURE.md) - 完整的数据库架构设计
-- [Firestore 安全规则](../docs/FIRESTORE_RULES.md) - Firestore Security Rules
-- [Web API 整合指南](../docs/WEB_API_INTEGRATION.md) - Web API 整合指南
-
-### 待办事项
-- [实施 TODO 清单](../docs/TODO.md) - 数据库架构实施任务清单
-
----
-
-## 贡献
-
-欢迎提交问题和请求功能。请通过 GitHub 提交。
-
----
-
-## 许可证
-
-[在此添加许可证信息]
+- [EVENT_SHARE_VISIBILITY_RULES.md](./EVENT_SHARE_VISIBILITY_RULES.md) — 分享可見性規則（client 實作與此有偏差，見 P1）
+- [TIME_ENGINE_ARCHITECTURE.md](./TIME_ENGINE_ARCHITECTURE.md) — Time OS / time_items 架構
+- [AI_GUIDE.md](./AI_GUIDE.md)、[PAGE_INVENTORY.md](./PAGE_INVENTORY.md)、[NAVIGATION_MERMAID.md](./NAVIGATION_MERMAID.md) — ⚠️ 內容過期（引用 19+ 個不存在檔案、5 Tab 舊結構），待依本 README 第 2、3 節更新
+- `docs/` 目錄（TODO.md、DATABASE_ARCHITECTURE.md、OFFLINE_SYNC_DESIGN.md 等）**不存在**，舊連結已全部移除

@@ -41,7 +41,8 @@ struct SecalenderApp: App {
     
     private func handleIncomingURL(_ url: URL) {
         // 支援分享連結：secalender:// 與 https://secalender.app
-        let isShareLink = (url.scheme == "secalender" && ["friend", "invite", "event"].contains(url.host))
+        // 修改内容：白名單補上 addevent（時事活動加入）與 addcalendar（ICS 匯入檢視），否則深鏈進不了 DeepLinkCoordinator
+        let isShareLink = (url.scheme == "secalender" && ["friend", "invite", "event", "addevent", "addcalendar"].contains(url.host))
             || (url.host?.hasSuffix("secalender.app") == true)
         if isShareLink {
             Task { @MainActor in

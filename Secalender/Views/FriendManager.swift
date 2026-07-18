@@ -246,6 +246,58 @@ final class FriendManager {
         }
     }
 
+    /// 修改内容：待安排 — 朋友即將到來的公開活動（openChecked=1、未刪除、今天起），供建議收件匣「朋友公開活動」區使用
+    struct PublicEventSummary: Identifiable {
+        let id: String
+        let friendId: String
+        let friendName: String
+        let title: String
+        let startAt: Date
+        let endAt: Date
+        let location: String?
+    }
+
+    func fetchUpcomingPublicEvents(for friend: FriendEntry, limit: Int = 5) async -> [PublicEventSummary] {
+        let db = Firestore.firestore()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        let dayFormatter = DateFormatter()
+        dayFormatter.dateFormat = "yyyy-MM-dd"
+        let today = Calendar.current.startOfDay(for: Date())
+        do {
+            let snapshot = try await db.collection("users").document(friend.id)
+                .collection("events")
+                .whereField("openChecked", isEqualTo: 1)
+                .getDocuments()
+            var results: [PublicEventSummary] = []
+            for doc in snapshot.documents {
+                let data = doc.data()
+                guard (data["deleted"] as? Int) != 1 else { continue }
+                let title = data["title"] as? String ?? ""
+                let dateStr = data["date"] as? String ?? ""
+                let startStr = data["startTime"] as? String ?? "09:00:00"
+                let endStr = data["endTime"] as? String ?? "10:00:00"
+                guard !title.isEmpty,
+                      let start = dateFormatter.date(from: "\(dateStr) \(startStr)"),
+                      let day = dayFormatter.date(from: dateStr), day >= today else { continue }
+                let end = dateFormatter.date(from: "\(dateStr) \(endStr)") ?? start.addingTimeInterval(3600)
+                results.append(PublicEventSummary(
+                    id: doc.documentID,
+                    friendId: friend.id,
+                    friendName: [friend.name, friend.alias, friend.email].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }.first { !$0.isEmpty } ?? "朋友",
+                    title: title,
+                    startAt: start,
+                    endAt: end,
+                    location: (data["destination"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                ))
+            }
+            return Array(results.sorted { $0.startAt < $1.startAt }.prefix(limit))
+        } catch {
+            print("⚠️ fetchUpcomingPublicEvents error: \(error.localizedDescription)")
+            return []
+        }
+    }
+
     /// 取得個人狀態字串（最近活躍），來自 users 文檔的 last_active_at；若無則回傳 nil
     @MainActor
     func fetchLastActiveString(for friendId: String) async -> String? {

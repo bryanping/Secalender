@@ -24,6 +24,11 @@ struct PlanDetailView: View {
     var onDismiss: (() -> Void)? = nil
     var onSave: (() -> Void)? = nil
     var onShare: (() -> Void)? = nil
+    // 修改内容：Time OS — 統一安排預覽：重新生成回調＋多人協作旗標（顯示「發送給成員確認」）
+    var onRegenerate: (() -> Void)? = nil
+    var isCollaborative: Bool = false
+    // 修改内容：Step B — 套用成功後回調（建議收件匣用於標記來源項目 done）
+    var onApplied: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var userManager: FirebaseUserManager
     @State private var isApplying = false
@@ -51,20 +56,27 @@ struct PlanDetailView: View {
             Color.white
                 .ignoresSafeArea()
             
-            // 修复：直接检查数据，不使用 isReady 状态，避免一直转圈
-            // 如果 plan.days 为空，显示空状态；否则直接显示内容
-            if plan.days.isEmpty {
-                // 空状态视图
-                VStack(spacing: 20) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 48))
-                        .foregroundColor(.secondary)
-                    Text("plan_detail.invalid_data".localized())
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                }
-            } else {
-                VStack(spacing: 0) {
+            // 修改内容：Time OS — 統一安排預覽：依 resultType 顯示行程時間軸 / 任務清單 / 分工清單 / 待安排清單；底部固定操作列
+            VStack(spacing: 0) {
+                if let result = generationResult, plan.days.isEmpty, !result.candidates.isEmpty {
+                    // 任務型結果（taskOnly / untimedPlan）：候選清單
+                    if !result.conflicts.isEmpty {
+                        conflictsBanner(conflicts: result.conflicts)
+                    }
+                    candidateListView(result)
+                } else if plan.days.isEmpty {
+                    // 空状态视图
+                    Spacer()
+                    VStack(spacing: 20) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 48))
+                            .foregroundColor(.secondary)
+                        Text("plan_detail.invalid_data".localized())
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                } else {
                     if let result = generationResult, !result.conflicts.isEmpty {
                         conflictsBanner(conflicts: result.conflicts)
                     }
@@ -73,6 +85,11 @@ struct PlanDetailView: View {
                         daySelectorBar
                     }
                     horizontalScrollContentView
+                }
+
+                // 底部固定操作列（僅生成引擎結果）
+                if generationResult != nil {
+                    bottomActionBar
                 }
             }
         }
@@ -143,27 +160,22 @@ struct PlanDetailView: View {
                 .presentationDragIndicator(.visible)
             }
         }
-        .confirmationDialog("選擇操作", isPresented: $showActionSheet, titleVisibility: .visible) {
-            if generationResult != nil {
-                Button("直接套用") {
-                    applyDirectToTimeItems()
-                }
-                Button("存為建議") {
-                    saveAsSuggestionToTimeItems()
-                }
-                Button("用 scheduler 補時間") {
-                    applyWithScheduler()
-                }
-            } else {
+        // 修改内容：功能整理 — 右上角僅留次要動作（主要動作在底部固定列，不重複）：
+        // 套用/存建議移至底部；「用 scheduler 補時間」併入「套用到時間表」自動處理；「儲存」正名「存為模板」
+        .confirmationDialog("更多操作", isPresented: $showActionSheet, titleVisibility: .visible) {
+            if generationResult == nil {
                 Button("加入行程") {
                     addPlanToCalendar()
                 }
             }
-            Button("儲存") {
+            Button("存為模板") {
                 savePlan()
             }
-            Button("分享") {
-                sharePlan()
+            // 修改内容：分享整併 — 生成階段不提供右上角分享（與底部「發送給成員確認」重疊）；僅模板/瀏覽情境保留
+            if generationResult == nil {
+                Button("分享") {
+                    sharePlan()
+                }
             }
             if onEdit != nil {
                 Button("編輯整個行程") {
@@ -192,6 +204,182 @@ struct PlanDetailView: View {
     }
     
     
+    // MARK: - 修改内容：Time OS — 候選清單（任務清單 / 分工清單 / 待安排清單）
+    private func candidateListView(_ result: GenerationResult) -> some View {
+        let timed = result.candidates.filter { $0.hasTime }.sorted { ($0.startAt ?? .distantPast) < ($1.startAt ?? .distantPast) }
+        let untimed = result.candidates.filter { !$0.hasTime }
+        let listTitle: String = isCollaborative ? "分工清單" : (result.resultType == .taskOnly ? "任務清單" : "待安排清單")
+        let timeFormatter: DateFormatter = {
+            let f = DateFormatter()
+            f.dateFormat = "MM/dd HH:mm"
+            return f
+        }()
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(customTitle ?? listTitle)
+                    .font(.system(size: 24, weight: .bold))
+                Text(listTitle)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                if !timed.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("已排入時間")
+                            .font(.headline)
+                        ForEach(timed) { c in
+                            HStack(alignment: .top, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(c.startAt.map { timeFormatter.string(from: $0) } ?? "--")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(.blue)
+                                    if let end = c.endAt {
+                                        Text(timeFormatter.string(from: end))
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .frame(width: 84, alignment: .leading)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(c.title)
+                                        .font(.system(size: 15, weight: .medium))
+                                    if let notes = c.notes, !notes.isEmpty {
+                                        Text(notes)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(2)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .padding(12)
+                            .background(Color(UIColor.secondarySystemBackground))
+                            .cornerRadius(12)
+                        }
+                    }
+                }
+
+                if !untimed.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("待安排")
+                            .font(.headline)
+                        ForEach(untimed) { c in
+                            HStack(spacing: 12) {
+                                Image(systemName: "circle")
+                                    .foregroundColor(Color(UIColor.systemGray3))
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(c.title)
+                                        .font(.system(size: 15, weight: .medium))
+                                    if let d = c.durationMin {
+                                        Text("約 \(d) 分鐘")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .padding(12)
+                            .background(Color(UIColor.secondarySystemBackground))
+                            .cornerRadius(12)
+                        }
+                    }
+                }
+            }
+            .padding()
+        }
+    }
+
+    // MARK: - 修改内容：Time OS — 底部固定操作列（套用 / 存建議 / 重新生成 / 發送確認）
+    private var bottomActionBar: some View {
+        VStack(spacing: 10) {
+            if isCollaborative {
+                Button(action: sendToMembersForConfirmation) {
+                    HStack {
+                        Image(systemName: "paperplane.fill")
+                        Text("發送給成員確認")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.purple)
+                    .cornerRadius(14)
+                }
+            }
+            HStack(spacing: 10) {
+                Button(action: { applyDirectToTimeItems() }) {
+                    Text("套用到時間表")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.blue)
+                        .cornerRadius(14)
+                }
+                Button(action: { saveAsSuggestionToTimeItems() }) {
+                    Text("存為建議")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.blue)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color(.systemBackground))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.blue, lineWidth: 1))
+                }
+                if onRegenerate != nil {
+                    Button(action: { onRegenerate?() }) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.blue)
+                            .frame(width: 46)
+                            .padding(.vertical, 12)
+                            .background(Color(.systemBackground))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.blue, lineWidth: 1))
+                    }
+                }
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(Color(UIColor.systemBackground).ignoresSafeArea(edges: .bottom))
+        .overlay(Rectangle().fill(Color(UIColor.systemGray5)).frame(height: 0.5), alignment: .top)
+    }
+
+    /// 多人協作：發送給成員確認
+    /// 修改内容：分享整併 — 改為發佈公開網頁連結（shared_plans），任何平台皆可開啟閱讀；發佈失敗退回純文字
+    private func sendToMembersForConfirmation() {
+        guard let result = generationResult else { return }
+        let title = customTitle ?? "時間安排"
+        let f = DateFormatter()
+        f.dateFormat = "MM/dd HH:mm"
+        var lines: [String] = ["【\(title)】請確認以下安排："]
+        for c in result.candidates {
+            if let s = c.startAt {
+                lines.append("・\(f.string(from: s)) \(c.title)")
+            } else {
+                lines.append("・\(c.title)（待安排）")
+            }
+        }
+        let summaryText = lines.joined(separator: "\n")
+
+        isApplying = true
+        Task {
+            let url = await SharedPlanService.shared.publish(
+                title: title,
+                candidates: result.candidates,
+                creatorId: userManager.userOpenId,
+                creatorName: userManager.displayName
+            )
+            await MainActor.run {
+                isApplying = false
+                if let url = url {
+                    shareItems = ["【\(title)】請確認以下安排（點連結查看詳情）：\n\(url.absoluteString)"]
+                } else {
+                    shareItems = [summaryText]
+                }
+                showShareSheet = true
+            }
+        }
+    }
+
     // MARK: - 衝突提示橫幅
     private func conflictsBanner(conflicts: [ConflictInfo]) -> some View {
         HStack(spacing: 8) {
@@ -208,19 +396,37 @@ struct PlanDetailView: View {
     }
 
     // MARK: - 寫入 time_items（生成引擎套用）
+    // 修改内容：功能整理 — 「套用到時間表」智能化：候選若缺時間，先用 scheduler 補齊再寫入
+    // （原獨立選單項「用 scheduler 補時間」已併入此處，使用者不需理解差異）
     private func applyDirectToTimeItems() {
         guard let result = generationResult else { return }
         isApplying = true
         applyError = nil
         Task {
             do {
+                var candidates = result.candidates
+                let untimed = candidates.filter { !$0.hasTime }
+                if !untimed.isEmpty {
+                    let context = try await ContextProvider.shared.fetchContext(for: buildMinimalRequest(from: result))
+                    let scheduled = GenerationSchedulerService.shared.schedule(
+                        untimedCandidates: untimed,
+                        rangeStart: context.rangeStart,
+                        rangeEnd: context.rangeEnd,
+                        existingItems: context.existingItems
+                    )
+                    candidates = candidates.map { c in
+                        if c.hasTime { return c }
+                        return scheduled.first(where: { $0.id == c.id }) ?? c
+                    }
+                }
                 try await ApplyStrategy.shared.applyDirect(
-                    candidates: result.candidates,
+                    candidates: candidates.filter { $0.hasTime },
                     requestId: result.requestId,
                     themeKey: result.themeKey
                 )
                 await MainActor.run {
                     isApplying = false
+                    onApplied?()  // 修改内容：Step B — 通知來源頁（如建議收件匣標記已消化）
                     onDismiss?()
                 }
             } catch {
@@ -256,40 +462,6 @@ struct PlanDetailView: View {
         }
     }
 
-    private func applyWithScheduler() {
-        guard let result = generationResult else { return }
-        isApplying = true
-        applyError = nil
-        Task {
-            do {
-                let context = try await ContextProvider.shared.fetchContext(for: buildMinimalRequest(from: result))
-                let scheduled = GenerationSchedulerService.shared.schedule(
-                    untimedCandidates: result.candidates.filter { !$0.hasTime },
-                    rangeStart: context.rangeStart,
-                    rangeEnd: context.rangeEnd,
-                    existingItems: context.existingItems
-                )
-                let merged = result.candidates.map { c in
-                    if c.hasTime { return c }
-                    return scheduled.first(where: { $0.id == c.id }) ?? c
-                }
-                try await ApplyStrategy.shared.applyDirect(
-                    candidates: merged.filter { $0.hasTime },
-                    requestId: result.requestId,
-                    themeKey: result.themeKey
-                )
-                await MainActor.run {
-                    isApplying = false
-                    onDismiss?()
-                }
-            } catch {
-                await MainActor.run {
-                    isApplying = false
-                    applyError = error.localizedDescription
-                }
-            }
-        }
-    }
 
     private func buildMinimalRequest(from result: GenerationResult) -> GenerateRequest {
         let start = result.plan?.days.first?.date ?? Date()
@@ -849,60 +1021,37 @@ struct PlanDetailView: View {
     }
     
     // MARK: - 加入行程（添加到日历）
+    // 修改内容：Time OS — 套用一律寫入 time_items（ApplyStrategy），不再寫舊 EventManager
     private func addPlanToCalendar() {
         var updatedPlan = plan
         updatedPlan.days = planDays
-        
+
+        isApplying = true
         Task {
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd"
-            let timeFormatter = DateFormatter()
-            timeFormatter.dateFormat = "HH:mm:ss"
-            
-            let items = PlanGenerator.shared.convertToScheduleItems(updatedPlan)
-            
-            for item in items {
-                let startDate = combine(date: item.date, time: item.startTime)
-                let endDate = combine(date: item.date, time: item.endTime)
-                
-                let dateString = dateFormatter.string(from: item.date)
-                let startString = timeFormatter.string(from: startDate)
-                let endString = timeFormatter.string(from: endDate)
-                
-                var event = Event()
-                event.title = item.title
-                event.creatorOpenid = userManager.userOpenId
-                event.color = "#4285F4"
-                event.date = dateString
-                event.startTime = startString
-                event.endTime = endString
-                event.endDate = dateString
-                event.destination = item.location
-                event.mapObj = ""
-                event.openChecked = 0
-                event.personChecked = 0
-                event.createTime = ""
-                event.information = item.description
-                event.groupId = nil
-                
-                do {
-                    try await EventManager.shared.addEvent(event: event)
-                } catch {
-                    print("添加事件失敗：\(error)")
+            do {
+                try await ApplyStrategy.shared.applyFromPlan(
+                    updatedPlan,
+                    requestId: generationResult?.requestId,
+                    themeKey: generationResult?.themeKey
+                )
+                await MainActor.run {
+                    isApplying = false
+                    #if os(iOS)
+                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                       let window = windowScene.windows.first,
+                       let rootViewController = window.rootViewController {
+                        let alert = UIAlertController(title: "成功", message: "已將行程加入時間表", preferredStyle: .alert)
+                        alert.addAction(UIAlertAction(title: "確定", style: .default))
+                        rootViewController.present(alert, animated: true)
+                    }
+                    #endif
+                    onAddToCalendar?()
                 }
-            }
-            
-            await MainActor.run {
-                #if os(iOS)
-                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let window = windowScene.windows.first,
-                   let rootViewController = window.rootViewController {
-                    let alert = UIAlertController(title: "成功", message: "已將行程加入行事曆", preferredStyle: .alert)
-                    alert.addAction(UIAlertAction(title: "確定", style: .default))
-                    rootViewController.present(alert, animated: true)
+            } catch {
+                await MainActor.run {
+                    isApplying = false
+                    applyError = error.localizedDescription
                 }
-                #endif
-                onAddToCalendar?()
             }
         }
     }

@@ -329,6 +329,11 @@ struct TravelPlannerContent: View {
                         onSaveToTemplate: nil,
                         onDismiss: {
                             generatedResult = nil
+                        },
+                        // 修改内容：Time OS — 統一預覽：重新生成
+                        onRegenerate: {
+                            generatedResult = nil
+                            startGeneration()
                         }
                     )
                     .environmentObject(userManager)

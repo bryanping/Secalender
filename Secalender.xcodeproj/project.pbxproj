@@ -67,6 +67,8 @@
 		A2BD0C272F3700280054E3F1 /* CityAttractionsDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BD0C252F3700280054E3F1 /* CityAttractionsDatabase.swift */; };
 		A2BD0C2A2F3A3DD90054E3F1 /* FriendInviteLinkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BD0C282F3A3DD90054E3F1 /* FriendInviteLinkManager.swift */; };
 		A2BD0C2B2F3A3DD90054E3F1 /* QRCodeGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BD0C292F3A3DD90054E3F1 /* QRCodeGenerator.swift */; };
+		AA10E0000000000000000013 /* PublicEventsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E0000000000000000014 /* PublicEventsService.swift */; };
+		AA10E0000000000000000011 /* SharedPlanService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E0000000000000000012 /* SharedPlanService.swift */; };
 		A2BD0C442F35874C0054E3F1 /* AvatarUploadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BD0C432F35874C0054E3F1 /* AvatarUploadService.swift */; };
 		A2BFD2452F6A502B00B850C9 /* PlannerModelType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BFD2442F6A502B00B850C9 /* PlannerModelType.swift */; };
 		A2C21B2C2DE2248700D588C3 /* ReceivedFriendRequestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C21B2B2DE2248600D588C3 /* ReceivedFriendRequestsView.swift */; };
@@ -93,6 +95,8 @@
 		A2E0F9B72F1A89F500DA4FC9 /* PlanDaySectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9B62F1A89F500DA4FC9 /* PlanDaySectionView.swift */; };
 		A2E0F9B92F1B1B7600DA4FC9 /* AIConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9B82F1B1B7600DA4FC9 /* AIConfig.swift */; };
 		A2E0F9BB2F1B1CAB00DA4FC9 /* PlanDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9BA2F1B1CAB00DA4FC9 /* PlanDetailView.swift */; };
+		AA10E0000000000000000015 /* DeepLinkAddTimeItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E0000000000000000016 /* DeepLinkAddTimeItemView.swift */; };
+		AA10E0000000000000000017 /* DeepLinkCalendarImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E0000000000000000018 /* DeepLinkCalendarImportView.swift */; };
 		A2E0F9BF2F1B1E8000DA4FC9 /* ChatMessageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9BE2F1B1E8000DA4FC9 /* ChatMessageManager.swift */; };
 		A2E0F9C12F1B1ECE00DA4FC9 /* PlanEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9C02F1B1ECE00DA4FC9 /* PlanEditView.swift */; };
 		A2E0F9C32F1B87F100DA4FC9 /* TripTemplateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E0F9C22F1B87F100DA4FC9 /* TripTemplateManager.swift */; };
@@ -162,6 +166,11 @@
 		A2EC3F022F4E7D2300736C8 /* CommunityTripsFeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2EC3F012F4E7D2300736C8 /* CommunityTripsFeedView.swift */; };
 		A2EDD8F52C2484B00098B31A /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2EDD8F42C2484B00098B31A /* Utilities.swift */; };
 		A2F0A0032F90000100DA4FC9 /* TimeOSV1.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F0A0022F90000100DA4FC9 /* TimeOSV1.swift */; };
+		AA10E000000000000000000F /* LifeWorkflowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E0000000000000000010 /* LifeWorkflowView.swift */; };
+		AA10E000000000000000000D /* TodayWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E000000000000000000E /* TodayWorkspaceView.swift */; };
+		AA10E000000000000000000B /* SuggestionInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E000000000000000000C /* SuggestionInboxView.swift */; };
+		AA10E0000000000000000009 /* TimeOSHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E000000000000000000A /* TimeOSHomeView.swift */; };
+		AA10E0000000000000000007 /* PlannerWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E0000000000000000008 /* PlannerWorkflow.swift */; };
 		A2F153E62E45D57400158F94 /* TemplateStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F153E52E45D57300158F94 /* TemplateStoreView.swift */; };
 		A2F153E82E45D58F00158F94 /* TemplateDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F153E72E45D58E00158F94 /* TemplateDetailView.swift */; };
 		A2F153EC2E45D5B100158F94 /* AchievementsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2F153EB2E45D5AF00158F94 /* AchievementsView.swift */; };
@@ -284,6 +293,8 @@
 		A2BD0C252F3700280054E3F1 /* CityAttractionsDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CityAttractionsDatabase.swift; sourceTree = "<group>"; };
 		A2BD0C282F3A3DD90054E3F1 /* FriendInviteLinkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendInviteLinkManager.swift; sourceTree = "<group>"; };
 		A2BD0C292F3A3DD90054E3F1 /* QRCodeGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeGenerator.swift; sourceTree = "<group>"; };
+		AA10E0000000000000000014 /* PublicEventsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicEventsService.swift; sourceTree = "<group>"; };
+		AA10E0000000000000000012 /* SharedPlanService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedPlanService.swift; sourceTree = "<group>"; };
 		A2BD0C432F35874C0054E3F1 /* AvatarUploadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarUploadService.swift; sourceTree = "<group>"; };
 		A2BFD2442F6A502B00B850C9 /* PlannerModelType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerModelType.swift; sourceTree = "<group>"; };
 		A2C21B2B2DE2248600D588C3 /* ReceivedFriendRequestsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceivedFriendRequestsView.swift; sourceTree = "<group>"; };
@@ -309,6 +320,8 @@
 		A2E0F9B62F1A89F500DA4FC9 /* PlanDaySectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanDaySectionView.swift; sourceTree = "<group>"; };
 		A2E0F9B82F1B1B7600DA4FC9 /* AIConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConfig.swift; sourceTree = "<group>"; };
 		A2E0F9BA2F1B1CAB00DA4FC9 /* PlanDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanDetailView.swift; sourceTree = "<group>"; };
+		AA10E0000000000000000016 /* DeepLinkAddTimeItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkAddTimeItemView.swift; sourceTree = "<group>"; };
+		AA10E0000000000000000018 /* DeepLinkCalendarImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkCalendarImportView.swift; sourceTree = "<group>"; };
 		A2E0F9BE2F1B1E8000DA4FC9 /* ChatMessageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageManager.swift; sourceTree = "<group>"; };
 		A2E0F9C02F1B1ECE00DA4FC9 /* PlanEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanEditView.swift; sourceTree = "<group>"; };
 		A2E0F9C22F1B87F100DA4FC9 /* TripTemplateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripTemplateManager.swift; sourceTree = "<group>"; };
@@ -385,6 +398,11 @@
 		A2EC3F012F4E7D2300736C8 /* CommunityTripsFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityTripsFeedView.swift; sourceTree = "<group>"; };
 		A2EDD8F42C2484B00098B31A /* Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
 		A2F0A0022F90000100DA4FC9 /* TimeOSV1.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeOSV1.swift; sourceTree = "<group>"; };
+		AA10E0000000000000000010 /* LifeWorkflowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeWorkflowView.swift; sourceTree = "<group>"; };
+		AA10E000000000000000000E /* TodayWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayWorkspaceView.swift; sourceTree = "<group>"; };
+		AA10E000000000000000000C /* SuggestionInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionInboxView.swift; sourceTree = "<group>"; };
+		AA10E000000000000000000A /* TimeOSHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeOSHomeView.swift; sourceTree = "<group>"; };
+		AA10E0000000000000000008 /* PlannerWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerWorkflow.swift; sourceTree = "<group>"; };
 		A2F153E52E45D57300158F94 /* TemplateStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateStoreView.swift; sourceTree = "<group>"; };
 		A2F153E72E45D58E00158F94 /* TemplateDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateDetailView.swift; sourceTree = "<group>"; };
 		A2F153EB2E45D5AF00158F94 /* AchievementsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsView.swift; sourceTree = "<group>"; };
@@ -589,6 +607,8 @@
 				A2E0F9C02F1B1ECE00DA4FC9 /* PlanEditView.swift */,
 				A2E0F9B62F1A89F500DA4FC9 /* PlanDaySectionView.swift */,
 				A2E0F9BA2F1B1CAB00DA4FC9 /* PlanDetailView.swift */,
+				AA10E0000000000000000016 /* DeepLinkAddTimeItemView.swift */,
+				AA10E0000000000000000018 /* DeepLinkCalendarImportView.swift */,
 				A2FEEA252E09D423006696EC /* EventInvitationsView.swift */,
 				A21B71D12DF1D16300FE7CD6 /* MyFriendListView.swift */,
 				A2E913B02DE801E600629016 /* NearbyEventsView.swift */,
@@ -801,6 +821,11 @@
 			isa = PBXGroup;
 			children = (
 				A2F0A0022F90000100DA4FC9 /* TimeOSV1.swift */,
+				AA10E0000000000000000010 /* LifeWorkflowView.swift */,
+				AA10E000000000000000000E /* TodayWorkspaceView.swift */,
+				AA10E000000000000000000C /* SuggestionInboxView.swift */,
+				AA10E000000000000000000A /* TimeOSHomeView.swift */,
+				AA10E0000000000000000008 /* PlannerWorkflow.swift */,
 			);
 			path = ../TimeOS;
 			sourceTree = "<group>";
@@ -948,6 +973,8 @@
 				D4E5F6A8B8C9D0E1F2A3B6 /* DeepLinkCoordinator.swift */,
 				A2BD0C282F3A3DD90054E3F1 /* FriendInviteLinkManager.swift */,
 				A2BD0C292F3A3DD90054E3F1 /* QRCodeGenerator.swift */,
+				AA10E0000000000000000014 /* PublicEventsService.swift */,
+				AA10E0000000000000000012 /* SharedPlanService.swift */,
 				E5F6A7B8C9D0E1F2A3B4C4 /* ContactManager.swift */,
 			);
 			path = Share;
@@ -1102,8 +1129,15 @@
 				A2F8E6C42C1944A700AA109D /* SecalenderApp.swift in Sources */,
 				A2E0F9C72F1B8C3A00DA4FC9 /* BatchShareEventsView.swift in Sources */,
 				A2E0F9BB2F1B1CAB00DA4FC9 /* PlanDetailView.swift in Sources */,
+				AA10E0000000000000000015 /* DeepLinkAddTimeItemView.swift in Sources */,
+				AA10E0000000000000000017 /* DeepLinkCalendarImportView.swift in Sources */,
 				A2E0F9E92F21F30A00DA4FC9 /* AIPlannerView.swift in Sources */,
 				A2F0A0032F90000100DA4FC9 /* TimeOSV1.swift in Sources */,
+				AA10E000000000000000000F /* LifeWorkflowView.swift in Sources */,
+				AA10E000000000000000000D /* TodayWorkspaceView.swift in Sources */,
+				AA10E000000000000000000B /* SuggestionInboxView.swift in Sources */,
+				AA10E0000000000000000009 /* TimeOSHomeView.swift in Sources */,
+				AA10E0000000000000000007 /* PlannerWorkflow.swift in Sources */,
 				A2E0FA012F21F30B00DA4FC9 /* TravelPlanningView.swift in Sources */,
 				A2E0FA302F21F30C00DA4FC9 /* TravelPlannerContent.swift in Sources */,
 				B2E0FA452F21F30D00DA4FC9 /* TravelSpecialExperienceCatalog.swift in Sources */,
@@ -1156,6 +1190,8 @@
 				A29AA4832E48850400EDB8CF /* CommunityGroup.swift in Sources */,
 				A2BD0C2A2F3A3DD90054E3F1 /* FriendInviteLinkManager.swift in Sources */,
 				A2BD0C2B2F3A3DD90054E3F1 /* QRCodeGenerator.swift in Sources */,
+				AA10E0000000000000000013 /* PublicEventsService.swift in Sources */,
+				AA10E0000000000000000011 /* SharedPlanService.swift in Sources */,
 				A21B71D22DF1D16400FE7CD6 /* MyFriendListView.swift in Sources */,
 				A2E0F9DF2F2113C200DA4FC9 /* AIConversationView.swift in Sources */,
 				A2E0F9A32F1A76F600DA4FC9 /* InputClassifier.swift in Sources */,

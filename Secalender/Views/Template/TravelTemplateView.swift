@@ -104,10 +104,10 @@ struct TravelTemplateView: View {
                         }
 
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showAIPlanner) {
-                NavigationStack {
-                    TimeSecretaryView()
-                }
+            // 修改内容：Time OS — 智能規劃主按鈕改導向 AI 時間工作流入口（TimeOSHomeView，內含 NavigationStack）
+            .fullScreenCover(isPresented: $showAIPlanner) {
+                TimeOSHomeView()
+                    .environmentObject(userManager)
             }
         }
     }

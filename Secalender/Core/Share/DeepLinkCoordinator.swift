@@ -13,6 +13,10 @@ enum DeepLinkType {
     case friendInvite(code: String)
     case eventInvite(code: String)
     case eventDirect(eventId: Int, creatorId: String?)
+    // 修改内容：時事活動 — 網頁「加入 App」：secalender://addevent?title=&start=&end=&location=&notes=
+    case addEvent(title: String, start: Date, end: Date, location: String?, notes: String?)
+    // 修改内容：ICS 匯入 — secalender://addcalendar?url=<https ics>&title=<名稱>：開 App 檢視並選擇加入
+    case addCalendar(url: URL, title: String?)
 }
 
 /// 待處理的 Deep Link 導航目標
@@ -20,6 +24,10 @@ enum PendingDeepLink {
     case addFriend(inviteCode: String)
     case eventShare(event: Event)
     case eventShareError(message: String)
+    // 修改内容：時事活動 — 確認後寫入 time_items
+    case addTimeItem(title: String, start: Date, end: Date, location: String?, notes: String?)
+    // 修改内容：ICS 匯入 — 開啟日曆預覽選擇頁
+    case importCalendar(url: URL, title: String?)
 }
 
 /// Deep Link 協調器：解析 URL 並驅動導航
@@ -63,6 +71,27 @@ final class DeepLinkCoordinator: ObservableObject {
             if host == "invite", let code = pathComponents.first, !code.isEmpty {
                 return .eventInvite(code: code)
             }
+            // 修改内容：時事活動 — secalender://addevent?title=&start=&end=&location=&notes=（start/end 為 ISO8601）
+            if host == "addevent" {
+                let q = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                func val(_ n: String) -> String? { q.first(where: { $0.name == n })?.value }
+                let iso = ISO8601DateFormatter()
+                if let title = val("title"), !title.isEmpty,
+                   let sStr = val("start"), let start = iso.date(from: sStr) {
+                    let end = val("end").flatMap { iso.date(from: $0) } ?? start.addingTimeInterval(3600)
+                    return .addEvent(title: title, start: start, end: end, location: val("location"), notes: val("notes"))
+                }
+                return nil
+            }
+            // 修改内容：ICS 匯入 — secalender://addcalendar?url=&title=（僅允許 https 來源）
+            if host == "addcalendar" {
+                let q = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                func val(_ n: String) -> String? { q.first(where: { $0.name == n })?.value }
+                if let urlStr = val("url"), let icsURL = URL(string: urlStr), icsURL.scheme == "https" {
+                    return .addCalendar(url: icsURL, title: val("title"))
+                }
+                return nil
+            }
             if host == "event", let idStr = pathComponents.first, let eventId = Int(idStr) {
                 let creatorId = URLComponents(url: url, resolvingAgainstBaseURL: false)?
                     .queryItems?.first(where: { $0.name == "creatorId" })?.value
@@ -103,6 +132,16 @@ final class DeepLinkCoordinator: ObservableObject {
             Task {
                 await handleEventDirect(eventId: eventId, creatorId: creatorId)
             }
+            return true
+
+        case .addEvent(let title, let start, let end, let location, let notes):
+            // 修改内容：時事活動 — 交由 RootView 顯示確認頁後寫入 time_items
+            pendingLink = .addTimeItem(title: title, start: start, end: end, location: location, notes: notes)
+            return true
+
+        case .addCalendar(let url, let title):
+            // 修改内容：ICS 匯入 — 開啟預覽選擇頁
+            pendingLink = .importCalendar(url: url, title: title)
             return true
         }
     }

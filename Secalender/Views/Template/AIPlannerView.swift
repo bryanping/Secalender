@@ -157,11 +157,16 @@ struct AIPlannerView: View {
     /// 入口預設的規劃模型（Welcome/主題入口傳入）
     private let initialPlannerModelType: PlannerModelType?
     private let initialThemeKey: String?
-    
-    init(plannerModelType: PlannerModelType? = nil, themeKey: String? = nil, customTheme: QuickTheme? = nil) {
+    // 修改内容：Time OS — 工作流入口（帶場景標題/模型/預設輸入）與自由一句話輸入
+    private let workflow: PlannerWorkflow?
+    private let initialInput: String?
+
+    init(plannerModelType: PlannerModelType? = nil, themeKey: String? = nil, customTheme: QuickTheme? = nil, workflow: PlannerWorkflow? = nil, initialInput: String? = nil) {
         self.customTheme = customTheme
-        self.initialPlannerModelType = plannerModelType
+        self.initialPlannerModelType = plannerModelType ?? workflow?.modelType
         self.initialThemeKey = themeKey
+        self.workflow = workflow
+        self.initialInput = initialInput
     }
     
     /// 是否為「模型驅動單頁」：無主題時為 true，有主題時維持原步驟流程
@@ -452,7 +457,8 @@ struct AIPlannerView: View {
                 }
             }
             .navigationTitle(
-                isModelDrivenPage ? "智能規劃" : (
+                // 修改内容：Time OS — 場景標題優先
+                isModelDrivenPage ? (workflow?.title ?? "智能規劃") : (
                     currentStep == .step1 ? "行程基礎" :
                     currentStep == .step2 ? "進階設定" :
                     currentStep == .step3 ? "行程細節" : "智能規劃"
@@ -526,6 +532,19 @@ struct AIPlannerView: View {
                 // 修改内容：Step3 — collectAvailability 主題預設多人時間協調模型
                 if customTheme?.themeMode == .collectAvailability {
                     plannerModelType = .availabilityCoordination
+                }
+                // 修改内容：Time OS — 工作流預填一句話；自由輸入直接帶入
+                if naturalLanguageInput.isEmpty {
+                    if let seed = workflow?.seedInput, !seed.isEmpty {
+                        naturalLanguageInput = seed
+                    } else if let input = initialInput, !input.isEmpty {
+                        naturalLanguageInput = input
+                    }
+                }
+                // 修改内容：Step A — startsAtForm 工作流（拆解目標）跳過一句話輸入頁，直落結構化表單
+                if let wf = workflow, wf.startsAtForm, isModelDrivenPage {
+                    plannerModelType = wf.modelType
+                    hasConfirmedParsedIntent = true
                 }
             }
             .sheet(isPresented: $showEditThemeSheet) {
@@ -618,7 +637,17 @@ struct AIPlannerView: View {
                         onSaveToTemplate: nil,
                         onDismiss: {
                             generatedResult = nil
-                        }
+                        },
+                        // 修改内容：Time OS — 統一預覽：重新生成＋多人協作發送確認
+                        onRegenerate: {
+                            generatedResult = nil
+                            if isModelDrivenPage {
+                                Task { await runModelDrivenGenerate() }
+                            } else {
+                                startGeneration()
+                            }
+                        },
+                        isCollaborative: workflow?.isCollaborative ?? (plannerModelType == .availabilityCoordination)
                     )
                     .environmentObject(userManager)
                 }
@@ -699,57 +728,60 @@ struct AIPlannerView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     if !hasConfirmedParsedIntent {
-                        if let intent = parsedIntent {
-                            parsedResultCard(intent)
-                        } else {
-                            // 修改内容：Step4 UX — 歡迎標題（對齊「行程規劃」28pt 標題＋副標）
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("智能規劃")
-                                    .font(.system(size: 28, weight: .bold))
-                                Text("一句話描述，AI 幫你安排")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        // 修改内容：Step4 UX — 歡迎標題（對齊「行程規劃」28pt 標題＋副標）；Time OS 工作流顯示場景標題
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(workflow?.title ?? "智能規劃")
+                                .font(.system(size: 28, weight: .bold))
+                            Text(workflow?.subtitle ?? "一句話描述，AI 幫你安排")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                            intentInputSection
-                            suggestionChipsSection
-                            if !naturalLanguageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                // 修改内容：Step5 — 意圖解析主路徑改 LLM 分類（多語言），關鍵詞路由為 fallback
-                                Button(action: {
-                                    guard !isParsingIntent else { return }
-                                    isParsingIntent = true
-                                    let inputText = naturalLanguageInput
-                                    Task {
-                                        let parsed = await PlannerIntentClassifier.shared.parse(input: inputText)
-                                        await MainActor.run {
-                                            parsedIntent = parsed
-                                            isParsingIntent = false
-                                        }
+                        intentInputSection
+                        suggestionChipsSection
+                        if !naturalLanguageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            // 修改内容：Step5 — 意圖解析主路徑改 LLM 分類（多語言），關鍵詞路由為 fallback
+                            // 修改内容：解析後直接帶入基礎資訊填寫，跳過「AI 理解你的需求」確認頁
+                            Button(action: {
+                                guard !isParsingIntent else { return }
+                                isParsingIntent = true
+                                let inputText = naturalLanguageInput
+                                Task {
+                                    let parsed = await PlannerIntentClassifier.shared.parse(input: inputText)
+                                    await MainActor.run {
+                                        parsedIntent = parsed
+                                        applyParsedIntentToForm(parsed)
+                                        hasConfirmedParsedIntent = true
+                                        isParsingIntent = false
                                     }
-                                }) {
-                                    HStack {
-                                        if isParsingIntent {
-                                            ProgressView()
-                                                .tint(.white)
-                                            Text("解析中…")
-                                                .fontWeight(.semibold)
-                                        } else {
-                                            Text("下一步")
-                                                .fontWeight(.semibold)
-                                        }
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.blue)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(12)
                                 }
-                                .buttonStyle(PlainButtonStyle())
-                                .disabled(isParsingIntent)
+                            }) {
+                                HStack {
+                                    if isParsingIntent {
+                                        ProgressView()
+                                            .tint(.white)
+                                        Text("解析中…")
+                                            .fontWeight(.semibold)
+                                    } else {
+                                        Text("下一步")
+                                            .fontWeight(.semibold)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
                             }
+                            .buttonStyle(PlainButtonStyle())
+                            .disabled(isParsingIntent)
                         }
                     } else {
+                        // 修改内容：AI 理解摘要橫幅（可重新輸入），下方即基礎資訊表單（已預填 AI 理解內容）
+                        if let intent = parsedIntent {
+                            aiUnderstandingBanner(intent)
+                        }
                         sharedFormSection
                         modelSpecificFormSection
                     }
@@ -805,90 +837,39 @@ struct AIPlannerView: View {
         }
     }
 
-    /// AI 解析結果卡片：類型、時間、地點、目標 + [修改] [繼續]
-    private func parsedResultCard(_ intent: ParsedPlannerIntent) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: "brain.head.profile")
-                    .font(.title2)
-                    .foregroundColor(.blue)
-                Text("AI 理解你的需求")
-                    .font(.headline)
+    /// 修改内容：AI 理解摘要橫幅（取代原「AI 理解你的需求」整頁卡片；內容已預填至下方表單）
+    private func aiUnderstandingBanner(_ intent: ParsedPlannerIntent) -> some View {
+        let parts: [String] = {
+            var p = [intent.displayType]
+            if let days = intent.durationDays, days > 0 { p.append("\(days) 天") }
+            if let loc = intent.location, !loc.isEmpty { p.append(loc) }
+            if intent.modelType == .availabilityCoordination, !intent.participants.isEmpty {
+                p.append(intent.participants.map(\.name).joined(separator: "、"))
+            }
+            return p
+        }()
+        return HStack(spacing: 10) {
+            Image(systemName: "sparkles")
+                .foregroundColor(.blue)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("AI 已理解並帶入下方欄位")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(parts.joined(separator: " · "))
+                    .font(.subheadline.weight(.medium))
                     .foregroundColor(.primary)
+                    .lineLimit(2)
             }
-            VStack(alignment: .leading, spacing: 8) {
-                labelRow("類型", intent.displayType)
-                if let days = intent.durationDays, days > 0 {
-                    labelRow("時間", "\(days) 天")
-                } else if let hint = intent.durationHint {
-                    labelRow("時間", hint)
-                }
-                if let loc = intent.location, !loc.isEmpty {
-                    labelRow("地點", loc)
-                } else if let lh = intent.locationHint {
-                    labelRow("地點", lh)
-                }
-                if let goal = intent.goal, !goal.isEmpty {
-                    labelRow("目標", goal)
-                }
-                // 修改内容：多人協調解析摘要
-                if intent.modelType == .availabilityCoordination {
-                    if !intent.participants.isEmpty {
-                        labelRow("參與者", intent.participants.map(\.name).joined(separator: "、"))
-                    }
-                    if let m = intent.coordinationMode {
-                        labelRow("協調模式", m.displayTitle)
-                    }
-                    labelRow("信心度", String(format: "%.0f%%", intent.confidence * 100))
-                    if !intent.missingFields.isEmpty {
-                        labelRow("待補欄位", intent.missingFields.map(\.rawValue).joined(separator: "、"))
-                    }
-                }
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
-            HStack(spacing: 12) {
-                Button(action: {
-                    resetModelDrivenAfterIntentEdit()
-                }) {
-                    Text("修改")
-                        .fontWeight(.medium)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(Color(.systemGray5))
-                        .foregroundColor(.primary)
-                        .cornerRadius(10)
-                }
-                .buttonStyle(PlainButtonStyle())
-                Button(action: {
-                    applyParsedIntentToForm(intent)
-                    hasConfirmedParsedIntent = true
-                }) {
-                    Text("繼續")
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                }
-                .buttonStyle(PlainButtonStyle())
+            Spacer()
+            Button(action: { resetModelDrivenAfterIntentEdit() }) {
+                Text("重新輸入")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.blue)
             }
         }
-    }
-
-    private func labelRow(_ title: String, _ value: String) -> some View {
-        HStack(alignment: .top) {
-            Text("\(title)：")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            Text(value)
-                .font(.subheadline)
-                .foregroundColor(.primary)
-            Spacer(minLength: 0)
-        }
+        .padding(12)
+        .background(Color.blue.opacity(0.08))
+        .cornerRadius(12)
     }
 
     /// 修改：回到步驟 1，保留輸入框文字，清空解析與表單預填（避免污染新一輪）
@@ -1020,26 +1001,33 @@ struct AIPlannerView: View {
                     .padding()
                     .background(Color(.systemBackground))
                     .cornerRadius(12)
+                // 修改内容：多階段型欄位（目的地/日期）與基礎資訊重複，已合併於上方；僅預算屬專屬欄位，直接併入基礎資訊
+                if plannerModelType == .multiPhase {
+                    budgetField
+                }
             }
         }
     }
     
-    /// 下段：依 plannerModelType 顯示模型專屬欄位（6 型）
+    /// 下段：依 plannerModelType 顯示模型專屬欄位
+    /// 修改内容：多階段型不再有專屬區（欄位與基礎資訊重複，已合併），僅任務/協調等顯示專屬欄位
     @ViewBuilder
     private var modelSpecificFormSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(modelSpecificSectionTitle)
-                .font(.headline)
-                .foregroundColor(.primary)
-            switch plannerModelType {
-            case .multiPhase:
-                multiDayFields
-            case .floatingTask:
-                taskBreakdownFields
-            case .availabilityCoordination:
-                availabilityCoordinationSection // 修改内容
-            case .availability, .recurring, .matching, .aiOptimization:
-                timePlanningPlaceholderView
+        if plannerModelType != .multiPhase {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(modelSpecificSectionTitle)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                switch plannerModelType {
+                case .multiPhase:
+                    EmptyView()
+                case .floatingTask:
+                    taskBreakdownFields
+                case .availabilityCoordination:
+                    availabilityCoordinationSection // 修改内容
+                case .availability, .recurring, .matching, .aiOptimization:
+                    timePlanningPlaceholderView
+                }
             }
         }
     }
@@ -1171,26 +1159,6 @@ struct AIPlannerView: View {
     
     /// 單日：時間範圍、地區、預算、節奏
     
-    /// 多日：天數、住宿地、交通偏好、每日安排密度
-    private var multiDayFields: some View {
-        VStack(spacing: 12) {
-            destinationField
-            VStack(alignment: .leading, spacing: 10) {
-                Text("行程日期")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                DatePicker("開始", selection: $baseStartDate, displayedComponents: .date)
-                DatePicker("結束", selection: $baseEndDate, displayedComponents: .date)
-                Text("天數：\(modelDrivenTripDayCount) 天（依起迄日自動推算）")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            budgetField
-        }
-    }
     
     /// 任務拆解：截止日期、每日可用時數、任務複雜度、優先順序
     private var taskBreakdownFields: some View {
@@ -1244,23 +1212,6 @@ struct AIPlannerView: View {
         }
     }
     
-    private var destinationField: some View {
-        Button(action: { showLocationPicker = true }) {
-            HStack {
-                Image(systemName: "mappin.circle.fill")
-                    .foregroundColor(.blue)
-                Text(destination.isEmpty ? "選擇目的地" : destination)
-                    .foregroundColor(destination.isEmpty ? .secondary : .primary)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
     
     private var budgetField: some View {
         HStack {

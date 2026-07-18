@@ -157,33 +157,37 @@ struct CreateTripTemplateView: View {
                     .foregroundColor(.secondary)
             }
 
-            // 圖示：虛線圓框 + 更換圖示按鈕
+            // 圖示：實心色底預覽（即最終外觀）＋ 編輯徽章，單一點擊區
+            // 修改内容：視覺精緻化 — 去除虛線佔位框與重複的更換按鈕
             StandardFormUnit(title: "quick_theme.change_icon".localized()) {
-                VStack(spacing: 12) {
-                    Button {
-                        showIconPicker = true
-                    } label: {
-                        ZStack {
+                Button {
+                    showIconPicker = true
+                } label: {
+                    VStack(spacing: 10) {
+                        ZStack(alignment: .bottomTrailing) {
                             Circle()
-                                .stroke(style: StrokeStyle(lineWidth: 2, dash: [6]))
-                                .foregroundColor(.gray.opacity(0.5))
-                                .frame(width: 80, height: 80)
+                                .fill((Color(hex: selectedColorHex) ?? .blue).opacity(0.15))
+                                .frame(width: 84, height: 84)
+                                .overlay(
+                                    Image(systemName: selectedIcon)
+                                        .font(.system(size: 38))
+                                        .foregroundColor(Color(hex: selectedColorHex) ?? .blue)
+                                )
 
-                            Image(systemName: selectedIcon)
-                                .font(.system(size: 36))
+                            Image(systemName: "pencil.circle.fill")
+                                .font(.system(size: 24))
                                 .foregroundColor(Color(hex: selectedColorHex) ?? .blue)
+                                .background(Circle().fill(Color(UIColor.systemBackground)))
+                                .offset(x: 4, y: 4)
                         }
-                    }
 
-                    Button {
-                        showIconPicker = true
-                    } label: {
                         Text("quick_theme.change_icon".localized())
-                            .font(.subheadline)
+                            .font(.footnote)
                             .foregroundColor(.secondary)
                     }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.plain)
             }
 
             // 主題名稱
@@ -222,8 +226,11 @@ struct CreateTripTemplateView: View {
                                         .scaleEffect(0.8)
                                 } else {
                                     Label("quick_theme.ai_generate".localized(), systemImage: "sparkles")
-                                        .font(.caption)
+                                        .font(.caption.weight(.medium))
                                         .foregroundColor(.blue)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(Capsule().fill(Color.blue.opacity(0.12)))
                                 }
                             }
                             .disabled(isAIGeneratingPromptPrefix || themeTitle.isEmpty)
@@ -264,8 +271,11 @@ struct CreateTripTemplateView: View {
                                     .scaleEffect(0.8)
                             } else {
                                 Label("quick_theme.ai_complete".localized(), systemImage: "sparkles")
-                                    .font(.caption)
+                                    .font(.caption.weight(.medium))
                                     .foregroundColor(.blue)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Capsule().fill(Color.blue.opacity(0.12)))
                             }
                         }
                         .disabled(isAICompletingInstruction || themeTitle.isEmpty)
@@ -291,24 +301,6 @@ struct CreateTripTemplateView: View {
         }
         .sheet(isPresented: $showIconPicker) {
             iconPickerSheet
-        }
-    }
-    
-    private func sectionHeader(title: String, showSparkle: Bool = false) -> some View {
-        HStack(spacing: 8) {
-            Rectangle()
-                .fill(Color.blue)
-                .frame(width: 4, height: 18)
-            
-            Text(title)
-                .font(.headline)
-                .foregroundColor(.primary)
-            
-            if showSparkle {
-                Image(systemName: "sparkles")
-                    .font(.caption)
-                    .foregroundColor(.blue)
-            }
         }
     }
     
@@ -486,7 +478,7 @@ struct CreateTripTemplateView: View {
                 
                 // 底部：類型標籤、刪除、重新 AI 生成
                 HStack {
-                    Text(question.type.rawValue)
+                    Label(question.type.rawValue, systemImage: iconForQuestionType(question.type))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 8)

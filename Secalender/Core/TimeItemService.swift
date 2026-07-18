@@ -114,12 +114,21 @@ final class TimeItemService {
         if let existingId = item.id, !existingId.isEmpty {
             try await ref.document(existingId).setData(data, merge: true)
             print("✅ [TimeItemService] 更新: \(existingId)")
+            Self.notifyChanged()  // 修改内容：寫入後通知行事曆即時刷新
             return existingId
         } else {
             let docRef = ref.document()
             try await docRef.setData(data)
             print("✅ [TimeItemService] 新增: \(docRef.documentID)")
+            Self.notifyChanged()  // 修改内容：寫入後通知行事曆即時刷新
             return docRef.documentID
+        }
+    }
+
+    /// 修改内容：time_items 變更廣播（CalendarView 既有監聽 "EventSaved"，沿用同一通知名）
+    private static func notifyChanged() {
+        Task { @MainActor in
+            NotificationCenter.default.post(name: NSNotification.Name("EventSaved"), object: nil)
         }
     }
     
@@ -135,6 +144,7 @@ final class TimeItemService {
         let ref = try collectionRef()
         try await ref.document(itemId).delete()
         print("✅ [TimeItemService] 刪除: \(itemId)")
+        Self.notifyChanged()  // 修改内容
     }
     
     // MARK: - 查詢
@@ -144,17 +154,18 @@ final class TimeItemService {
     func fetchRanged(rangeStart: Date, rangeEnd: Date) async throws -> [TimeItem] {
         let ref = try collectionRef()
         
+        // 修改内容：移除 status 等值條件 — 「範圍＋等值」組合需 Firestore 複合索引，
+        // 缺索引時查詢直接失敗且被呼叫端 try? 吞掉，導致行事曆永遠讀不到 time_items；status 改客戶端過濾
         let query = ref
             .whereField("startAt", isGreaterThanOrEqualTo: Timestamp(date: rangeStart))
             .whereField("startAt", isLessThanOrEqualTo: Timestamp(date: rangeEnd))
-            .whereField("status", isEqualTo: TimeItemStatus.active.rawValue)
-        
+
         let snapshot = try await query.getDocuments()
         let items = snapshot.documents.compactMap { decode($0) }
-        
-        // 客戶端過濾：只取 event, block, availability, suggestion
+
+        // 客戶端過濾：active＋只取 event, block, availability, suggestion
         let displayTypes: Set<TimeItemType> = [.event, .block, .availability, .suggestion]
-        return items.filter { displayTypes.contains($0.type) }
+        return items.filter { $0.status == .active && displayTypes.contains($0.type) }
     }
     
     /// 浮動任務：type=task, hasStartAt=false, status=active
@@ -179,21 +190,32 @@ final class TimeItemService {
         return items
     }
     
+    /// 修改内容：Step B — 取得建議池（type=suggestion, active），供建議收件匣消費
+    func fetchSuggestions() async throws -> [TimeItem] {
+        let ref = try collectionRef()
+        let query = ref
+            .whereField("type", isEqualTo: TimeItemType.suggestion.rawValue)
+            .whereField("status", isEqualTo: TimeItemStatus.active.rawValue)
+        let snapshot = try await query.getDocuments()
+        var items = snapshot.documents.compactMap { decode($0) }
+        items.sort { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+        return items
+    }
+
     /// 取得所有固定事件（event/block）用於排程計算空檔
     func fetchFixedItems(rangeStart: Date, rangeEnd: Date) async throws -> [TimeItem] {
         let ref = try collectionRef()
         
+        // 修改内容：等值條件改客戶端過濾（同 fetchRanged，避免複合索引缺失導致查詢整體失敗）
         let query = ref
-            .whereField("hasStartAt", isEqualTo: true)
             .whereField("startAt", isGreaterThanOrEqualTo: Timestamp(date: rangeStart))
             .whereField("startAt", isLessThanOrEqualTo: Timestamp(date: rangeEnd))
-            .whereField("status", isEqualTo: TimeItemStatus.active.rawValue)
-        
+
         let snapshot = try await query.getDocuments()
         let items = snapshot.documents.compactMap { decode($0) }
-        
-        // 只取 event, block（排除 suggestion）
-        return items.filter { $0.type == .event || $0.type == .block }
+
+        // 只取 active 的 event, block（排除 suggestion）
+        return items.filter { $0.hasStartAt && $0.status == .active && ($0.type == .event || $0.type == .block) }
     }
     
     /// 衝突檢查：指定時間段是否與 block/event 重疊
@@ -222,6 +244,7 @@ final class TimeItemService {
         
         try await batch.commit()
         print("✅ [TimeItemService] 批次更新 \(items.count) 筆")
+        Self.notifyChanged()  // 修改内容
     }
 }
 
