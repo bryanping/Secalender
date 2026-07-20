@@ -102,8 +102,15 @@ final class AppleCalendarImportManager {
         }
         
         // 检查权限
+        // 修改内容：P0-5 — iOS 17+ 授權後狀態為 .fullAccess，原判斷導致自動匯入永遠 0 筆
         let status = EKEventStore.authorizationStatus(for: .event)
-        guard status == .authorized else {
+        let authorized: Bool
+        if #available(iOS 17.0, *) {
+            authorized = (status == .fullAccess || status == .authorized)
+        } else {
+            authorized = (status == .authorized)
+        }
+        guard authorized else {
             print("⚠️ 日历权限未授权，无法自动导入")
             return 0
         }

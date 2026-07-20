@@ -34,8 +34,9 @@ class EventManager {
         }
         
         // 先生成 ID，寫入本地並標記待同步（Local First）
+        // 修改内容：P0-3 — 穩定雜湊取代 hashValue（跨啟動不變）
         let documentId = UUID().uuidString
-        let intId = abs(documentId.hashValue)
+        let intId = documentId.stableIntId
         newEvent.id = intId
         newEvent.syncStatus = .pendingCreate
         newEvent.updatedAtSync = Date()
@@ -221,8 +222,10 @@ class EventManager {
         }
         
         // 只添加到 Firebase，不更新本地缓存
+        // 修改内容：P0-3 — 穩定雜湊；且同步佇列重試 create 時保留原 id，
+        // 避免每次重試生成新 id 造成本地/雲端重複事件
         let documentId = UUID().uuidString
-        let intId = abs(documentId.hashValue)
+        let intId = newEvent.id ?? documentId.stableIntId
         newEvent.id = intId
         
         if let groupId = newEvent.groupId {
@@ -339,7 +342,7 @@ class EventManager {
             var event = Event()
             
             // 基本字段
-            event.id = data["id"] as? Int ?? abs(document.documentID.hashValue)
+            event.id = data["id"] as? Int ?? document.documentID.stableIntId  // 修改内容：P0-3 穩定雜湊
             event.title = data["title"] as? String ?? ""
             event.creatorOpenid = data["creatorOpenid"] as? String ?? ""
             event.color = data["color"] as? String ?? "#FF0000" // 默认红色

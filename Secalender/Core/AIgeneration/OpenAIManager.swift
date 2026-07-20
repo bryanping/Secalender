@@ -1,5 +1,6 @@
 
 import Foundation
+import FirebaseFunctions
 
 // 注意：ScheduleItem 在 ScheduleItem.swift 中定义
 // 确保项目结构正确，ScheduleItem 可以被访问
@@ -47,18 +48,7 @@ final class OpenAIManager {
     /// 根據使用者輸入的提示請求 OpenAI 產生行程計畫，
     /// 回傳 ScheduleItem 陣列（日期格式須為 yyyy-MM-dd，時間為 HH:mm）。
     func generateSchedule(prompt: String) async throws -> [ScheduleItem] {
-        // 获取 API Key
-        let key = try apiKey
-        
-        // 構建請求
-        guard let url = URL(string: "https://api.openai.com/v1/chat/completions") else {
-            throw URLError(.badURL)
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-
+        // 修改内容：P0-2 — 改經 aiProxy，App 不再持有 API Key
         // 請求內容：引導 AI 回傳 JSON 格式的行程陣列
         let messages: [[String: String]] = [
             [
@@ -70,27 +60,14 @@ final class OpenAIManager {
                 "content": prompt
             ]
         ]
-        let body: [String: Any] = [
-            "model": "gpt-4o-mini",
-            "messages": messages,
-            "temperature": 0.7,
-            "max_tokens": 1024
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        // 發送請求
-        let (data, _) = try await URLSession.shared.data(for: request)
-
-        // 解析回應
-        guard
-            let responseObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let choices = responseObject["choices"] as? [[String: Any]],
-            let first = choices.first,
-            let message = first["message"] as? [String: Any],
-            let content = message["content"] as? String
-        else {
-            throw NSError(domain: "OpenAIManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
-        }
+        // 修改内容：P0-2 — 改經 aiProxy
+        let content = try await AIProxyClient.shared.chat(
+            model: "gpt-4o-mini",
+            messages: messages,
+            temperature: 0.7,
+            maxTokens: 1024,
+            timeout: 60
+        )
 
         // 將 OpenAI 回傳的 JSON 字串解析為 ScheduleItem 陣列
         guard
@@ -202,26 +179,7 @@ final class OpenAIManager {
     func generateStructuredItinerary(prompt: String, timeout: TimeInterval? = nil) async throws -> String {
         print("🤖 [OpenAI] generateStructuredItinerary 开始调用...")
         
-        // apiKey 从 Info.plist 读取（通过 Secrets.xcconfig 配置）
-        // 如果配置有问题，会抛出错误而不是 fatalError
-        let key: String
-        do {
-            key = try apiKey
-        } catch {
-            print("❌ [OpenAI] API Key 读取失败: \(error.localizedDescription)")
-            throw error
-        }
-        guard !key.isEmpty else {
-            print("❌ [OpenAI] API Key 为空")
-            throw NSError(domain: "OpenAIManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "API Key未配置，请检查 Secrets.xcconfig 和 Info.plist 配置"])
-        }
-        
-        print("✅ [OpenAI] API Key 已加载（长度: \(key.count) 字符）")
-        
-        guard let url = URL(string: "https://api.openai.com/v1/chat/completions") else {
-            throw URLError(.badURL)
-        }
-        
+        // 修改内容：P0-2 — 改經 aiProxy，App 不再持有 API Key
         // 根据当前语言环境生成 system prompt 和计算超时
         let language = await MainActor.run {
             getActiveLanguage()
@@ -229,159 +187,50 @@ final class OpenAIManager {
         
         // 动态计算超时时间（如果未指定）
         let calculatedTimeout = timeout ?? calculateTimeout(prompt: prompt, language: language)
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = calculatedTimeout
-        request.addValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
 
         // 获取优化后的 system prompt（包含核心规则 + JSON schema + 示例）
         let systemPrompt = getOptimizedSystemPrompt(for: language)
         
-        let messages: [[String: String]] = [
-            ["role": "system", "content": systemPrompt],
-            ["role": "user", "content": prompt]
-        ]
-        
-        let body: [String: Any] = [
-            "model": "gpt-4o",
-            "messages": messages,
-            "temperature": 0.8,  // 稍微提高创造性
-            "max_tokens": 4000   // 增加token以支持完整的JSON响应
-        ]
-        
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
-        print("🤖 [OpenAI] 发送请求到 OpenAI API...")
+        print("🤖 [OpenAI] 发送请求到 aiProxy...")
         print("🤖 [OpenAI] 模型: gpt-4o, Temperature: 0.8, Max Tokens: 4000, 超时: \(Int(calculatedTimeout))秒, prompt长度: \(prompt.count)字符")
-        
-        // 发送请求（带超时处理 + 超时重试1次）
+
+        // 修改内容：P0-2 — 改經 aiProxy（超時自動重試 1 次）；開啟 jsonMode 提升 JSON 穩定性
         let maxAttempts = 2
+        var content = ""
         var lastError: Error?
-        var data: Data = Data()
-        var response: URLResponse = URLResponse()
-        
         for attempt in 1...maxAttempts {
-            let attemptStart = Date()
             do {
-                // 在重试时适当增加超时上限（避免国外目的地偶发慢响应）
+                let attemptTimeout = attempt > 1 ? min(calculatedTimeout + 60.0, 280.0) : calculatedTimeout
                 if attempt > 1 {
-                    let increasedTimeout = min(calculatedTimeout + 60.0, 180.0)
-                    request.timeoutInterval = increasedTimeout
-                    print("🔁 [OpenAI] 第\(attempt)/\(maxAttempts)次尝试（上次超时），提高超时到 \(Int(increasedTimeout))秒后重试…")
+                    print("🔁 [OpenAI] 第\(attempt)/\(maxAttempts)次尝试（上次超时），提高超时到 \(Int(attemptTimeout))秒后重试…")
                 }
-                
-                (data, response) = try await URLSession.shared.data(for: request)
-                let elapsed = Date().timeIntervalSince(attemptStart)
-                print("✅ [OpenAI] 收到响应（第\(attempt)/\(maxAttempts)次），耗时: \(String(format: "%.2f", elapsed))秒")
+                content = try await AIProxyClient.shared.chat(
+                    model: "gpt-4o",
+                    messages: [
+                        ["role": "system", "content": systemPrompt],
+                        ["role": "user", "content": prompt]
+                    ],
+                    temperature: 0.8,
+                    maxTokens: 4000,
+                    jsonMode: true,
+                    timeout: attemptTimeout
+                )
+                lastError = nil
                 break
             } catch {
                 lastError = error
-                
-                if let urlError = error as? URLError {
-                    if urlError.code == .timedOut {
-                        let elapsed = Date().timeIntervalSince(attemptStart)
-                        print("❌ [OpenAI] 请求超时（第\(attempt)/\(maxAttempts)次，耗时: \(String(format: "%.2f", elapsed))秒）")
-                        
-                        if attempt < maxAttempts {
-                            // 轻微退避，避免瞬时网络抖动/拥塞
-                            try? await Task.sleep(nanoseconds: 600_000_000) // 0.6s
-                            continue
-                        }
-                        
-                        throw NSError(
-                            domain: "OpenAIManager",
-                            code: -408,
-                            userInfo: [NSLocalizedDescriptionKey: "生成行程请求超时（已重试\(maxAttempts - 1)次，超时设置: \(Int(calculatedTimeout))秒）。国外目的地通常需要更长时间生成完整JSON。请检查网络，或减少天数/精简偏好后重试。"]
-                        )
-                    } else {
-                        print("❌ [OpenAI] 网络错误: \(urlError.localizedDescription)")
-                        throw NSError(
-                            domain: "OpenAIManager",
-                            code: urlError.code.rawValue,
-                            userInfo: [NSLocalizedDescriptionKey: "网络错误: \(urlError.localizedDescription)"]
-                        )
-                    }
+                let ns = error as NSError
+                let isTimeout = (error as? URLError)?.code == .timedOut
+                    || (ns.domain == FunctionsErrorDomain && FunctionsErrorCode(rawValue: ns.code) == .deadlineExceeded)
+                if isTimeout && attempt < maxAttempts {
+                    try? await Task.sleep(nanoseconds: 600_000_000) // 0.6s
+                    continue
                 }
-                
-                // 非 URLError 直接抛出
                 throw error
             }
         }
-        
-        // 防御：如果循环结束仍没有有效 response/data
-        if let lastError = lastError, data.isEmpty {
-            throw lastError
-        }
-        
-        // 检查HTTP状态
-        if let httpResponse = response as? HTTPURLResponse {
-            if httpResponse.statusCode != 200 {
-                var detailedError: String = "HTTP错误: \(httpResponse.statusCode)"
-                var errorCode: Int = httpResponse.statusCode
-                
-                if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let errorInfo = errorData["error"] as? [String: Any],
-                   let errorMessage = errorInfo["message"] as? String {
-                    detailedError = errorMessage
-                    
-                    // 特殊处理配额错误（429）
-                    if httpResponse.statusCode == 429 {
-                        if errorMessage.contains("quota") || errorMessage.contains("billing") {
-                            detailedError = """
-                            OpenAI API 配额已用完
-                            可能的原因：
-                            1. API Key 的额度已用完
-                            2. 账户未绑定付款方式
-                            3. 免费额度已用尽
-                            解决方案：
-                            1. 检查 OpenAI 账户余额：https://platform.openai.com/account/billing
-                            2. 绑定付款方式或充值
-                            3. 等待配额重置（如果是免费额度）
-                            4. 或使用其他 API Key
-                            """
-                            errorCode = -429  // 使用负值表示特殊错误
-                        }
-                    }
-                    
-                    // 特殊处理"Country, region, or territory not supported"错误
-                    if errorMessage.contains("Country") && (errorMessage.contains("region") || errorMessage.contains("territory")) && errorMessage.contains("not supported") {
-                        detailedError = """
-                        生成行程失败：目的地不支持
-                        可能的原因：
-                        1. 目的地格式不正确
-                        2. OpenAI 无法识别该目的地
-                        3. 目的地不在 OpenAI 支持的地区列表中
-                        解决方案：
-                        1. 请尝试使用更标准的目的地名称（例如："東京, 日本" 而不是 "日本 - 東京"）
-                        2. 检查目的地拼写是否正确
-                        3. 如果问题持续，请联系技术支持
-                        """
-                        errorCode = -400  // 使用负值表示特殊错误
-                    }
-                    
-                    throw NSError(domain: "OpenAIManager", code: errorCode, userInfo: [NSLocalizedDescriptionKey: detailedError])
-                }
-                throw NSError(domain: "OpenAIManager", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "HTTP错误: \(httpResponse.statusCode)"])
-            }
-        }
-        
-        // 解析响应
-        guard
-            let responseObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let choices = responseObject["choices"] as? [[String: Any]],
-            let first = choices.first,
-            let message = first["message"] as? [String: Any],
-            let content = message["content"] as? String
-        else {
-            // 打印原始响应以便调试
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("❌ [OpenAI] 无法解析响应，原始内容: \(responseString)")
-            }
-            throw NSError(domain: "OpenAIManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "无法解析OpenAI响应"])
-        }
-        
+        if let finalError = lastError { throw finalError }
+
         print("✅ [OpenAI] 收到内容，长度: \(content.count) 字符")
         print("📄 [OpenAI] 内容预览（前500字符）: \(String(content.prefix(500)))")
         
@@ -1277,24 +1126,7 @@ final class OpenAIManager {
     func generateSurroundingAttractions(prompt: String, timeout: TimeInterval = 30.0) async throws -> String {
         print("🤖 [OpenAI] generateSurroundingAttractions 开始调用...")
         
-        let key: String
-        do {
-            key = try apiKey
-        } catch {
-            print("❌ [OpenAI] API Key 读取失败: \(error.localizedDescription)")
-            throw error
-        }
-        
-        guard let url = URL(string: "https://api.openai.com/v1/chat/completions") else {
-            throw URLError(.badURL)
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = timeout  // 设置请求超时（默认30秒）
-        request.addValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+        // 修改内容：P0-2 — 改經 aiProxy
         // 根据当前语言环境生成 system prompt
         let language = await MainActor.run {
             getActiveLanguage()
@@ -1306,40 +1138,15 @@ final class OpenAIManager {
             ["role": "user", "content": prompt]
         ]
         
-        let body: [String: Any] = [
-            "model": "gpt-4o-mini",
-            "messages": messages,
-            "temperature": 0.7,
-            "max_tokens": 400  // 进一步减少token，4-8个名称只需要很少的tokens
-        ]
-        
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
-        print("🤖 [OpenAI] 发送周边特色请求...")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        if let httpResponse = response as? HTTPURLResponse {
-            if httpResponse.statusCode != 200 {
-                var detailedError: String = "HTTP错误: \(httpResponse.statusCode)"
-                if let errorData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let errorInfo = errorData["error"] as? [String: Any],
-                   let errorMessage = errorInfo["message"] as? String {
-                    detailedError = errorMessage
-                }
-                throw NSError(domain: "OpenAIManager", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: detailedError])
-            }
-        }
-        
-        guard
-            let responseObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let choices = responseObject["choices"] as? [[String: Any]],
-            let first = choices.first,
-            let message = first["message"] as? [String: Any],
-            let content = message["content"] as? String
-        else {
-            throw NSError(domain: "OpenAIManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "无法解析OpenAI响应"])
-        }
+        print("🤖 [OpenAI] 发送周边特色请求（aiProxy）...")
+        // 修改内容：P0-2 — 改經 aiProxy
+        let content = try await AIProxyClient.shared.chat(
+            model: "gpt-4o-mini",
+            messages: messages,
+            temperature: 0.7,
+            maxTokens: 400,
+            timeout: timeout
+        )
         
         print("✅ [OpenAI] 收到周边特色响应，长度: \(content.count) 字符")
         

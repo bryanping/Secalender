@@ -222,7 +222,8 @@ extension Event {
         let endTimeStr = tf.string(from: endAt)
         let endDateStr = df.string(from: endAt)
         let createStr = timeItem.createdAt.map { df.string(from: $0) + " " + tf.string(from: $0) } ?? ""
-        let idFromHash = -1_000_000 - (abs(timeItem.id?.hashValue ?? UUID().hashValue) % 1_000_000)
+        // 修改内容：P0-3 — 改用穩定雜湊，跨啟動不變
+        let idFromHash = -1_000_000 - ((timeItem.id ?? UUID().uuidString).stableIntId % 1_000_000)
         return Event(
             id: idFromHash,
             title: timeItem.title,
@@ -402,3 +403,15 @@ private let dateFormatter: DateFormatter = {
     formatter.dateFormat = "HH:mm" // 根据实际格式调整
     return formatter
 }()
+
+// MARK: - Stable ID（P0-3）
+// 修改内容：Swift 的 hashValue 每次 App 啟動隨機化（seed randomization），
+// 不可作為持久化 ID。改用 djb2 穩定雜湊，同一字串在任何啟動/裝置上結果相同。
+// TODO(Phase 1)：事件 id 全面遷移為 documentID 字串後移除整個 Int id 體系。
+extension String {
+    var stableIntId: Int {
+        var hash: UInt64 = 5381
+        for b in utf8 { hash = (hash &* 33) &+ UInt64(b) }
+        return Int(hash & 0x7fff_ffff_ffff)
+    }
+}

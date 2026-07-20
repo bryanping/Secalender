@@ -1087,46 +1087,17 @@ final class AITemplateHelper {
             throw NSError(domain: "AITemplateHelper", code: -1, userInfo: [NSLocalizedDescriptionKey: "OpenAI API 已禁用"])
         }
         
-        let key: String
-        if let k = Bundle.main.infoDictionary?["OPENAI_API_KEY"] as? String, !k.isEmpty, k != "$(OPENAI_API_KEY)" {
-            key = k
-        } else if let envKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"], !envKey.isEmpty {
-            key = envKey
-        } else {
-            throw NSError(domain: "AITemplateHelper", code: -1, userInfo: [NSLocalizedDescriptionKey: "API Key 未配置"])
-        }
-        
-        guard let url = URL(string: "https://api.openai.com/v1/chat/completions") else {
-            throw URLError(.badURL)
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let body: [String: Any] = [
-            "model": "gpt-4o-mini",
-            "messages": [
+        // 修改内容：P0-2 — 改經 aiProxy，App 不再持有 API Key
+        let content = try await AIProxyClient.shared.chat(
+            model: "gpt-4o-mini",
+            messages: [
                 ["role": "system", "content": "You are a helpful assistant. Respond in 繁體中文."],
                 ["role": "user", "content": prompt]
             ],
-            "temperature": 0.7,
-            "max_tokens": maxTokens
-        ]
-        
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        
-        let (data, _) = try await URLSession.shared.data(for: request)
-        
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let choices = json["choices"] as? [[String: Any]],
-              let first = choices.first,
-              let message = first["message"] as? [String: Any],
-              let content = message["content"] as? String else {
-            throw NSError(domain: "AITemplateHelper", code: 0, userInfo: [NSLocalizedDescriptionKey: "解析回應失敗"])
-        }
-        
+            temperature: 0.7,
+            maxTokens: maxTokens,
+            timeout: 60
+        )
         return content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

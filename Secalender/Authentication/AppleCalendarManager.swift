@@ -58,6 +58,18 @@ final class AppleCalendarManager: ObservableObject {
         }
     }
 
+
+    /// 修改内容：P0-5 — iOS 17+ 授權後狀態為 .fullAccess（.authorized 已棄用），
+    /// 原判斷只認 .authorized 導致 iOS 17 上讀寫全部失敗。統一在此判斷。
+    private var hasCalendarAccess: Bool {
+        let status = EKEventStore.authorizationStatus(for: .event)
+        if #available(iOS 17.0, *) {
+            return status == .fullAccess || status == .authorized
+        } else {
+            return status == .authorized
+        }
+    }
+
     /// 异步添加活动到 Apple 行事历
     func addEventToAppleCalendar(
         title: String,
@@ -66,8 +78,7 @@ final class AppleCalendarManager: ObservableObject {
         location: String?,
         notes: String?
     ) async throws {
-        let status = EKEventStore.authorizationStatus(for: .event)
-        guard status == .authorized else {
+        guard hasCalendarAccess else {  // 修改内容：P0-5
             throw NSError(domain: "AppleCalendar", code: 401, userInfo: [
                 NSLocalizedDescriptionKey: "请前往设置开启日历权限"
             ])
@@ -95,8 +106,7 @@ final class AppleCalendarManager: ObservableObject {
     
     /// 异步读取某个时间段内的 Apple 行事历事件（用于导入）
     func fetchEventsAsync(startDate: Date, endDate: Date) async -> [EKEvent] {
-        let status = EKEventStore.authorizationStatus(for: .event)
-        guard status == .authorized else {
+        guard hasCalendarAccess else {  // 修改内容：P0-5
             return []
         }
         
@@ -106,8 +116,7 @@ final class AppleCalendarManager: ObservableObject {
     
     /// 获取用户的所有日历列表
     func getUserCalendars() -> [EKCalendar] {
-        let status = EKEventStore.authorizationStatus(for: .event)
-        guard status == .authorized else {
+        guard hasCalendarAccess else {  // 修改内容：P0-5
             return []
         }
         

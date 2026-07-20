@@ -621,7 +621,7 @@ struct FriendDetailView: View {
         var event = Event()
         
         // 基本字段
-        event.id = data["id"] as? Int ?? abs(doc.documentID.hashValue)
+        event.id = data["id"] as? Int ?? doc.documentID.stableIntId  // 修改内容：P0-3 穩定雜湊
         event.title = data["title"] as? String ?? ""
         event.creatorOpenid = data["creatorOpenid"] as? String ?? ""
         event.color = data["color"] as? String ?? "#FF0000"

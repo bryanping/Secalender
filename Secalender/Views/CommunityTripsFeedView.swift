@@ -270,7 +270,7 @@ struct CommunityTripsFeedView: View {
         guard (data["deleted"] as? Int) != 1 else { return nil }
         
         var event = Event()
-        event.id = data["id"] as? Int ?? abs(doc.documentID.hashValue)
+        event.id = data["id"] as? Int ?? doc.documentID.stableIntId  // 修改内容：P0-3 穩定雜湊
         event.title = data["title"] as? String ?? ""
         event.creatorOpenid = creatorId
         event.color = data["color"] as? String ?? "#FF0000"

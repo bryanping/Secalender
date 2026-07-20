@@ -85,19 +85,18 @@ struct TemplateDetailView: View {
                             .cornerRadius(8)
                     }
                 } else {
-                    Button(action: {
-                        // 真正的購買邏輯請整合您的支付方案
-                        showingPurchaseAlert = true
-                    }) {
-                        Text(purchased ? "template_detail.purchased".localized() : "template_detail.buy_template".localized())
+                    // 修改内容：P0-4 — 假購買下架。原實作無任何金流即顯示「購買成功」，
+                    // 有 App 審核與誤導風險。接入 StoreKit 2 前一律停用購買按鈕。
+                    Button(action: {}) {
+                        Text("即將推出")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(purchased ? Color.gray : Color.blue)
+                            .background(Color.gray)
                             .foregroundColor(.white)
                             .cornerRadius(8)
                     }
-                    .disabled(purchased)
+                    .disabled(true)
                 }
 
                 // 如果已購買或價格為0（開發期間免費），顯示檢視和套用按鈕
@@ -176,18 +175,12 @@ struct TemplateDetailView: View {
                 }
             }
         }
+        // 修改内容：P0-4 — 移除假購買 alert（原本在 alert builder 內執行購買副作用，
+        // 未扣款即標記已購買）。待 StoreKit 2 接入後重建購買流程。
         .alert(isPresented: $showingPurchaseAlert) {
-            if purchased {
-                return Alert(title: Text("template_detail.tip".localized()),
-                             message: Text("template_detail.applied".localized()),
-                             dismissButton: .default(Text("template_detail.confirm".localized())))
-            } else {
-                purchased = true
-                TemplatePurchaseManager.shared.markAsPurchased(templateId: template.id, for: userManager.userOpenId)
-                return Alert(title: Text("template_detail.purchase_success".localized()),
-                             message: Text("template_detail.thanks_purchase".localized()),
-                             dismissButton: .default(Text("template_detail.ok".localized())))
-            }
+            Alert(title: Text("template_detail.tip".localized()),
+                  message: Text("即將推出"),
+                  dismissButton: .default(Text("template_detail.ok".localized())))
         }
     }
     
