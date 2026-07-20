@@ -16,6 +16,7 @@ struct MultiDayEventItem: Identifiable {
     var coordinate: CLLocationCoordinate2D?
     var isAllDay: Bool = false
     var isHasEnd: Bool = false
+    var endDate: Date? = nil  // 修改内容：Phase 1-D — 原本無此欄位，結束日期 Binding 誤寫回 date
 }
 
 // MARK: - 表单状态管理器（优化：合并多个 @State 为一个 ObservableObject，减少重绘）
@@ -1158,8 +1159,7 @@ struct EventCreateView: View {
                 formState.selectedStartDate = dateObj
             }
             if let endDateString = viewModel.event.endDate, let endDateObj = {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "yyyy-MM-dd"
+                let formatter = DateFormatter.stable("yyyy-MM-dd")
                 return formatter.date(from: endDateString)
             }() {
                 formState.selectedEndDate = endDateObj
@@ -1328,10 +1328,26 @@ struct EventCreateView: View {
                     await syncEventToAppleCalendar(viewModel.event)
                 }
             } catch {
-                // 如果保存失败，在后台记录错误（不影响用户体验）
-                print("⚠️ 后台保存失败：\(error.localizedDescription)")
-                // 注意：由于视图已关闭，这里无法显示错误提示
-                // 但事件已经保存到本地缓存，用户可以继续使用
+                // 修改内容：Phase 1-C — 背景儲存失敗不再靜默產生「永不上雲的幽靈事件」：
+                // 補上 id、標記 pendingCreate 並進同步佇列，
+                // 由 EventManager.processSyncQueue 在啟動/回前台/網路恢復時自動重試。
+                print("⚠️ 后台保存失败，已加入同步佇列：\(error.localizedDescription)")
+                var pending = viewModel.event
+                if pending.id == nil {
+                    pending.id = UUID().uuidString.stableIntId
+                }
+                pending.syncStatus = .pendingCreate
+                pending.updatedAtSync = Date()
+                EventCacheManager.shared.addEventToCache(pending, for: userId)
+                if let intId = pending.id {
+                    SyncQueueService.shared.enqueue(SyncQueueItem(
+                        entityType: .event,
+                        entityId: String(intId),
+                        actionType: .create,
+                        lastError: error.localizedDescription,
+                        userId: userId
+                    ))
+                }
             }
         }
     }
@@ -1473,8 +1489,12 @@ struct EventCreateView: View {
                 groupId: formState.isGroupEvent ? formState.selectedGroupId : nil
             )
             
-            // 如果没有结束时间，不设置 endDate
-            if !item.isHasEnd {
+            // 修改内容：Phase 1-D — 有結束日期時實際寫入（原本從未寫入 endDate）
+            if item.isHasEnd {
+                if let ed = item.endDate {
+                    event.endDate = dateToString(ed, format: "yyyy-MM-dd")
+                }
+            } else {
                 event.endDate = nil
             }
             
@@ -1642,15 +1662,11 @@ struct EventCreateView: View {
     
     
     private func dateToString(_ date: Date, format: String) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = format
-        return formatter.string(from: date)
+        return DateFormatter.stable(format).string(from: date)  // 修改内容：Phase 1-A
     }
     
     private func stringToDate(_ string: String, format: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = format
-        return formatter.date(from: string)
+        return DateFormatter.stable(format).date(from: string)  // 修改内容：Phase 1-A
     }
     
     /// 将 Event 对象同步到 Apple 日历
@@ -1725,8 +1741,7 @@ struct EventCreateView: View {
         // 处理整日活动
         if event.isAllDay == true {
             // 整日活动：开始时间为当天的 00:00:00，结束时间为当天的 23:59:59
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let dateFormatter = DateFormatter.stable("yyyy-MM-dd")
             guard let date = dateFormatter.date(from: dateString) else {
                 return nil
             }
@@ -1742,8 +1757,7 @@ struct EventCreateView: View {
         
         // 非整日活动：组合日期和时间
         let dateTimeString = "\(dateString) \(timeString)"
-        let dateTimeFormatter = DateFormatter()
-        dateTimeFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        let dateTimeFormatter = DateFormatter.stable("yyyy-MM-dd HH:mm:ss")
         return dateTimeFormatter.date(from: dateTimeString)
     }
 }
@@ -1944,11 +1958,12 @@ struct MultiDayEventItemView: View {
                     endDate: Binding(
                         get: { 
                             guard let idx = itemIndex, idx < items.count else { return nil }
-                            return items[idx].isHasEnd ? items[idx].date : nil
+                            // 修改内容：Phase 1-D — 讀寫 endDate 欄位（原本 set 誤寫回開始日期 date）
+                            return items[idx].isHasEnd ? (items[idx].endDate ?? items[idx].date) : nil
                         },
                         set: { newValue in
-                            guard let idx = itemIndex, idx < items.count, let date = newValue else { return }
-                            items[idx].date = date
+                            guard let idx = itemIndex, idx < items.count else { return }
+                            items[idx].endDate = newValue
                         }
                     ),
                     endTime: Binding(

@@ -149,23 +149,36 @@ final class TimeItemService {
     
     // MARK: - 查詢
 
-    /// 範圍查詢：startAt 落在 [rangeStart, rangeEnd] 內
+    /// 修改内容：Phase 1-B — 跨區間事件回溯窗
+    /// 原查詢只抓 startAt ∈ [rangeStart, rangeEnd]，開始於範圍前、結束於範圍內的
+    /// 事件（跨月/多日）全部漏抓 → 月曆漏顯示、hasConflict 漏判。
+    /// Firestore 無法同時對 startAt/endAt 做範圍條件，改為：startAt 下界回溯
+    /// maxItemSpanDays 天，再於客戶端以「實際重疊」過濾。
+    static let maxItemSpanDays: TimeInterval = 35 * 24 * 3600
+
+    /// 範圍查詢：與 [rangeStart, rangeEnd] 有重疊的項目
     /// 用於日曆月視圖載入
     func fetchRanged(rangeStart: Date, rangeEnd: Date) async throws -> [TimeItem] {
         let ref = try collectionRef()
         
         // 修改内容：移除 status 等值條件 — 「範圍＋等值」組合需 Firestore 複合索引，
         // 缺索引時查詢直接失敗且被呼叫端 try? 吞掉，導致行事曆永遠讀不到 time_items；status 改客戶端過濾
+        let lookback = rangeStart.addingTimeInterval(-Self.maxItemSpanDays)  // 修改内容：Phase 1-B
         let query = ref
-            .whereField("startAt", isGreaterThanOrEqualTo: Timestamp(date: rangeStart))
+            .whereField("startAt", isGreaterThanOrEqualTo: Timestamp(date: lookback))
             .whereField("startAt", isLessThanOrEqualTo: Timestamp(date: rangeEnd))
 
         let snapshot = try await query.getDocuments()
         let items = snapshot.documents.compactMap { decode($0) }
 
-        // 客戶端過濾：active＋只取 event, block, availability, suggestion
+        // 客戶端過濾：active＋只取 event, block, availability, suggestion＋實際與範圍重疊
         let displayTypes: Set<TimeItemType> = [.event, .block, .availability, .suggestion]
-        return items.filter { $0.status == .active && displayTypes.contains($0.type) }
+        return items.filter {
+            guard $0.status == .active && displayTypes.contains($0.type) else { return false }
+            guard let s = $0.startAt else { return false }
+            let e = $0.endAt ?? s
+            return s <= rangeEnd && e >= rangeStart  // 修改内容：Phase 1-B 重疊判定
+        }
     }
     
     /// 浮動任務：type=task, hasStartAt=false, status=active
@@ -207,15 +220,22 @@ final class TimeItemService {
         let ref = try collectionRef()
         
         // 修改内容：等值條件改客戶端過濾（同 fetchRanged，避免複合索引缺失導致查詢整體失敗）
+        // 修改内容：Phase 1-B — 回溯窗抓跨區間事件，否則 Auto Fill 會塞進已被佔用的時段
+        let lookback = rangeStart.addingTimeInterval(-Self.maxItemSpanDays)
         let query = ref
-            .whereField("startAt", isGreaterThanOrEqualTo: Timestamp(date: rangeStart))
+            .whereField("startAt", isGreaterThanOrEqualTo: Timestamp(date: lookback))
             .whereField("startAt", isLessThanOrEqualTo: Timestamp(date: rangeEnd))
 
         let snapshot = try await query.getDocuments()
         let items = snapshot.documents.compactMap { decode($0) }
 
-        // 只取 active 的 event, block（排除 suggestion）
-        return items.filter { $0.hasStartAt && $0.status == .active && ($0.type == .event || $0.type == .block) }
+        // 只取 active 的 event, block（排除 suggestion）＋實際與範圍重疊
+        return items.filter {
+            guard $0.hasStartAt && $0.status == .active && ($0.type == .event || $0.type == .block) else { return false }
+            guard let s = $0.startAt else { return false }
+            let e = $0.endAt ?? s
+            return s <= rangeEnd && e >= rangeStart  // 修改内容：Phase 1-B
+        }
     }
     
     /// 衝突檢查：指定時間段是否與 block/event 重疊

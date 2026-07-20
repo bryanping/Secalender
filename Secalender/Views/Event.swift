@@ -213,10 +213,8 @@ extension Event {
     static func from(timeItem: TimeItem, creatorOpenid: String) -> Event? {
         guard timeItem.type == .event || timeItem.type == .suggestion,
               let startAt = timeItem.startAt, let endAt = timeItem.endAt else { return nil }
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd"
-        let tf = DateFormatter()
-        tf.dateFormat = "HH:mm:ss"
+        let df = DateFormatter.stable("yyyy-MM-dd")
+        let tf = DateFormatter.stable("HH:mm:ss")
         let dateStr = df.string(from: startAt)
         let startTimeStr = tf.string(from: startAt)
         let endTimeStr = tf.string(from: endAt)
@@ -259,8 +257,7 @@ extension Event {
     var dateObj: Date? {
         let formats = ["yyyy-MM-dd", "yyyy/MM/dd", "MM/dd/yyyy"]
         for format in formats {
-            let f = DateFormatter()
-            f.dateFormat = format
+            let f = DateFormatter.stable(format)  // 修改内容：Phase 1-A
             if let date = f.date(from: self.date) {
                 return date
             }
@@ -272,8 +269,7 @@ extension Event {
         guard let endDate = self.endDate else { return nil }
         let formats = ["yyyy-MM-dd", "yyyy/MM/dd", "MM/dd/yyyy"]
         for format in formats {
-            let f = DateFormatter()
-            f.dateFormat = format
+            let f = DateFormatter.stable(format)  // 修改内容：Phase 1-A
             if let date = f.date(from: endDate) {
                 return date
             }
@@ -288,8 +284,7 @@ extension Event {
         
         for dateFormat in dateFormats {
             for timeFormat in timeFormats {
-                let f = DateFormatter()
-                f.dateFormat = "\(dateFormat) \(timeFormat)"
+                let f = DateFormatter.stable("\(dateFormat) \(timeFormat)")  // 修改内容：Phase 1-A
                 if let date = f.date(from: "\(self.date) \(self.startTime)") {
                     return date
                 }
@@ -322,8 +317,7 @@ extension Event {
         
         for dateFormat in dateFormats {
             for timeFormat in timeFormats {
-                let f = DateFormatter()
-                f.dateFormat = "\(dateFormat) \(timeFormat)"
+                let f = DateFormatter.stable("\(dateFormat) \(timeFormat)")  // 修改内容：Phase 1-A
                 if let date = f.date(from: "\(endDateString) \(self.endTime)") {
                     return date
                 }
@@ -333,8 +327,7 @@ extension Event {
         // 如果时间解析失败，尝试只用日期
         let formats = ["yyyy-MM-dd", "yyyy/MM/dd", "MM/dd/yyyy"]
         for format in formats {
-            let f = DateFormatter()
-            f.dateFormat = format
+            let f = DateFormatter.stable(format)  // 修改内容：Phase 1-A
             if let dateOnly = f.date(from: endDateString) {
                 let calendar = Calendar.current
                 let timeComponents = endTime.split(separator: ":").compactMap { Int($0) }
@@ -399,8 +392,7 @@ enum EventTagPresets {
 }
 
 private let dateFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "HH:mm" // 根据实际格式调整
+    let formatter = DateFormatter.stable("HH:mm")
     return formatter
 }()
 

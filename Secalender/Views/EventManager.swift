@@ -23,8 +23,7 @@ class EventManager {
     func addEvent(event: Event) async throws {
         var newEvent = event
         let now = Date()
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        let formatter = DateFormatter.stable("yyyy-MM-dd HH:mm:ss")
         newEvent.createTime = formatter.string(from: now)
         
         // 获取当前用户ID
@@ -187,6 +186,11 @@ class EventManager {
                 }
                 try await document.reference.setData(groupEventData, merge: true)
                 print("✅ 社群活动 Firebase 更新成功: ID \(eventId)")
+            } else {
+                // 修改内容：Phase 1-C — 原本找不到文件時靜默 no-op（離線建立後再編輯，
+                // 編輯內容永遠不上雲）。改為回退建立。
+                _ = try await addEventToFirebaseOnly(event: event)
+                print("ℹ️ 社群活动更新目標不存在，已回退為建立: ID \(eventId)")
             }
         } else {
             let userEventsSnapshot = try await db.collection("users")
@@ -202,6 +206,10 @@ class EventManager {
                 }
                 try await document.reference.setData(userEventData, merge: true)
                 print("✅ 个人活动 Firebase 更新成功: ID \(eventId)")
+            } else {
+                // 修改内容：Phase 1-C — 找不到文件回退為建立（同上）
+                _ = try await addEventToFirebaseOnly(event: event)
+                print("ℹ️ 个人活动更新目標不存在，已回退為建立: ID \(eventId)")
             }
         }
     }
@@ -212,8 +220,7 @@ class EventManager {
     func addEventToFirebaseOnly(event: Event) async throws -> Int {
         var newEvent = event
         let now = Date()
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        let formatter = DateFormatter.stable("yyyy-MM-dd HH:mm:ss")
         newEvent.createTime = formatter.string(from: now)
         
         let userId = Auth.auth().currentUser?.uid ?? ""
@@ -351,8 +358,7 @@ class EventManager {
             if let dateString = data["date"] as? String {
                 event.date = dateString
             } else if let timestamp = data["date"] as? Timestamp {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "yyyy-MM-dd"
+                let formatter = DateFormatter.stable("yyyy-MM-dd")
                 event.date = formatter.string(from: timestamp.dateValue())
             } else {
                 event.date = ""

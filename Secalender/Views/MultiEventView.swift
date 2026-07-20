@@ -577,8 +577,7 @@ struct MultiEventView: View {
             let calendar = Calendar.current
             
             // 更新事件的日期
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let dateFormatter = DateFormatter.stable("yyyy-MM-dd")
             movedEvent.date = dateFormatter.string(from: targetDate)
             
             // 保持原有的时间，但更新日期部分
@@ -588,8 +587,7 @@ struct MultiEventView: View {
                                                      minute: timeComponents.minute ?? 0, 
                                                      second: timeComponents.second ?? 0, 
                                                      of: targetDate) {
-                    let timeFormatter = DateFormatter()
-                    timeFormatter.dateFormat = "HH:mm:ss"
+                    let timeFormatter = DateFormatter.stable("HH:mm:ss")
                     movedEvent.startTime = timeFormatter.string(from: newStartTime)
                 }
             }
@@ -601,8 +599,7 @@ struct MultiEventView: View {
                                                   minute: timeComponents.minute ?? 0, 
                                                   second: timeComponents.second ?? 0, 
                                                   of: targetDate) {
-                    let timeFormatter = DateFormatter()
-                    timeFormatter.dateFormat = "HH:mm:ss"
+                    let timeFormatter = DateFormatter.stable("HH:mm:ss")
                     movedEvent.endTime = timeFormatter.string(from: newEndTime)
                 }
             }
@@ -627,8 +624,7 @@ struct MultiEventView: View {
             for (index, var event) in updatedEventsByDate[toDayIndex].1.enumerated() {
                 if index == toIndex {
                     // 更新被移动的事件时间
-                    let timeFormatter = DateFormatter()
-                    timeFormatter.dateFormat = "HH:mm:ss"
+                    let timeFormatter = DateFormatter.stable("HH:mm:ss")
                     event.startTime = timeFormatter.string(from: currentTime)
                     
                     // 如果有结束时间，设置为开始时间后1小时
@@ -809,10 +805,8 @@ struct MultiEventView: View {
         updatedEvent.information = updatedBlock.description
         
         // 更新时间
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "HH:mm:ss"
+        let dateFormatter = DateFormatter.stable("yyyy-MM-dd")
+        let timeFormatter = DateFormatter.stable("HH:mm:ss")
         
         updatedEvent.date = dateFormatter.string(from: updatedBlock.startTime)
         updatedEvent.startTime = timeFormatter.string(from: updatedBlock.startTime)
@@ -1107,8 +1101,7 @@ private let dateFormatter: DateFormatter = {
 }()
 
 private let timeFormatter: DateFormatter = {
-    let f = DateFormatter()
-    f.dateFormat = "HH:mm"
+    let f = DateFormatter.stable("HH:mm")
     return f
 }()
 

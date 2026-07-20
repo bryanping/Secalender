@@ -342,10 +342,8 @@ struct ImportAppleCalendarView: View {
     
     /// 将 EKEvent 转换为 Event
     private func convertEKEventToEvent(_ ekEvent: EKEvent) -> Event {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "HH:mm:ss"
+        let dateFormatter = DateFormatter.stable("yyyy-MM-dd")
+        let timeFormatter = DateFormatter.stable("HH:mm:ss")
         
         let startDate = ekEvent.startDate ?? Date()
         let endDate = ekEvent.endDate ?? startDate
@@ -385,8 +383,7 @@ struct ImportAppleCalendarView: View {
             information += "地点：\(location)"
         }
         
-        let createTimeFormatter = DateFormatter()
-        createTimeFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        let createTimeFormatter = DateFormatter.stable("yyyy-MM-dd HH:mm:ss")
         
         // 使用 Apple 日曆識別符標記為外部匯入
         let calendarComp = ekEvent.calendar?.calendarIdentifier ?? "apple"
@@ -478,10 +475,9 @@ struct EventRowView: View {
     }
     
     private func formatEventTime(_ event: EKEvent) -> String {
-        let dateFormatter = DateFormatter()
+        let dateFormatter = DateFormatter.stable("yyyy-MM-dd")
         
         if event.isAllDay {
-            dateFormatter.dateFormat = "yyyy-MM-dd"
             if let startDate = event.startDate {
                 if let endDate = event.endDate, endDate > startDate {
                     let endDateString = dateFormatter.string(from: endDate)
@@ -501,8 +497,7 @@ struct EventRowView: View {
             if let startDate = event.startDate, let endDate = event.endDate {
                 let startString = dateFormatter.string(from: startDate)
                 if Calendar.current.isDate(startDate, inSameDayAs: endDate) {
-                    let timeFormatter = DateFormatter()
-                    timeFormatter.dateFormat = "HH:mm"
+                    let timeFormatter = DateFormatter.stable("HH:mm")
                     return "\(startString) - \(timeFormatter.string(from: endDate))"
                 } else {
                     let endString = dateFormatter.string(from: endDate)

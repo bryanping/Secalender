@@ -568,8 +568,14 @@ struct CalendarView: View {
                 return nil // 如果日期解析失败，跳过该事件
             }
             
-            // 只返回当前月份的事件
-            let isInCurrentMonth = calendar.isDate(dateObj, equalTo: currentMonth, toGranularity: .month)
+            // 修改内容：Phase 1-B — 原判斷只看「開始日」是否在當月，
+            // 上月開始、跨入本月的多日事件在本月完全不顯示。
+            // 改為：事件的 [開始日, 結束日] 區間與當月有交集即納入。
+            let startDay = calendar.startOfDay(for: dateObj)
+            let endDay = calendar.startOfDay(for: event.endDateObj ?? dateObj)
+            let isInCurrentMonth = calendar.isDate(startDay, equalTo: currentMonth, toGranularity: .month)
+                || calendar.isDate(endDay, equalTo: currentMonth, toGranularity: .month)
+                || (startDay < startOfMonth && endDay >= startOfMonth)
             return isInCurrentMonth ? event : nil
         }
 
@@ -665,8 +671,7 @@ struct CalendarView: View {
         if let dateString = data["date"] as? String {
             event.date = dateString
         } else if let timestamp = data["date"] as? Timestamp {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
+            let formatter = DateFormatter.stable("yyyy-MM-dd")
             event.date = formatter.string(from: timestamp.dateValue())
         } else {
             event.date = ""
@@ -951,9 +956,8 @@ private let monthFormatter: DateFormatter = {
 
 extension Date {
     func toString(format: String = "yyyy-MM-dd") -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = format
-        return formatter.string(from: self)
+        // 修改内容：Phase 1-A — 儲存字串一律走 stable
+        return DateFormatter.stable(format).string(from: self)
     }
 }
 

@@ -32,8 +32,7 @@ struct DeepLinkCalendarImportView: View {
     @State private var errorMessage: String? = nil
 
     private var timeFormatter: DateFormatter {
-        let f = DateFormatter()
-        f.dateFormat = "MM/dd HH:mm"
+        let f = DateFormatter.stable("MM/dd HH:mm")
         return f
     }
 
@@ -220,13 +219,10 @@ struct DeepLinkCalendarImportView: View {
             .replacingOccurrences(of: "\n\t", with: "")
         let lines = unfolded.split(whereSeparator: \.isNewline).map(String.init)
 
-        let utcFormatter = DateFormatter()
-        utcFormatter.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
+        let utcFormatter = DateFormatter.stable("yyyyMMdd'T'HHmmss'Z'")
         utcFormatter.timeZone = TimeZone(identifier: "UTC")
-        let localFormatter = DateFormatter()
-        localFormatter.dateFormat = "yyyyMMdd'T'HHmmss"
-        let dayFormatter = DateFormatter()
-        dayFormatter.dateFormat = "yyyyMMdd"
+        let localFormatter = DateFormatter.stable("yyyyMMdd'T'HHmmss")
+        let dayFormatter = DateFormatter.stable("yyyyMMdd")
 
         func unescape(_ s: String) -> String {
             s.replacingOccurrences(of: "\\n", with: " ")

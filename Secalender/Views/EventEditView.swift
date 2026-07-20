@@ -209,15 +209,9 @@ struct EventEditView: View {
                         }
                     }
                 }
-                .onChange(of: isAllDay) { _, newValue in
-                    if newValue {
-                        isHasEnd = false
-                        let calendar = Calendar.current
-                        selectedStartTime = calendar.startOfDay(for: selectedDate)
-                        selectedEndDate = selectedDate
-                        selectedEndTime = calendar.date(byAdding: .hour, value: 1, to: selectedStartTime) ?? selectedStartTime
-                    }
-                }
+                // 修改内容：Phase 1-D — 移除重複掛載的 onChange(of: isAllDay)。
+                // 此處無條件 isHasEnd=false 與下方較完整的版本衝突，
+                // 導致編輯多日事件切整日時結束日期被清除。保留下方版本。
                 
                 // 其他设置卡片
                 EventSettingsCard(
@@ -452,9 +446,21 @@ struct EventEditView: View {
             do {
                 try await viewModel.saveEvent(currentUserOpenId: userId)
             } catch {
-                // 后台更新失败，记录错误但不影响用户体验
-                // 因为本地缓存已经更新，用户可以继续使用
-                print("⚠️ 后台更新 Firebase 失败：\(error.localizedDescription)")
+                // 修改内容：Phase 1-C — 背景更新失敗改入同步佇列，自動重試
+                print("⚠️ 后台更新 Firebase 失败，已加入同步佇列：\(error.localizedDescription)")
+                var pending = viewModel.event
+                if let intId = pending.id {
+                    pending.syncStatus = .pendingUpdate
+                    pending.updatedAtSync = Date()
+                    EventCacheManager.shared.updateEventInCache(pending, for: userId)
+                    SyncQueueService.shared.enqueue(SyncQueueItem(
+                        entityType: .event,
+                        entityId: String(intId),
+                        actionType: .update,
+                        lastError: error.localizedDescription,
+                        userId: userId
+                    ))
+                }
             }
         }
     }
@@ -462,15 +468,11 @@ struct EventEditView: View {
 
 // 辅助方法
 private func dateToString(_ date: Date, format: String) -> String {
-    let formatter = DateFormatter()
-    formatter.dateFormat = format
-    return formatter.string(from: date)
+    return DateFormatter.stable(format).string(from: date)  // 修改内容：Phase 1-A
 }
 
 private func stringToDate(_ string: String, format: String) -> Date? {
-    let formatter = DateFormatter()
-    formatter.dateFormat = format
-    return formatter.date(from: string)
+    return DateFormatter.stable(format).date(from: string)  // 修改内容：Phase 1-A
 }
 
 struct EventEditView_Previews: PreviewProvider {
