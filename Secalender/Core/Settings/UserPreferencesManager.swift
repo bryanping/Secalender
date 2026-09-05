@@ -161,5 +161,46 @@ final class UserPreferencesManager {
             userDefaults.set(value, forKey: "\(autoImportAppleCalendarKey)_\(userId)")
         }
     }
+
+    // MARK: - 修改内容：Apple 同步 Step5 — 以「來源日曆」為單位的同步設定
+
+    private func syncedCalendarIdsKey(_ userId: String) -> String {
+        "syncedAppleCalendarIds_\(userId)"
+    }
+    private func syncPastMonthsKey(_ userId: String) -> String {
+        "appleSyncPastMonths_\(userId)"
+    }
+    private func syncFutureMonthsKey(_ userId: String) -> String {
+        "appleSyncFutureMonths_\(userId)"
+    }
+
+    /// 已訂閱同步的來源日曆識別符（僅這些日曆會被同步）
+    func getSyncedCalendarIds(for userId: String) -> Set<String> {
+        Set(userDefaults.stringArray(forKey: syncedCalendarIdsKey(userId)) ?? [])
+    }
+
+    func setSyncedCalendarIds(_ ids: Set<String>, for userId: String) {
+        userDefaults.set(Array(ids), forKey: syncedCalendarIdsKey(userId))
+    }
+
+    /// 同步範圍：往前幾個月（預設 12，涵蓋舊行程）
+    func getSyncPastMonths(for userId: String) -> Int {
+        let value = userDefaults.integer(forKey: syncPastMonthsKey(userId))
+        return value == 0 ? 12 : value
+    }
+
+    func setSyncPastMonths(_ months: Int, for userId: String) {
+        userDefaults.set(months, forKey: syncPastMonthsKey(userId))
+    }
+
+    /// 同步範圍：往後幾個月（預設 12）
+    func getSyncFutureMonths(for userId: String) -> Int {
+        let value = userDefaults.integer(forKey: syncFutureMonthsKey(userId))
+        return value == 0 ? 12 : value
+    }
+
+    func setSyncFutureMonths(_ months: Int, for userId: String) {
+        userDefaults.set(months, forKey: syncFutureMonthsKey(userId))
+    }
 }
 

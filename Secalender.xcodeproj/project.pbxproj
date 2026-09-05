@@ -16,6 +16,10 @@
 		A22F0B4A2F2922B3005910B0 /* MapAppSelectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22F0B492F2922B3005910B0 /* MapAppSelectorView.swift */; };
 		A22F0B4C2F2923AD005910B0 /* MapAppManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22F0B4B2F2923AD005910B0 /* MapAppManager.swift */; };
 		A22F0B4E2F2AEB28005910B0 /* ImportAppleCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22F0B4D2F2AEB28005910B0 /* ImportAppleCalendarView.swift */; };
+		A2AC10022F3A0002005910B0 /* AppleImportManageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2AC10012F3A0001005910B0 /* AppleImportManageView.swift */; };
+		A2AC10042F3A0004005910B0 /* EventSourceBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2AC10032F3A0003005910B0 /* EventSourceBanner.swift */; };
+		A2AC10062F3A0006005910B0 /* EventTroubleshootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2AC10052F3A0005005910B0 /* EventTroubleshootView.swift */; };
+		A2AC10082F3A0008005910B0 /* CalendarManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2AC10072F3A0007005910B0 /* CalendarManagementView.swift */; };
 		A232A9142E0A48A200E4739F /* AppleCalendarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A232A9132E0A48A100E4739F /* AppleCalendarManager.swift */; };
 		A251BF652DF7CC340024A02C /* FriendManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A251BF642DF7CC330024A02C /* FriendManager.swift */; };
 		A251BF672DF83BFA0024A02C /* PreviewHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A251BF662DF83BF80024A02C /* PreviewHostView.swift */; };
@@ -226,6 +230,10 @@
 		A22F0B492F2922B3005910B0 /* MapAppSelectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapAppSelectorView.swift; sourceTree = "<group>"; };
 		A22F0B4B2F2923AD005910B0 /* MapAppManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapAppManager.swift; sourceTree = "<group>"; };
 		A22F0B4D2F2AEB28005910B0 /* ImportAppleCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportAppleCalendarView.swift; sourceTree = "<group>"; };
+		A2AC10012F3A0001005910B0 /* AppleImportManageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleImportManageView.swift; sourceTree = "<group>"; };
+		A2AC10032F3A0003005910B0 /* EventSourceBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventSourceBanner.swift; sourceTree = "<group>"; };
+		A2AC10052F3A0005005910B0 /* EventTroubleshootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventTroubleshootView.swift; sourceTree = "<group>"; };
+		A2AC10072F3A0007005910B0 /* CalendarManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarManagementView.swift; sourceTree = "<group>"; };
 		A232A9132E0A48A100E4739F /* AppleCalendarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleCalendarManager.swift; sourceTree = "<group>"; };
 		A251BF642DF7CC330024A02C /* FriendManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendManager.swift; sourceTree = "<group>"; };
 		A251BF662DF83BF80024A02C /* PreviewHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewHostView.swift; sourceTree = "<group>"; };
@@ -553,6 +561,10 @@
 				A2E913AE2DE801DB00629016 /* GroupEventsView.swift */,
 				A2E0F99C2F19416A00DA4FC9 /* GroupSelectorView.swift */,
 				A22F0B4D2F2AEB28005910B0 /* ImportAppleCalendarView.swift */,
+				A2AC10012F3A0001005910B0 /* AppleImportManageView.swift */,
+				A2AC10032F3A0003005910B0 /* EventSourceBanner.swift */,
+				A2AC10052F3A0005005910B0 /* EventTroubleshootView.swift */,
+				A2AC10072F3A0007005910B0 /* CalendarManagementView.swift */,
 				A2FEEA2B2E09D45E006696EC /* InviteFriendsView.swift */,
 				B5C6D7E8F9A0B1C2D3E4F5A5 /* LocationPickerView.swift */,
 				A2BD0C132F303BF70054E3F1 /* Loginview */,
@@ -1122,6 +1134,10 @@
 				A2E913AF2DE801DD00629016 /* GroupEventsView.swift in Sources */,
 				A22F0B4C2F2923AD005910B0 /* MapAppManager.swift in Sources */,
 				A22F0B4E2F2AEB28005910B0 /* ImportAppleCalendarView.swift in Sources */,
+				A2AC10022F3A0002005910B0 /* AppleImportManageView.swift in Sources */,
+				A2AC10042F3A0004005910B0 /* EventSourceBanner.swift in Sources */,
+				A2AC10062F3A0006005910B0 /* EventTroubleshootView.swift in Sources */,
+				A2AC10082F3A0008005910B0 /* CalendarManagementView.swift in Sources */,
 				A2CF37282F285E1500A38B6F /* GoogleMapView.swift in Sources */,
 				A2E93C5F2C32938F00516E52 /* UserProfileStatsService.swift in Sources */,
 				A2FEEA2C2E09D45E006696EC /* InviteFriendsView.swift in Sources */,

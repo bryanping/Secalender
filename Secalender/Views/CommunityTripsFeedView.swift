@@ -87,7 +87,7 @@ struct CommunityTripsFeedView: View {
     
     @ViewBuilder
     private func feedCard(for item: FeedTripItem) -> some View {
-        NavigationLink(destination: EventShareView(event: item.event)) {
+        NavigationLink(destination: EventDetailRoute(event: item.event)) {  // 修改内容：身份分流
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     Circle()
@@ -271,6 +271,7 @@ struct CommunityTripsFeedView: View {
         
         var event = Event()
         event.id = data["id"] as? Int ?? doc.documentID.stableIntId  // 修改内容：P0-3 穩定雜湊
+        EventDocumentIndex.shared.record(eventId: event.id, path: doc.reference.path)  // 修改内容：Step10
         event.title = data["title"] as? String ?? ""
         event.creatorOpenid = creatorId
         event.color = data["color"] as? String ?? "#FF0000"

@@ -777,3 +777,5 @@
 "event_ui.end_time" = "Endzeit";
 "event_ui.date_time" = "Datum & Zeit";
 "event_create.calendar_options.health" = "Gesundheit";
+
+"event_edit.update" = "Aktualisieren";

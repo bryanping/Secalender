@@ -60,6 +60,13 @@ final class FriendManager {
     private var friendIds: Set<String> = []
     private var cachedFriends: [FriendEntry] = []
     private var isLoadingFriends = false
+    // 修改内容：Step9 — 背景刷新節流，避免每次載入行事曆都重讀 Firestore 好友清單
+    private var lastFriendRefreshAt: Date?
+    private static let friendRefreshInterval: TimeInterval = 600
+    private var shouldBackgroundRefresh: Bool {
+        guard let last = lastFriendRefreshAt else { return true }
+        return Date().timeIntervalSince(last) > Self.friendRefreshInterval
+    }
     private let cacheManager = FriendCacheManager.shared
     
     // MARK: - 朋友名单加载（带缓存）
@@ -77,9 +84,11 @@ final class FriendManager {
         // 1. 优先从内存缓存读取
         if !cachedFriends.isEmpty && !forceRefresh {
             print("📦 从内存缓存返回 \(cachedFriends.count) 个朋友")
-            // 后台异步更新（不阻塞）
-            Task.detached(priority: .background) { [weak self] in
-                await self?.refreshFriendsFromFirebase(for: userId)
+            // 后台异步更新（不阻塞）— 修改内容：Step9 加入節流
+            if shouldBackgroundRefresh {
+                Task.detached(priority: .background) { [weak self] in
+                    await self?.refreshFriendsFromFirebase(for: userId)
+                }
             }
             return cachedFriends
         }
@@ -91,9 +100,11 @@ final class FriendManager {
             if cacheManager.isCacheValid(for: userId, maxAge: 24 * 60 * 60) {
                 print("📦 从本地缓存返回 \(localCachedFriends.count) 个朋友")
                 cachedFriends = localCachedFriends
-                // 后台异步更新（不阻塞）
-                Task.detached(priority: .background) { [weak self] in
-                    await self?.refreshFriendsFromFirebase(for: userId)
+                // 后台异步更新（不阻塞）— 修改内容：Step9 加入節流
+                if shouldBackgroundRefresh {
+                    Task.detached(priority: .background) { [weak self] in
+                        await self?.refreshFriendsFromFirebase(for: userId)
+                    }
                 }
                 return localCachedFriends
             } else {
@@ -112,8 +123,9 @@ final class FriendManager {
         }
         
         isLoadingFriends = true
+        lastFriendRefreshAt = Date()   // 修改内容：Step9 — 記錄刷新時間供節流判斷
         defer { isLoadingFriends = false }
-        
+
         let db = Firestore.firestore()
         
         do {

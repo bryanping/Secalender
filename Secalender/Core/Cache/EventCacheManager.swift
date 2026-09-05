@@ -7,6 +7,132 @@
 
 import Foundation
 
+// MARK: - 修改内容：Step10 — 事件 id ↔ Firestore 文件路徑索引
+/// 事件 id 多由 documentID 雜湊而來，文件本身沒有 `id` 欄位，
+/// 因此刪除／更新不能靠 whereField("id") 查詢（永遠查不到，導致「刪不掉」）。
+/// 解析文件時記錄路徑，刪除時直接以路徑操作。
+final class EventDocumentIndex {
+    static let shared = EventDocumentIndex()
+    private init() {}
+
+    private let storageKey = "event_document_paths"
+    private let userDefaults = UserDefaults.standard
+    private var memoryMap: [String: String]?
+
+    private var map: [String: String] {
+        get {
+            if let cached = memoryMap { return cached }
+            let stored = (userDefaults.dictionary(forKey: storageKey) as? [String: String]) ?? [:]
+            memoryMap = stored
+            return stored
+        }
+        set {
+            memoryMap = newValue
+            userDefaults.set(newValue, forKey: storageKey)
+        }
+    }
+
+    /// 記錄事件對應的 Firestore 文件路徑
+    func record(eventId: Int?, path: String) {
+        guard let eventId, !path.isEmpty else { return }
+        var current = map
+        guard current[String(eventId)] != path else { return }
+        current[String(eventId)] = path
+        map = current
+    }
+
+    func path(for eventId: Int) -> String? {
+        map[String(eventId)]
+    }
+
+    func remove(eventId: Int) {
+        var current = map
+        guard current.removeValue(forKey: String(eventId)) != nil else { return }
+        map = current
+    }
+}
+
+// MARK: - 修改内容：Step11 — 刪除墓碑（離線也能「刪得掉」）
+/// 離線或連線逾時時，刪除只作用於本地，下次同步又被雲端資料還原。
+/// 這裡記錄「已刪除但尚未被伺服器確認」的事件，載入時一律過濾，
+/// 待 Firestore 送出刪除成功後才清除紀錄。
+final class DeletedEventRegistry {
+    static let shared = DeletedEventRegistry()
+    private init() {}
+
+    struct Tombstone: Codable {
+        let eventId: Int
+        var path: String?
+        var timeItemId: String?
+        let createdAt: Date
+        /// 只在本機隱藏，不刪除雲端來源（他人分享、無權限刪除者）
+        var hideOnly: Bool?
+        // 修改内容：Step15 — 刪除歷史顯示用
+        var title: String?
+        var date: String?
+    }
+
+    private let userDefaults = UserDefaults.standard
+    private let storageKey = "deleted_event_tombstones"
+    /// 保留上限：超過此期間仍未確認即視為已完成，避免無限成長
+    private let maxAge: TimeInterval = 30 * 24 * 60 * 60
+
+    private func key(_ userId: String) -> String { "\(storageKey)_\(userId)" }
+
+    func tombstones(for userId: String) -> [Tombstone] {
+        guard let data = userDefaults.data(forKey: key(userId)),
+              let list = try? JSONDecoder().decode([Tombstone].self, from: data) else { return [] }
+        let now = Date()
+        return list.filter { now.timeIntervalSince($0.createdAt) < maxAge }
+    }
+
+    private func save(_ list: [Tombstone], for userId: String) {
+        guard let data = try? JSONEncoder().encode(list) else { return }
+        userDefaults.set(data, forKey: key(userId))
+    }
+
+    func mark(eventId: Int, path: String?, timeItemId: String?, for userId: String,
+              hideOnly: Bool = false, title: String? = nil, date: String? = nil) {
+        guard !userId.isEmpty else { return }
+        var list = tombstones(for: userId).filter { $0.eventId != eventId }
+        list.append(Tombstone(eventId: eventId, path: path, timeItemId: timeItemId,
+                              createdAt: Date(), hideOnly: hideOnly, title: title, date: date))
+        save(list, for: userId)
+    }
+
+    /// 刪除歷史（新到舊）
+    func history(for userId: String) -> [Tombstone] {
+        tombstones(for: userId).sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// 清空刪除歷史（不會恢復已刪除的資料）
+    func clearHistory(for userId: String) {
+        save([], for: userId)
+    }
+
+    func clear(eventId: Int, for userId: String) {
+        guard !userId.isEmpty else { return }
+        save(tombstones(for: userId).filter { $0.eventId != eventId }, for: userId)
+    }
+
+    func isDeleted(_ eventId: Int?, for userId: String) -> Bool {
+        guard let eventId, !userId.isEmpty else { return false }
+        return tombstones(for: userId).contains { $0.eventId == eventId }
+    }
+
+    /// 過濾掉已刪除（待確認）的事件
+    func filterDeleted(_ events: [Event], for userId: String) -> [Event] {
+        let deletedIds = Set(tombstones(for: userId).map { $0.eventId })
+        let deletedItemIds = Set(tombstones(for: userId).compactMap { $0.timeItemId })
+        guard !deletedIds.isEmpty || !deletedItemIds.isEmpty else { return events }
+        return events.filter { event in
+            if let id = event.id, deletedIds.contains(id) { return false }
+            if let itemId = event.timeItemId, deletedItemIds.contains(itemId) { return false }
+            return true
+        }
+    }
+}
+
 /// 事件缓存管理器 - 用于本地存储事件数据
 final class EventCacheManager {
     static let shared = EventCacheManager()

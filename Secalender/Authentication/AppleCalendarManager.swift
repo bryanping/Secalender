@@ -70,13 +70,29 @@ final class AppleCalendarManager: ObservableObject {
         }
     }
 
+    // MARK: - 修改内容：Phase 2-E — App↔Apple 事件映射（雙向同步 v1）
+    // App 事件 id → EKEvent identifier，供編輯/刪除回寫 Apple 日曆。
+    private let syncMapKey = "apple_event_sync_map"
+    private var syncMap: [String: String] {
+        get { (UserDefaults.standard.dictionary(forKey: syncMapKey) as? [String: String]) ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: syncMapKey) }
+    }
+    func linkedAppleEventId(for eventId: Int) -> String? { syncMap[String(eventId)] }
+    private func setLink(eventId: Int, appleId: String?) {
+        var m = syncMap
+        if let appleId = appleId { m[String(eventId)] = appleId } else { m.removeValue(forKey: String(eventId)) }
+        syncMap = m
+    }
+
     /// 异步添加活动到 Apple 行事历
+    /// 修改内容：Phase 2-E — 傳入 eventId 時記錄映射，之後編輯/刪除可回寫
     func addEventToAppleCalendar(
         title: String,
         start: Date,
         end: Date,
         location: String?,
-        notes: String?
+        notes: String?,
+        eventId: Int? = nil
     ) async throws {
         guard hasCalendarAccess else {  // 修改内容：P0-5
             throw NSError(domain: "AppleCalendar", code: 401, userInfo: [
@@ -93,6 +109,49 @@ final class AppleCalendarManager: ObservableObject {
         event.calendar = eventStore.defaultCalendarForNewEvents
 
         try eventStore.save(event, span: .thisEvent)
+
+        if let eventId = eventId, let appleId = event.eventIdentifier {
+            setLink(eventId: eventId, appleId: appleId)  // 修改内容：Phase 2-E
+        }
+    }
+
+    /// 修改内容：Phase 2-E — App 端更新回寫 Apple（僅曾同步過的事件）
+    func updateSyncedEvent(
+        eventId: Int,
+        title: String,
+        start: Date,
+        end: Date,
+        location: String?,
+        notes: String?
+    ) {
+        guard hasCalendarAccess,
+              let appleId = linkedAppleEventId(for: eventId),
+              let ek = eventStore.event(withIdentifier: appleId) else { return }
+        ek.title = title
+        ek.startDate = start
+        ek.endDate = end
+        ek.location = location
+        ek.notes = notes
+        do {
+            try eventStore.save(ek, span: .thisEvent)
+            print("✅ [AppleSync] 已回寫更新: \(title)")
+        } catch {
+            print("⚠️ [AppleSync] 回寫更新失敗: \(error.localizedDescription)")
+        }
+    }
+
+    /// 修改内容：Phase 2-E — App 端刪除回寫 Apple（僅曾同步過的事件）
+    func removeSyncedEvent(eventId: Int) {
+        defer { setLink(eventId: eventId, appleId: nil) }
+        guard hasCalendarAccess,
+              let appleId = linkedAppleEventId(for: eventId),
+              let ek = eventStore.event(withIdentifier: appleId) else { return }
+        do {
+            try eventStore.remove(ek, span: .thisEvent)
+            print("✅ [AppleSync] 已回寫刪除")
+        } catch {
+            print("⚠️ [AppleSync] 回寫刪除失敗: \(error.localizedDescription)")
+        }
     }
 
     /// 读取某个时间段内的 Apple 行事历事件（用于比对/展示）
@@ -114,6 +173,37 @@ final class AppleCalendarManager: ObservableObject {
         return eventStore.events(matching: predicate)
     }
     
+    // MARK: - 修改内容：Apple 匯入 Step2 — 匯入來源需含唯讀日曆（訂閱／節日／共享）
+    /// 取得所有事件日曆（含唯讀），依帳號來源與名稱排序
+    func getAllEventCalendars() -> [EKCalendar] {
+        guard hasCalendarAccess else { return [] }
+        return eventStore.calendars(for: .event).sorted {
+            let s0 = $0.source?.title ?? ""
+            let s1 = $1.source?.title ?? ""
+            return s0 == s1 ? $0.title < $1.title : s0 < s1
+        }
+    }
+
+    /// 讀取指定日曆在時間範圍內的事件
+    func fetchEventsAsync(startDate: Date, endDate: Date, calendars: [EKCalendar]?) async -> [EKEvent] {
+        guard hasCalendarAccess else { return [] }
+        let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: calendars)
+        return eventStore.events(matching: predicate)
+            .sorted { ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast) }
+    }
+
+    /// 依識別符取得 Apple 事件（管理頁重新同步用）
+    func event(withIdentifier identifier: String) -> EKEvent? {
+        guard hasCalendarAccess else { return nil }
+        return eventStore.event(withIdentifier: identifier)
+    }
+
+    /// 依識別符取得日曆
+    func calendar(withIdentifier identifier: String) -> EKCalendar? {
+        guard hasCalendarAccess else { return nil }
+        return eventStore.calendar(withIdentifier: identifier)
+    }
+
     /// 获取用户的所有日历列表
     func getUserCalendars() -> [EKCalendar] {
         guard hasCalendarAccess else {  // 修改内容：P0-5

@@ -932,3 +932,5 @@
 
 // MARK: - Friend Selection
 "friend_selection.select_friends" = "选择好友";
+
+"event_edit.update" = "更新活动";

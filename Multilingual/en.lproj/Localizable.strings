@@ -1165,3 +1165,5 @@
 "add_group.name_required" = "Please enter group name";
 "add_group.category_required" = "Please select group category";
 "add_group.create_failed_prefix" = "Failed to create: %@";
+
+"event_edit.update" = "Update";

@@ -7,6 +7,7 @@ import SwiftUI
 import Foundation
 import Firebase
 import CoreLocation
+import EventKit  // 修改内容：Phase 2-E
 
 /// 行程筛选类型
 enum EventFilterType: String, CaseIterable {
@@ -45,6 +46,11 @@ struct CalendarView: View {
     @State private var selectedDateForNewEvent: Date?
     @State private var selectedEvent: Event?
     @State private var isLoading = true
+    // 修改内容：Step9 — Firestore 讀取節流
+    @State private var isRemoteSyncing = false
+    @State private var lastSyncedMonthKey: String?
+    /// 兩次遠端同步的最小間隔（秒）
+    private static let remoteSyncInterval: TimeInterval = 120
     @State private var friendIds: Set<String> = []
     @State private var groupIds: Set<String> = []
     @State private var selectedFilter: EventFilterType = .all
@@ -56,12 +62,15 @@ struct CalendarView: View {
     @State private var selectedEventIds: Set<Int> = []
     @State private var showBatchShare: Bool = false
     @State private var showMultiEventView: Bool = false
-    @State private var showImportAppleCalendar: Bool = false
+    // 修改内容：Step17 — 右上角「…」直接開啟「日曆管理」頁（頁內含四項功能）
+    @State private var showCalendarManagement: Bool = false
     
     /// 搜尋關鍵字（標題、地點、備註、標籤）
     @State private var searchText: String = ""
     /// 依標籤篩選（可選）
     @State private var selectedTagFilter: String? = nil
+    /// 修改内容：僅在本頁首次載入時定位到今天，從行程詳情返回不重新定位
+    @State private var hasScrolledToToday: Bool = false
 
     var body: some View {
         NavigationView {
@@ -74,11 +83,8 @@ struct CalendarView: View {
                 Divider()
                 ScrollViewReader { proxy in
                     ScrollView {
-                        if isLoading {
-                            ProgressView("加载中...")
-                                .padding()
-                        } else {
-                            LazyVStack(alignment: .leading, spacing: 16) {
+                        // 修改内容：移除「加載中」ProgressView，避免載入時畫面閃爍
+                        LazyVStack(alignment: .leading, spacing: 16) {
                                 ForEach(groupedEventsWithEmptyDays(), id: \.0) { (date, dayEvents) in
                                     SharedEventSectionView(
                                         date: date,
@@ -101,16 +107,20 @@ struct CalendarView: View {
                                         showCreateEvent = true
                                     }
                                 }
-                            }
-                            .padding(.vertical)
-                            .padding(.bottom, 80) // 为TabBar预留空间
                         }
+                        .padding(.vertical)
+                        .padding(.bottom, 80) // 为TabBar预留空间
                     }
                     .refreshable {
                         // 只在用户主动下拉刷新时才加载
-                        await loadEvents()
+                        await loadEvents(force: true)   // 修改内容：Step9
                     }
                     .task {
+                        // 修改内容：Apple 同步 Step6 — 先整理匯入資料（全天正規化／舊資料補紀錄／去重），
+                        // 再載入，避免舊的無 id 匯入行程在載入時被覆蓋而無法管理
+                        if !userManager.userOpenId.isEmpty {
+                            AppleCalendarImportManager.shared.cleanupDuplicates(for: userManager.userOpenId)
+                        }
                         // 使用task替代onAppear，只在视图首次出现时加载一次
                         await loadEvents()
                         // 执行GPS定位并保存国家信息
@@ -120,13 +130,15 @@ struct CalendarView: View {
                         // 执行自动导入（如果启用）
                         await performAutoImportIfEnabled()
                     }
+                    // 修改内容：載入完成後只定位一次
                     .onChange(of: isLoading) { _, loading in
-                        if !loading {
+                        if !loading && !hasScrolledToToday {
                             scrollTodayRowToTop(proxy: proxy)
                         }
                     }
+                    // 修改内容：從行程詳情返回時不再重新定位
                     .onAppear {
-                        if !isLoading {
+                        if !isLoading && !hasScrolledToToday {
                             scrollTodayRowToTop(proxy: proxy)
                         }
                     }
@@ -143,6 +155,13 @@ struct CalendarView: View {
                     .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("EventSaved"))) { _ in
                         // 当事件保存完成后，刷新事件列表
                         Task { @MainActor in
+                            await loadEvents(force: true)   // 修改内容：Step9
+                        }
+                    }
+                    // 修改内容：Phase 2-E — Apple 日曆變更時觸發自動匯入（Apple→App）
+                    .onReceive(NotificationCenter.default.publisher(for: .EKEventStoreChanged)) { _ in
+                        Task { @MainActor in
+                            await performAutoImportIfEnabled()
                             await loadEvents()
                         }
                     }
@@ -168,7 +187,7 @@ struct CalendarView: View {
                             self.showCreateEvent = false
                             // 只在保存成功后刷新，避免频繁刷新
                             Task { @MainActor in
-                                await loadEvents()
+                                await loadEvents(force: true)   // 修改内容：Step9
                             }
                         }
                     )
@@ -219,15 +238,19 @@ struct CalendarView: View {
                     .environmentObject(userManager)
                 }
             }
-            .sheet(isPresented: $showImportAppleCalendar) {
-                ImportAppleCalendarView()
-                    .environmentObject(userManager)
+            // 修改内容：Step17 — 單一「日曆管理」頁，內含同步日曆／已同步行程／刪除歷史／來源診斷
+            .sheet(isPresented: $showCalendarManagement) {
+                NavigationStack {
+                    CalendarManagementView(showsDoneButton: true)
+                        .environmentObject(userManager)
+                }
             }
         }
     }
 
     // MARK: - 数据加载方法
-    private func loadEvents() async {
+    /// - Parameter force: 是否強制與 Firestore 同步（新增／刪除／下拉刷新時使用）
+    private func loadEvents(force: Bool = false) async {
         await MainActor.run {
             isLoading = true
         }
@@ -240,9 +263,12 @@ struct CalendarView: View {
         }
 
         let myId = userManager.userOpenId
-        
+
         // 1. 先从本地缓存加载事件（立即显示）
-        let cachedEvents = EventCacheManager.shared.loadEvents(for: myId)
+        // 修改内容：Step11 — 已刪除（待伺服器確認）者一律不顯示
+        let cachedEvents = DeletedEventRegistry.shared.filterDeleted(
+            EventCacheManager.shared.loadEvents(for: myId), for: myId
+        )
         if !cachedEvents.isEmpty {
             await MainActor.run {
                 // 先显示缓存的数据
@@ -251,7 +277,25 @@ struct CalendarView: View {
                 self.isLoading = false
             }
         }
-        
+
+        // 修改内容：Step9 — Firestore 讀取節流（原本每次刷新都全量重抓，讀取量暴增）
+        // 條件：非強制、快取仍新鮮、月份未變、且無同時進行中的同步 → 只用本地快取
+        let monthKey = DateFormatter.stable("yyyy-MM").string(from: currentMonth)
+        let cacheFresh = EventCacheManager.shared.isCacheValid(for: myId, maxAge: Self.remoteSyncInterval)
+        let shouldSkipRemote = !force && cacheFresh && lastSyncedMonthKey == monthKey && !cachedEvents.isEmpty
+
+        if shouldSkipRemote || isRemoteSyncing {
+            await MainActor.run { self.isLoading = false }
+            if shouldSkipRemote { print("⏭️ 跳過 Firestore 同步（快取仍在 \(Int(Self.remoteSyncInterval)) 秒內）") }
+            return
+        }
+
+        await MainActor.run { isRemoteSyncing = true }
+        defer { Task { @MainActor in isRemoteSyncing = false } }
+
+        // 修改内容：Step11 — 恢復連線後重送離線期間累積的刪除
+        EventManager.shared.retryPendingDeletions(for: myId)
+
         do {
             let db = Firestore.firestore()
             var allEvents: [Event] = []
@@ -366,7 +410,39 @@ struct CalendarView: View {
                     uniqueEventsDict[eventId] = event
                 }
             }
-            let uniqueEvents = Array(uniqueEventsDict.values)
+
+            // 修改内容：Apple 匯入 Step1 — Apple 匯入行程僅存在本地，
+            // 原邏輯以伺服器結果覆蓋快取會使其消失並在下次匯入產生重覆，改為合併保留。
+            let localAppleEvents = EventCacheManager.shared
+                .loadEvents(for: myId)
+                .filter { $0.isAppleImported && $0.deleted != 1 }
+            let validAppleIds = AppleCalendarImportManager.shared.importedAppEventIds(for: myId)
+            for event in localAppleEvents {
+                guard let eventId = event.id, validAppleIds.contains(eventId) else { continue }
+                if uniqueEventsDict[eventId] == nil {
+                    uniqueEventsDict[eventId] = event
+                }
+            }
+
+            // 修改内容：Step8 — 內容層去重（仿 Apple 日曆：同一件事只顯示一次）
+            // time_items 投影與 users/events 常為同一行程的兩份資料，
+            // 依「標題｜日期｜起始時間」收斂，優先保留可編輯的正式事件。
+            var bySignature: [String: Event] = [:]
+            for event in uniqueEventsDict.values {
+                let signature = "\(event.title)|\(event.date)|\((event.isAllDay ?? false) ? "allday" : event.startTime)"
+                guard let existing = bySignature[signature] else {
+                    bySignature[signature] = event
+                    continue
+                }
+                // 保留順序：正式事件（無 timeItemId）> 有 Apple 來源 > 其他
+                let existingRank = existing.timeItemId == nil ? 0 : 1
+                let candidateRank = event.timeItemId == nil ? 0 : 1
+                if candidateRank < existingRank {
+                    bySignature[signature] = event
+                }
+            }
+            // 修改内容：Step11 — 過濾已刪除但尚未被伺服器確認的行程，避免「刪了又回來」
+            let uniqueEvents = DeletedEventRegistry.shared.filterDeleted(Array(bySignature.values), for: myId)
 
             // 6. 更新本地缓存（确保社群事件的 groupId 被正确保存）
             EventCacheManager.shared.saveEvents(uniqueEvents, for: myId)
@@ -378,6 +454,7 @@ struct CalendarView: View {
                 self.groupIds = groupIdSet
                 self.events = filterEvents(uniqueEvents)  // 根据当前筛选类型过滤
                 self.isLoading = false
+                self.lastSyncedMonthKey = monthKey  // 修改内容：Step9 — 記錄已同步月份
             }
 
         } catch {
@@ -412,10 +489,11 @@ struct CalendarView: View {
         let today = cal.startOfDay(for: Date())
         guard cal.isDate(today, equalTo: currentMonth, toGranularity: .month) else { return }
         let id = calendarDayScrollID(for: today)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                proxy.scrollTo(id, anchor: .top)
-            }
+        hasScrolledToToday = true   // 修改内容
+        // 修改内容：不使用動畫，直接定位，避免出現從 1 號捲動到今天的過程
+        proxy.scrollTo(id, anchor: .top)
+        DispatchQueue.main.async {
+            proxy.scrollTo(id, anchor: .top)
         }
     }
 
@@ -471,11 +549,11 @@ struct CalendarView: View {
                 }
                 .disabled(selectedEventIds.isEmpty)
             } else {
-                // 导入 Apple 日历按钮
+                // 修改内容：Step17 — 右上角「…」開啟日曆管理
                 Button {
-                    showImportAppleCalendar = true
+                    showCalendarManagement = true
                 } label: {
-                    Image(systemName: "square.and.arrow.down")
+                    Image(systemName: "ellipsis.circle")
                         .foregroundColor(.blue)
                 }
                 
@@ -557,8 +635,36 @@ struct CalendarView: View {
 
         var result: [(Date, [Event])] = []
 
+        // 修改内容：Phase 2-B — 展開重複事件（母事件 + 當月範圍內的 occurrence）
+        let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: startOfMonth) ?? startOfMonth
+        let rawExpanded = events.flatMap { ev -> [Event] in
+            guard ev.deleted != 1 else { return [ev] }
+            return [ev] + ev.occurrences(from: startOfMonth, to: endOfMonth, calendar: calendar)
+        }
+
+        // 修改内容：Step18 — 展開後去重
+        // ① 同一系列（同 appleEventId）同一天只顯示一次
+        // ② 生日這類每年重複的行程，Apple 每年標題不同（33 歲／43 歲），
+        //    以「去除數字後的標題 + 日期」再收斂一次，避免同日並列多個年份版本
+        var seenExpanded = Set<String>()
+        var expandedEvents: [Event] = []
+        for event in rawExpanded {
+            let seriesKey: String
+            if let appleId = event.appleEventId {
+                seriesKey = "apple|\(appleId)|\(event.date)"
+            } else {
+                seriesKey = "local|\(event.id ?? 0)|\(event.date)"
+            }
+            let titleKey = "title|" + event.title.filter { !$0.isNumber } + "|\(event.date)|\((event.isAllDay ?? false) ? "allday" : event.startTime)"
+
+            if seenExpanded.contains(seriesKey) || seenExpanded.contains(titleKey) { continue }
+            seenExpanded.insert(seriesKey)
+            seenExpanded.insert(titleKey)
+            expandedEvents.append(event)
+        }
+
         // 过滤当前月份的事件
-        let monthEvents = events.compactMap { event -> Event? in
+        let monthEvents = expandedEvents.compactMap { event -> Event? in
             // 跳过已删除的事件
             if event.deleted == 1 {
                 return nil
@@ -663,6 +769,7 @@ struct CalendarView: View {
         
         // 基本字段
         event.id = data["id"] as? Int ?? document.documentID.stableIntId  // 修改内容：P0-3 穩定雜湊
+        EventDocumentIndex.shared.record(eventId: event.id, path: document.reference.path)  // 修改内容：Step10
         event.title = data["title"] as? String ?? ""
         event.creatorOpenid = data["creatorOpenid"] as? String ?? ""
         event.color = data["color"] as? String ?? "#FF0000" // 默认红色
@@ -894,7 +1001,12 @@ struct CalendarView: View {
     @MainActor
     private func performAutoImportIfEnabled() async {
         guard !userManager.userOpenId.isEmpty else { return }
-        
+
+        // 修改内容：Apple 匯入 Step4 — 每次啟動先清理重複／舊版殘留的匯入行程
+        if AppleCalendarImportManager.shared.cleanupDuplicates(for: userManager.userOpenId) > 0 {
+            await loadEvents()
+        }
+
         // 检查是否启用自动导入
         guard UserPreferencesManager.shared.getAutoImportAppleCalendar(for: userManager.userOpenId) else {
             return

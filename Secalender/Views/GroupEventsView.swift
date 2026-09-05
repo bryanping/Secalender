@@ -61,7 +61,7 @@ struct GroupEventsView: View {
                                         ForEach(dayEvents.sorted(by: {
                                             ($0.startDateTime ?? .distantPast) < ($1.startDateTime ?? .distantPast)
                                         })) { event in
-                                            NavigationLink(destination: EventShareView(event: event)) {
+                                            NavigationLink(destination: EventDetailRoute(event: event)) {  // 修改内容：身份分流
                                                 HStack(spacing: 12) {
                                                     if let start = event.startDateTime {
                                                         Text(timeFormatter.string(from: start))

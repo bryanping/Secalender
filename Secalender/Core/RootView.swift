@@ -58,7 +58,7 @@ struct RootView: View {
                         .onDisappear { deepLinkCoordinator.clearPendingLink() }
                 case .eventShare(let event):
                     NavigationStack {
-                        EventShareView(event: event, onEventUpdated: nil)
+                        EventDetailRoute(event: event, onEventUpdated: nil)  // 修改内容：身份分流
                             .environmentObject(userManager)
                             .toolbar {
                                 ToolbarItem(placement: .navigationBarLeading) {

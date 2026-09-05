@@ -44,6 +44,10 @@ struct SettingsView: View {
                 NavigationLink(destination: NotificationsView()) {
                     settingsRow(icon: "bell.fill", title: "settings.notifications".localized())
                 }
+                // 修改内容：Step15 — 日曆管理入口（同步日曆／已同步行程／刪除歷史／來源診斷）
+                NavigationLink(destination: CalendarManagementView().environmentObject(userManager)) {
+                    settingsRow(icon: "calendar", title: "日曆管理")
+                }
             }
 
             // MARK: - AI助手、外觀、內容偏好

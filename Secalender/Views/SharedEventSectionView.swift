@@ -39,8 +39,6 @@ struct SharedEventSectionView: View {
     @State private var longPressEventId: Int? = nil
     
     // 编辑事件状态
-    @State private var eventToEdit: Event? = nil
-    @State private var showEditEvent = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -93,21 +91,6 @@ struct SharedEventSectionView: View {
 
             Divider().padding(.horizontal)
         }
-        .sheet(isPresented: $showEditEvent) {
-            if let event = eventToEdit {
-                NavigationView {
-                    EventEditView(
-                        viewModel: EventDetailViewModel(event: event),
-                        onComplete: {
-                            showEditEvent = false
-                            eventToEdit = nil
-                            onEventUpdated?()
-                        }
-                    )
-                    .environmentObject(FirebaseUserManager.shared)
-                }
-            }
-        }
     }
 
     /// 多日活動列：置頂、橫跨全寬半透明色塊、側邊色彩引導線
@@ -115,7 +98,7 @@ struct SharedEventSectionView: View {
     private func multiDayEventRow(event: Event) -> some View {
         let eventId = event.id ?? 0
         let isSelected = selectedEventIds.contains(eventId)
-        let destination = AnyView(EventShareView(event: event, onEventUpdated: onEventUpdated))
+        let destination = AnyView(EventDetailRoute(event: event, onEventUpdated: onEventUpdated))  // 修改内容：身份分流
         
         HStack(spacing: 12) {
             if isMultiSelectMode {
@@ -181,7 +164,7 @@ struct SharedEventSectionView: View {
     private func allDayEventRow(event: Event) -> some View {
         let eventId = event.id ?? 0
         let isSelected = selectedEventIds.contains(eventId)
-        let destination = AnyView(EventShareView(event: event, onEventUpdated: onEventUpdated))
+        let destination = AnyView(EventDetailRoute(event: event, onEventUpdated: onEventUpdated))  // 修改内容：身份分流
         
         HStack(spacing: 12) {
             if isMultiSelectMode {
@@ -247,7 +230,7 @@ struct SharedEventSectionView: View {
     private func eventRowWithInteractions(event: Event, isMine: Bool) -> some View {
         let eventId = event.id ?? 0
         let isSelected = selectedEventIds.contains(eventId)
-        let destination = AnyView(EventShareView(event: event, onEventUpdated: onEventUpdated))
+        let destination = AnyView(EventDetailRoute(event: event, onEventUpdated: onEventUpdated))  // 修改内容：身份分流
         
         HStack(spacing: 12) {
             // 多选模式：显示勾选圈
@@ -599,8 +582,10 @@ private func draggingOverlay(event: Event) -> some View {
         }
         
         // 外部匯入（Apple/Google Calendar）：較淡灰藍色，方便分辨
-        if event.isFromExternalImport {
-            return Color(red: 0.6, green: 0.7, blue: 0.85)  // 灰藍色
+        // 修改内容：Step19 — 同步進來的行程沿用來源日曆顏色（30% 透明度）
+        if event.isFromExternalImport || event.isAppleImported {
+            let sourceColor = Color(hex: event.color) ?? Color(red: 0.6, green: 0.7, blue: 0.85)
+            return sourceColor.opacity(0.3)
         }
         
         // 根据访问来源确定基础颜色（按照规则文档）

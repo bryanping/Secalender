@@ -284,7 +284,7 @@ struct PersonalProfileView: View {
                 LazyVStack(spacing: 0) {
                     ForEach(myTrips, id: \.id) { event in
                         if event.deleted != 1 {
-                            NavigationLink(destination: EventShareView(event: event).environmentObject(userManager)) {
+                            NavigationLink(destination: EventDetailRoute(event: event).environmentObject(userManager)) {  // 修改内容：身份分流
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(event.title)

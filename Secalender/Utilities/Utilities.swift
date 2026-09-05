@@ -7,6 +7,7 @@
 
 import Foundation
 import UIKit
+import UserNotifications
 
 final class Utilities {
     
@@ -64,5 +65,51 @@ extension DateFormatter {
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = format
         return f
+    }
+}
+
+// MARK: - 修改内容：Phase 2-C — 事件本地提醒（v1：開始前 30 分鐘）
+// 全專案原本沒有任何事件提醒。儲存事件時排定、刪除時取消。
+final class EventReminderScheduler {
+    static let shared = EventReminderScheduler()
+    private init() {}
+
+    static let leadMinutes = 30
+
+    private func identifier(for eventId: Int) -> String { "event_reminder_\(eventId)" }
+
+    private func requestAuthorizationIfNeeded() {
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .notDetermined else { return }
+            center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        }
+    }
+
+    /// 排定提醒（開始前 30 分鐘；已過去、無 id 或無開始時間則略過）
+    func schedule(for event: Event) {
+        guard let id = event.id, let start = event.startDateTime else { return }
+        let fireDate = start.addingTimeInterval(-TimeInterval(Self.leadMinutes * 60))
+        guard fireDate > Date() else { return }
+        requestAuthorizationIfNeeded()
+
+        let content = UNMutableNotificationContent()
+        content.title = event.title.isEmpty ? "行程提醒" : event.title
+        var body = String(event.startTime.prefix(5)) + " 開始"
+        if !event.destination.isEmpty { body += " · " + event.destination }
+        content.body = body
+        content.sound = .default
+
+        let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+        let request = UNNotificationRequest(identifier: identifier(for: id), content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error { print("⚠️ [Reminder] 排定失敗: \(error.localizedDescription)") }
+        }
+    }
+
+    func cancel(eventId: Int) {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: [identifier(for: eventId)])
     }
 }

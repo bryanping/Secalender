@@ -33,7 +33,7 @@ struct ShareHistoryView: View {
                 } else {
                     List {
                         ForEach(sharedEvents, id: \.id) { event in
-                            NavigationLink(destination: EventShareView(event: event)) {
+                            NavigationLink(destination: EventDetailRoute(event: event)) {  // 修改内容：身份分流
                                 SharedEventRow(event: event)
                             }
                         }

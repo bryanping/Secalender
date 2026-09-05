@@ -753,3 +753,5 @@
 "enrich_trip.template_name" = "充実旅行";
 "enrich_trip.welcome_title" = "充実プランをお聞かせください";
 "enrich_trip.welcome_subtitle" = "基本情報を入力し、周辺オプションを検索・選択";
+
+"event_edit.update" = "更新";

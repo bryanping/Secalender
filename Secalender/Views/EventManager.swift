@@ -19,6 +19,13 @@ class EventManager {
 
     private let db = Firestore.firestore()
 
+    /// 修改内容：Step10 — 依索引取得事件的 Firestore 文件參考
+    /// 事件 id 為 documentID 的雜湊，文件內不一定有 `id` 欄位，查詢式定位並不可靠。
+    private func indexedDocumentRef(for eventId: Int) -> DocumentReference? {
+        guard let path = EventDocumentIndex.shared.path(for: eventId) else { return nil }
+        return db.document(path)
+    }
+
     /// 新增活动
     func addEvent(event: Event) async throws {
         var newEvent = event
@@ -59,12 +66,14 @@ class EventManager {
                 groupEventData["eventId"] = documentId
                 groupEventData["groupId"] = groupId
                 try await db.collection("groups").document(groupId).collection("groupEvents").document(documentId).setData(groupEventData)
+                EventDocumentIndex.shared.record(eventId: intId, path: "groups/\(groupId)/groupEvents/\(documentId)")  // 修改内容：Step10
                 print("✅ 社群活动保存成功: groupId=\(groupId), eventId=\(intId)")
             } else {
                 // 个人事件：保存到 users/{userId}/events 子集合
                 var userEventData = try Firestore.Encoder().encode(newEvent)
                 userEventData["eventId"] = documentId
                 try await db.collection("users").document(userId).collection("events").document(documentId).setData(userEventData)
+                EventDocumentIndex.shared.record(eventId: intId, path: "users/\(userId)/events/\(documentId)")  // 修改内容：Step10
                 print("✅ 个人活动保存成功: userId=\(userId), eventId=\(intId)")
             }
             
@@ -111,6 +120,18 @@ class EventManager {
         // 尝试更新到 Firestore（后台同步）
         do {
             // 根据事件类型查找文档
+            // 修改内容：Step10 — 優先以索引到的文件路徑更新
+            if let ref = indexedDocumentRef(for: eventId) {
+                var data = try Firestore.Encoder().encode(updatedEvent)
+                if let groupId = updatedEvent.groupId { data["groupId"] = groupId }
+                try await ref.setData(data, merge: true)
+                print("✅ 活动更新成功（依文件路径）: \(ref.path)")
+                updatedEvent.syncStatus = .synced
+                EventCacheManager.shared.updateEventInCache(updatedEvent, for: userId)
+                SyncQueueService.shared.remove(itemId: queueItem.id, userId: userId)
+                return
+            }
+
             if let groupId = updatedEvent.groupId {
                 // 社群事件：在 groups/{groupId}/groupEvents 中查找
                 let groupEventsSnapshot = try await db.collection("groups")
@@ -350,6 +371,7 @@ class EventManager {
             
             // 基本字段
             event.id = data["id"] as? Int ?? document.documentID.stableIntId  // 修改内容：P0-3 穩定雜湊
+            EventDocumentIndex.shared.record(eventId: event.id, path: document.reference.path)  // 修改内容：Step10
             event.title = data["title"] as? String ?? ""
             event.creatorOpenid = data["creatorOpenid"] as? String ?? ""
             event.color = data["color"] as? String ?? "#FF0000" // 默认红色
@@ -420,6 +442,8 @@ class EventManager {
     /// 立即更新本地缓存，Firebase 更新在后台异步进行
     func softDeleteEvent(eventId: Int) {
         print("尝试软删除活动，ID: \(eventId)")
+        EventReminderScheduler.shared.cancel(eventId: eventId)  // 修改内容：Phase 2-C
+        AppleCalendarManager.shared.removeSyncedEvent(eventId: eventId)  // 修改内容：Phase 2-E
         
         let userId = Auth.auth().currentUser?.uid ?? ""
         guard !userId.isEmpty else {
@@ -427,8 +451,19 @@ class EventManager {
             return
         }
         
+        // 修改内容：Step13 — 軟刪除同樣立墓碑：離線或雲端找不到文件時，該行程也不會被同步還原
+        let cachedTarget = EventCacheManager.shared.loadEvents(for: userId).first { $0.id == eventId }
+        DeletedEventRegistry.shared.mark(
+            eventId: eventId,
+            path: EventDocumentIndex.shared.path(for: eventId),
+            timeItemId: cachedTarget?.timeItemId,
+            for: userId,
+            title: cachedTarget?.title,
+            date: cachedTarget?.date
+        )
+
         // 先更新本地缓存（立即响应，不等待网络）
-        if var cachedEvent = EventCacheManager.shared.loadEvents(for: userId).first(where: { $0.id == eventId }) {
+        if var cachedEvent = cachedTarget {
             cachedEvent.deleted = 1
             cachedEvent.syncStatus = .pendingDelete
             cachedEvent.updatedAtSync = Date()
@@ -465,6 +500,23 @@ class EventManager {
     
     /// 僅執行 Firebase 軟刪除（供同步佇列重試使用）
     private func performFirebaseSoftDelete(eventId: Int, userId: String) async throws {
+        // 修改内容：Step13 — time_items 投影沒有 events 文件，需刪除來源
+        if let itemId = DeletedEventRegistry.shared.tombstones(for: userId)
+            .first(where: { $0.eventId == eventId })?.timeItemId {
+            try await TimeItemService.shared.delete(itemId: itemId)
+            DeletedEventRegistry.shared.clear(eventId: eventId, for: userId)
+            print("✅ 已刪除 time_items 來源文件: \(itemId)")
+            return
+        }
+
+        // 修改内容：Step13 — 優先以索引到的文件路徑軟刪除（whereField("id") 對舊文件無效）
+        if let ref = indexedDocumentRef(for: eventId) {
+            try await ref.updateData(["deleted": 1])
+            DeletedEventRegistry.shared.clear(eventId: eventId, for: userId)
+            print("✅ 活动 Firebase 软删除成功（依文件路径）: \(ref.path)")
+            return
+        }
+
         // 先尝试从个人事件中更新
         let userEventsSnapshot = try await db.collection("users")
                     .document(userId)
@@ -474,6 +526,7 @@ class EventManager {
                 
                 if let userEventDoc = userEventsSnapshot.documents.first {
                     try await userEventDoc.reference.updateData(["deleted": 1])
+                    DeletedEventRegistry.shared.clear(eventId: eventId, for: userId)  // 修改内容：Step13
                     print("✅ 个人活动 Firebase 软删除成功: ID \(eventId)")
                     return
                 }
@@ -493,6 +546,7 @@ class EventManager {
                     
                     if let groupEventDoc = groupEventsSnapshot.documents.first {
                         try await groupEventDoc.reference.updateData(["deleted": 1])
+                        DeletedEventRegistry.shared.clear(eventId: eventId, for: userId)  // 修改内容：Step13
                         print("✅ 社群活动 Firebase 软删除成功: groupId=\(groupId), eventId=\(eventId)")
                         return
                     }
@@ -583,12 +637,48 @@ class EventManager {
     /// 删除活动（硬删除，真正删除记录）
     func deleteEvent(eventId: Int) async throws {
         print("尝试删除活动，ID: \(eventId)")
+        EventReminderScheduler.shared.cancel(eventId: eventId)  // 修改内容：Phase 2-C
+        AppleCalendarManager.shared.removeSyncedEvent(eventId: eventId)  // 修改内容：Phase 2-E
         
         let userId = Auth.auth().currentUser?.uid ?? ""
         
         // 先从本地缓存删除（立即响应）
+        // 修改内容：Step8 — 先取出快取內容，判斷是否為 time_items 投影
+        var linkedTimeItemId: String?
         if !userId.isEmpty {
+            linkedTimeItemId = EventCacheManager.shared.loadEvents(for: userId)
+                .first { $0.id == eventId }?.timeItemId
             EventCacheManager.shared.removeEventFromCache(eventId: eventId, for: userId)
+            // 修改内容：Apple 匯入 Step1 — 同步清除匯入紀錄，避免殘留紀錄使該行程永遠無法重新匯入
+            AppleCalendarImportManager.shared.removeImportRecord(appEventId: eventId, for: userId)
+        }
+
+        // 修改内容：Step11 — 先立墓碑：即使離線／逾時，該行程也不會在下次同步後復活
+        if !userId.isEmpty {
+            let target = EventCacheManager.shared.loadEvents(for: userId).first { $0.id == eventId }
+            DeletedEventRegistry.shared.mark(
+                eventId: eventId,
+                path: EventDocumentIndex.shared.path(for: eventId),
+                timeItemId: linkedTimeItemId,
+                for: userId,
+                title: target?.title,
+                date: target?.date
+            )
+        }
+
+        // 修改内容：Step8 — time_items 投影必須刪除來源文件，
+        // 否則下次載入會由 time_items 重新產生（使用者反映「刪了又回來」）
+        if let itemId = linkedTimeItemId {
+            do {
+                try await TimeItemService.shared.delete(itemId: itemId)
+                DeletedEventRegistry.shared.clear(eventId: eventId, for: userId)
+                print("✅ 已刪除 time_items 來源文件: \(itemId)")
+                return
+            } catch {
+                // 離線時保留墓碑，恢復連線後由 retryPendingDeletions 重送
+                print("⚠️ 刪除 time_items 失敗（已記錄待重試）: \(error.localizedDescription)")
+                return
+            }
         }
         
         // 尝试从Firebase删除（后台同步）
@@ -599,20 +689,40 @@ class EventManager {
             print("⚠️ 用户未登录，无法删除")
             return
         }
-        
+
+        // 修改内容：Step10 — 優先以文件路徑刪除
+        // 事件 id 多由 documentID 雜湊而來，文件內沒有 `id` 欄位，
+        // 舊的 whereField("id") 查詢永遠查不到，導致刪除只作用於本地、刷新後又被雲端資料還原。
+        if let path = EventDocumentIndex.shared.path(for: eventId) {
+            // 修改内容：Step11 — 不等待伺服器確認：Firestore 會保留離線寫入，
+            // 恢復連線後自動送出；確認成功才清除墓碑與索引。
+            db.document(path).delete { error in
+                if let error {
+                    print("⚠️ 刪除尚未送達伺服器（已保留待重試）: \(error.localizedDescription)")
+                } else {
+                    EventDocumentIndex.shared.remove(eventId: eventId)
+                    DeletedEventRegistry.shared.clear(eventId: eventId, for: userId)
+                    print("✅ 活动删除成功（依文件路径）: \(path)")
+                }
+            }
+            return
+        }
+
         // 先尝试从个人事件中删除
         let userEventsSnapshot = try await db.collection("users")
             .document(userId)
             .collection("events")
             .whereField("id", isEqualTo: eventId)
             .getDocuments()
-        
+
         if let userEventDoc = userEventsSnapshot.documents.first {
             try await userEventDoc.reference.delete()
+            EventDocumentIndex.shared.remove(eventId: eventId)  // 修改内容：Step10
+            DeletedEventRegistry.shared.clear(eventId: eventId, for: userId)  // 修改内容：Step11
             print("✅ 个人活动删除成功: ID \(eventId)")
             return
         }
-        
+
         // 如果不是个人事件，尝试从所有社群的 groupEvents 中删除
         let groupsSnapshot = try await db.collection("groups")
             .whereField("members", arrayContains: userId)
@@ -628,6 +738,8 @@ class EventManager {
             
             for groupEventDoc in groupEventsSnapshot.documents {
                 try await groupEventDoc.reference.delete()
+                EventDocumentIndex.shared.remove(eventId: eventId)  // 修改内容：Step10
+                DeletedEventRegistry.shared.clear(eventId: eventId, for: userId)  // 修改内容：Step11
                 print("✅ 社群活动删除成功: groupId=\(groupId), eventId=\(eventId)")
                 return
             }
@@ -642,6 +754,37 @@ class EventManager {
         }
     }
     
+    /// 修改内容：Step11 — 重送尚未送達伺服器的刪除（離線期間累積者）
+    func retryPendingDeletions(for userId: String) {
+        let pending = DeletedEventRegistry.shared.tombstones(for: userId)
+        guard !pending.isEmpty else { return }
+        print("♻️ 重送 \(pending.count) 筆待確認刪除")
+
+        for tombstone in pending {
+            if tombstone.hideOnly == true { continue }   // 修改内容：Step12 — 只隱藏，不動雲端
+            if let itemId = tombstone.timeItemId {
+                Task {
+                    do {
+                        try await TimeItemService.shared.delete(itemId: itemId)
+                        DeletedEventRegistry.shared.clear(eventId: tombstone.eventId, for: userId)
+                    } catch {
+                        print("⚠️ 重送刪除 time_item 仍失敗: \(error.localizedDescription)")
+                    }
+                }
+                continue
+            }
+
+            guard let path = tombstone.path ?? EventDocumentIndex.shared.path(for: tombstone.eventId) else { continue }
+            db.document(path).delete { error in
+                if error == nil {
+                    EventDocumentIndex.shared.remove(eventId: tombstone.eventId)
+                    DeletedEventRegistry.shared.clear(eventId: tombstone.eventId, for: userId)
+                    print("✅ 待確認刪除已完成: \(path)")
+                }
+            }
+        }
+    }
+
     /// 分享活动给好友
     func shareEventWithFriends(eventId: Int, friendIds: [String], senderId: String? = nil) async throws {
         guard !friendIds.isEmpty else { return }

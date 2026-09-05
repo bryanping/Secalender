@@ -14,7 +14,6 @@ struct EventShareView: View {
     let event: Event
     @EnvironmentObject var userManager: FirebaseUserManager
     @State private var showInviteFriends = false
-    @State private var showEditEvent = false
     @State private var showDeleteConfirmation = false
     @State private var calendarError: String?
     @State private var travelTimeInfo: (efficientTime: TimeInterval?, taxiTime: TimeInterval?, routeInfo: String?)?
@@ -41,10 +40,6 @@ struct EventShareView: View {
     @State private var mapAppSelectorCoordinate: CLLocationCoordinate2D?
     @State private var mapAppSelectorTransportType: MKDirectionsTransportType = .automobile
     
-    // 跨国检测
-    @State private var isInternationalTrip: Bool = false
-    @State private var destinationCountry: String?
-    
     var onEventUpdated: (() -> Void)? = nil
 
     var body: some View {
@@ -53,10 +48,7 @@ struct EventShareView: View {
                 // 單一卡片包含所有字段：行程標題、活動內容、地點、時間
                 tripInfoCard
                 participantsSection
-                if event.creatorOpenid == userManager.userOpenId {
-                    shareSection
-                }
-                permissionSection
+                permissionSection  // 修改内容：分享卡片移除，改由編輯頁右上角處理
             }
             .padding(.bottom, 60) // 为底部按钮留出空间
         }
@@ -75,8 +67,6 @@ struct EventShareView: View {
         .task {
             await loadViewerRole()
             await loadParticipants()
-            // 检测是否是跨国行程
-            checkIfInternationalTrip()
         }
         .onChange(of: participationStatus) { _, _ in
             // 当参与状态改变时，重新加载参与人员列表
@@ -86,12 +76,22 @@ struct EventShareView: View {
         }
         .navigationTitle("event_share.view_event".localized())
         .navigationBarTitleDisplayMode(.large)
+        // 修改内容：僅社群管理者保留編輯入口（創建者由分流直接進入編輯頁）
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                if event.creatorOpenid == userManager.userOpenId {
-                    Button(action: {
-                        showEditEvent = true
-                    }) {
+                if viewerRole == .groupAdminOrOwner {
+                    NavigationLink {
+                        EventEditView(
+                            viewModel: EventDetailViewModel(event: event),
+                            onComplete: { onEventUpdated?() },
+                            onDelete: {
+                                onEventUpdated?()
+                                dismiss()
+                            },
+                            source: .singleView
+                        )
+                        .environmentObject(userManager)
+                    } label: {
                         Image(systemName: "pencil")
                     }
                 }
@@ -107,27 +107,6 @@ struct EventShareView: View {
                 coordinate: mapAppSelectorCoordinate,
                 transportType: mapAppSelectorTransportType
             )
-        }
-        .sheet(isPresented: $showEditEvent) {
-            NavigationView {
-                EventEditView(
-                    viewModel: EventDetailViewModel(event: event),
-                    onComplete: {
-                        // 更新后：刷新数据并保持在 EventShareView（不关闭 sheet）
-                        showEditEvent = false
-                        onEventUpdated?()
-                        // 不调用 dismiss()，保持在 EventShareView
-                    },
-                    onDelete: {
-                        // 删除后：返回行事历（关闭 sheet 并 dismiss）
-                        showEditEvent = false
-                        onEventUpdated?()
-                        dismiss()  // 返回行事历
-                    },
-                    source: .singleView
-                )
-                .environmentObject(userManager)
-            }
         }
         .alert("event_share.cannot_add_to_calendar".localized(), isPresented: Binding(get: {
             calendarError != nil
@@ -387,39 +366,6 @@ struct EventShareView: View {
     }
     
     @ViewBuilder
-    private var shareSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "square.and.arrow.up")
-                    .foregroundColor(.blue)
-                Text("event_share.share".localized())
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                Spacer()
-            }
-            
-            Divider()
-            
-            Button(action: {
-                showInviteFriends = true
-            }) {
-                HStack {
-                    Text("event_share.share_event".localized())
-                        .foregroundColor(.blue)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.gray)
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-        .padding(.horizontal)
-    }
-    
-    @ViewBuilder
     private var permissionSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -454,7 +400,7 @@ struct EventShareView: View {
         HStack(spacing: 12) {
             switch viewerRole {
             case .creator:
-                // 创建者：分享按钮
+                // 修改内容：創建者已由分流直接進入編輯頁，此處僅保留分享
                 Button {
                     showInviteFriends = true
                 } label: {
@@ -463,9 +409,9 @@ struct EventShareView: View {
                         .padding(.vertical, 12)
                 }
                 .buttonStyle(.borderedProminent)
-                
+
             case .groupAdminOrOwner:
-                // 社群管理者：删除、编辑、分享
+                // 社群管理者：删除、分享（编辑移至右上角）
                 Button {
                     showDeleteConfirmation = true
                 } label: {
@@ -474,15 +420,7 @@ struct EventShareView: View {
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.bordered)
-                
-                Button {
-                    showEditEvent = true
-                } label: {
-                    Image(systemName: "pencil")
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.bordered)
-                
+
                 Button {
                     showInviteFriends = true
                 } label: {
@@ -776,73 +714,6 @@ struct EventShareView: View {
         dismiss()
     }
     
-    // 輔助方法
-    @MainActor
-    private func getRepeatDisplayText(_ repeatType: String) -> String {
-        switch repeatType {
-        case "daily": return "event_create.repeat_options.daily".localized()
-        case "weekly": return "event_create.repeat_options.weekly".localized()
-        case "monthly": return "event_create.repeat_options.monthly".localized()
-        case "yearly": return "event_create.repeat_options.yearly".localized()
-        default: return "event_create.repeat_options.never".localized()
-        }
-    }
-    
-    @MainActor
-    private func getCalendarDisplayText(_ calendarComponent: String) -> String {
-        // 优先从系统日历获取真实名称
-        let userCalendars = UserPreferencesManager.shared.loadUserCalendarsFromCache(for: userManager.userOpenId)
-        if let calendar = userCalendars.first(where: { $0.id == calendarComponent }) {
-            return calendar.title
-        }
-        
-        // 如果缓存中没有，尝试从系统获取
-        let ekCalendars = AppleCalendarManager.shared.getUserCalendars()
-        if let matchingCalendar = ekCalendars.first(where: { $0.calendarIdentifier == calendarComponent }) {
-            return matchingCalendar.title
-        }
-        
-        // 对于"default"或"event"，使用系统第一个日历的名称
-        if calendarComponent == "default" || calendarComponent == "event" {
-            if let firstCalendar = ekCalendars.first {
-                return firstCalendar.title
-            }
-        }
-        
-        // 回退到本地化选项（仅限已知的类别）
-        switch calendarComponent {
-        case "work": return "event_create.calendar_options.work".localized()
-        case "personal": return "event_create.calendar_options.personal".localized()
-        case "family": return "event_create.calendar_options.family".localized()
-        case "health": return "event_create.calendar_options.health".localized()
-        case "study": return "event_create.calendar_options.study".localized()
-        default: 
-            // 对于default或其他未知值，尝试使用系统第一个日历，否则显示通用标签
-            if let firstCalendar = ekCalendars.first {
-                return firstCalendar.title
-            }
-            return "event_create.calendar".localized()
-        }
-    }
-    
-    /// 打开地图并导航到目的地（统一走 MapAppManager，直接跳转第三方 App，不打开网页）
-    private func openMapForDestination(_ destination: String) {
-        let apps = MapAppManager.shared.getAvailableMapApps()
-        if let google = apps.first(where: { $0 == .google }) {
-            MapAppManager.shared.openMapApp(google, destination: destination, coordinate: nil, transportType: .automobile)
-        } else if let apple = apps.first(where: { $0 == .apple }) {
-            MapAppManager.shared.openMapApp(apple, destination: destination, coordinate: nil, transportType: .automobile)
-        } else {
-            MapAppManager.shared.openMapApp(.apple, destination: destination, coordinate: nil, transportType: .automobile)
-        }
-    }
-    
-    private func isInChina() -> Bool {
-        let timeZone = TimeZone.current
-        let chinaTimeZones = ["Asia/Shanghai", "Asia/Chongqing", "Asia/Harbin", "Asia/Urumqi"]
-        return chinaTimeZones.contains(timeZone.identifier)
-    }
-    
     private func getDestinationCoordinate() -> CLLocationCoordinate2D? {
         // 从mapObj或destination解析坐标
         // 这里简化处理，实际应该从mapObj JSON中解析
@@ -858,108 +729,8 @@ struct EventShareView: View {
         showMapAppSelector = true
     }
     
-    /// 检测是否是跨国行程
-    private func checkIfInternationalTrip() {
-        guard let userCountry = LocationCacheManager.shared.loadUserCountry() else {
-            // 如果没有用户国家信息，尝试从当前定位获取
-            if let currentLocation = eventLocationManager.currentLocation {
-                reverseGeocodeForCountry(location: currentLocation) { userCountry in
-                    if let userCountry = userCountry {
-                        LocationCacheManager.shared.saveUserCountry(userCountry)
-                        self.detectInternationalTrip(userCountry: userCountry)
-                    }
-                }
-            }
-            return
-        }
-        
-        detectInternationalTrip(userCountry: userCountry)
-    }
-    
-    /// 反向地理编码获取国家
-    private func reverseGeocodeForCountry(location: CLLocation, completion: @escaping (String?) -> Void) {
-        let geocoder = CLGeocoder()
-        geocoder.reverseGeocodeLocation(location) { placemarks, error in
-            if let placemark = placemarks?.first,
-               let country = placemark.country {
-                // 转换为中文国家名
-                let dataManager = DestinationDataManager.shared
-                let matchedCountries = dataManager.searchCountries(country)
-                completion(matchedCountries.first)
-            } else {
-                completion(nil)
-            }
-        }
-    }
-    
-    /// 检测跨国行程
-    private func detectInternationalTrip(userCountry: String) {
-        // 从目的地地址中提取国家信息
-        let geocoder = CLGeocoder()
-        geocoder.geocodeAddressString(event.destination) { placemarks, error in
-            DispatchQueue.main.async {
-                if let placemark = placemarks?.first,
-                   let destCountry = placemark.country {
-                    // 转换为中文国家名
-                    let dataManager = DestinationDataManager.shared
-                    let matchedCountries = dataManager.searchCountries(destCountry)
-                    let destCountryChinese = matchedCountries.first ?? destCountry
-                    
-                    self.destinationCountry = destCountryChinese
-                    
-                    // 比较用户国家和目的地国家
-                    let isInternational = userCountry != destCountryChinese
-                    self.isInternationalTrip = isInternational
-                    
-                    #if DEBUG
-                    print("🌍 跨国检测: 用户国家=\(userCountry), 目的地国家=\(destCountryChinese), 是否跨国=\(isInternational)")
-                    #endif
-                } else {
-                    // 如果无法获取目的地国家，假设不是跨国
-                    self.isInternationalTrip = false
-                }
-            }
-        }
-    }
-    
-    /// 打开机票选购（未来支持）
-    private func openFlightBooking() {
-        // TODO: 未来实现机票选购功能
-        // 可以跳转到携程、去哪儿、飞猪等机票预订网站
-        // 或者集成机票预订 API
-        
-        #if DEBUG
-        print("✈️ 机票选购功能（未来支持）")
-        print("目的地: \(event.destination)")
-        if let country = destinationCountry {
-            print("目的地国家: \(country)")
-        }
-        #endif
-        
-        // 临时：显示提示信息
-        // 未来可以打开机票预订页面或集成第三方服务
-    }
-    
-    /// 打开高铁选购（未来支持）
-    private func openTrainBooking() {
-        // TODO: 未来实现高铁票选购功能
-        // 可以跳转到12306、携程等火车票预订网站
-        // 或者集成火车票预订 API
-        
-        #if DEBUG
-        print("🚄 高铁选购功能（未来支持）")
-        print("目的地: \(event.destination)")
-        #endif
-        
-        // 临时：显示提示信息
-        // 未来可以打开火车票预订页面或集成第三方服务
-    }
-    
     private func calculateTravelTime() {
         guard let currentLocation = eventLocationManager.currentLocation else { return }
-        
-        // 先检测是否是跨国行程
-        checkIfInternationalTrip()
         
         // 从destination获取坐标（需要地理编码）
         let geocodingFailedText = "event_share.geocoding_failed".localized()

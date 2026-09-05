@@ -7,6 +7,8 @@
 
 import SwiftUI
 import CoreLocation
+import MapKit    // 修改内容：合併 EventShareView 的地圖導航能力
+import Firebase  // 修改内容：參與人員查詢
 
 /// 编辑来源类型
 enum EditSource {
@@ -48,6 +50,27 @@ struct EventEditView: View {
 
     @State private var selectedTags: [String] = []
 
+    // 修改内容：分享 / 邀請
+    @State private var showInviteFriends = false
+
+    // 修改内容：參與人員列表
+    @State private var participants: [(userId: String, name: String, photoUrl: String?)] = []
+    @State private var isLoadingParticipants = false
+
+    // 修改内容：地圖應用選擇器
+    @State private var showMapAppSelector = false
+    @State private var mapAppSelectorDestination: String = ""
+    @State private var mapAppSelectorCoordinate: CLLocationCoordinate2D?
+    @State private var mapAppSelectorTransportType: MKDirectionsTransportType = .automobile
+
+    // 修改内容：交通時間
+    @State private var travelTimeInfo: (efficientTime: TimeInterval?, taxiTime: TimeInterval?, routeInfo: String?)?
+    @State private var isCalculatingTravelTime = false
+    @StateObject private var eventLocationManager = EventLocationManager()
+
+    // 修改内容：加入日曆錯誤提示
+    @State private var calendarError: String?
+
     let onComplete: (() -> Void)?
     let onDelete: (() -> Void)?  // 删除后的回调
     let source: EditSource  // 编辑来源
@@ -68,6 +91,9 @@ struct EventEditView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                // 修改内容：Apple 同步 Step7 — 顯示行程來源（同步自哪個日曆）
+                EventSourceBanner(event: viewModel.event)
+
                 // 單一卡片包含所有字段：行程標題、活動內容、地點、時間
                 EventFormCard(icon: "calendar", title: "行程資訊", iconColor: .blue) {
                     VStack(spacing: 16) {
@@ -123,34 +149,51 @@ struct EventEditView: View {
                                 .foregroundColor(.secondary)
                             
                             // 地点输入字段（可点击编辑）
-                            Button(action: {
-                                showLocationPicker = true
-                            }) {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "mappin.circle.fill")
-                                        .foregroundColor(.blue)
-                                        .font(.system(size: 20))
-                                    
-                                    Text(destination.isEmpty ? "event_create.select_location".localized() : destination)
-                                        .foregroundColor(destination.isEmpty ? .gray : .primary)
-                                        .multilineTextAlignment(.center)
-                                        .lineLimit(2)
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(.gray)
-                                        .font(.caption)
+                            HStack(spacing: 8) {  // 修改内容：地點欄 + 導航鈕
+                                Button(action: {
+                                    showLocationPicker = true
+                                }) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "mappin.circle.fill")
+                                            .foregroundColor(.blue)
+                                            .font(.system(size: 20))
+
+                                        Text(destination.isEmpty ? "event_create.select_location".localized() : destination)
+                                            .foregroundColor(destination.isEmpty ? .gray : .primary)
+                                            .multilineTextAlignment(.center)
+                                            .lineLimit(2)
+
+                                        Spacer()
+
+                                        Image(systemName: "chevron.right")
+                                            .foregroundColor(.gray)
+                                            .font(.caption)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 12)
+                                    .frame(maxWidth: .infinity)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color(UIColor.systemGray6))
+                                    )
                                 }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 12)
-                                .frame(maxWidth: .infinity)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color(UIColor.systemGray6))
-                                )
+                                .buttonStyle(PlainButtonStyle())
+
+                                // 修改内容：導航按鈕（移植自 EventShareView）
+                                if !destination.isEmpty {
+                                    Button(action: {
+                                        showMapSelectorForNavigation(transportType: .automobile)
+                                    }) {
+                                        Image(systemName: "arrow.triangle.turn.up.right.circle.fill")
+                                            .font(.system(size: 24))
+                                            .foregroundColor(.blue)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                }
                             }
-                            .buttonStyle(PlainButtonStyle())
+
+                            // 修改内容：交通時間（移植自 EventShareView）
+                            travelTimeSection
                         }
                         
                         // 事件標籤
@@ -213,59 +256,55 @@ struct EventEditView: View {
                 // 此處無條件 isHasEnd=false 與下方較完整的版本衝突，
                 // 導致編輯多日事件切整日時結束日期被清除。保留下方版本。
                 
+                // 修改内容：參與人員（移植自 EventShareView）
+                participantsSection
+
                 // 其他设置卡片
                 EventSettingsCard(
                     isOpenChecked: $isOpenChecked,
                     repeatType: $repeatType,
                     calendarComponent: $calendarComponent
                 )
-                
-                // 操作按钮
-                VStack(spacing: 16) {
-                    EventActionButton(
-                        title: "更新活动",
-                        icon: "checkmark.circle.fill",
-                        style: .primary
-                    ) {
-                        hideKeyboard()
-                        updateEvent()
-                    }
-                    
-                    // 如果不是智能行程，显示转换为智能行程的按钮
-                    if !viewModel.event.isAiEvent {
-                        Button(action: {
-                            hideKeyboard()
-                            convertToAiEvent()
-                        }) {
-                            HStack {
-                                Image(systemName: "sparkles")
-                                Text("轉換為智能行程")
-                            }
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.purple)
-                            .cornerRadius(12)
-                        }
-                    }
-                    
-                    EventActionButton(
-                        title: "删除活动",
-                        icon: "trash.fill",
-                        style: .destructive
-                    ) {
-                        hideKeyboard()
-                        showDeleteConfirmation = true
-                    }
-                }
-                .padding(.horizontal)
             }
             .padding(.bottom, 80) // 为底部按钮留出空间
         }
         .scrollDismissesKeyboard(.interactively)
         .dismissKeyboardOnTap()
         .background(Color(.systemGroupedBackground))
+        // 修改内容：底部固定操作列（更新 / 刪除）
+        .safeAreaInset(edge: .bottom) {
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    Button {
+                        hideKeyboard()
+                        showDeleteConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                            .frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        hideKeyboard()
+                        updateEvent()
+                    } label: {
+                        Label("event_edit.update".localized(), systemImage: "checkmark.circle.fill")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding()
+                .background(Color(.systemBackground))
+
+                Spacer().frame(height: 60)
+            }
+        }
+        // 修改内容：載入參與人員
+        .task {
+            await loadParticipants()
+        }
         .onAppear {
             guard !hasInitialized else { return }
             hasInitialized = true
@@ -356,32 +395,274 @@ struct EventEditView: View {
         }
         .navigationTitle("event_edit.title".localized())
         .navigationBarTitleDisplayMode(.large)
+        // 修改内容：分享按鈕移至右上角
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showInviteFriends = true
+                }) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+        }
         .sheet(isPresented: $showLocationPicker) {
             LocationPickerView(
                 selectedAddress: $destination,
                 selectedCoordinate: $selectedCoordinate
             )
         }
+        // 修改内容：邀請好友（分享）
+        .sheet(isPresented: $showInviteFriends) {
+            InviteFriendsView(event: viewModel.event)
+                .environmentObject(userManager)
+        }
+        // 修改内容：地圖應用選擇器
+        .sheet(isPresented: $showMapAppSelector) {
+            MapAppSelectorView(
+                destination: mapAppSelectorDestination,
+                coordinate: mapAppSelectorCoordinate,
+                transportType: mapAppSelectorTransportType
+            )
+        }
+        // 修改内容：加入日曆錯誤提示
+        .alert("event_share.cannot_add_to_calendar".localized(), isPresented: Binding(get: {
+            calendarError != nil
+        }, set: { newValue in
+            if !newValue { calendarError = nil }
+        })) {
+            Button("settings.ok".localized()) {}
+        } message: {
+            Text(calendarError ?? "event_share.unknown_error".localized())
+        }
     }
-    
+
+    // MARK: - 參與人員（移植自 EventShareView）
+
+    @ViewBuilder
+    private var participantsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("event_share.shared_with".localized())
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+
+            HStack(spacing: -8) {
+                ForEach(participants.prefix(3), id: \.userId) { participant in
+                    AsyncImage(url: participant.photoUrl.map { URL(string: $0) } ?? nil) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Image(systemName: "person.circle.fill")
+                            .foregroundColor(.gray)
+                    }
+                    .frame(width: 36, height: 36)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(Color(.systemBackground), lineWidth: 2)
+                    )
+                }
+
+                Button(action: {
+                    showInviteFriends = true
+                }) {
+                    Circle()
+                        .fill(Color(.systemGray5))
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Image(systemName: "plus")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.secondary)
+                        )
+                }
+
+                Spacer()
+
+                Text("event_share.participants_count".localized(with: participants.count))
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .padding(.horizontal)
+    }
+
+    /// 加载参与人员列表（移植自 EventShareView）
+    private func loadParticipants() async {
+        guard let eventId = viewModel.event.id else { return }
+
+        isLoadingParticipants = true
+        defer { isLoadingParticipants = false }
+
+        do {
+            // 从 event_shares 集合中获取状态为 "joined" 的用户
+            let db = Firestore.firestore()
+            let snapshot = try await db.collection("event_shares")
+                .whereField("eventId", isEqualTo: eventId)
+                .whereField("status", isEqualTo: "joined")
+                .getDocuments()
+
+            var loadedParticipants: [(userId: String, name: String, photoUrl: String?)] = []
+
+            for doc in snapshot.documents {
+                let data = doc.data()
+                guard let userId = data["receiverId"] as? String else { continue }
+
+                let userDoc = try? await db.collection("users")
+                    .whereField("openid", isEqualTo: userId)
+                    .limit(to: 1)
+                    .getDocuments()
+
+                if let userData = userDoc?.documents.first?.data() {
+                    let name = (userData["name"] as? String) ?? (userData["displayName"] as? String) ?? (userData["display_name"] as? String) ?? "event_share.unknown_user".localized()
+                    let photoUrl = (userData["photo_url"] as? String) ?? (userData["photoUrl"] as? String)
+                    loadedParticipants.append((userId: userId, name: name, photoUrl: photoUrl))
+                } else {
+                    loadedParticipants.append((userId: userId, name: "event_share.unknown_user".localized(), photoUrl: nil))
+                }
+            }
+
+            await MainActor.run {
+                participants = loadedParticipants
+            }
+        } catch {
+            print("event_share.load_participants_failed".localized() + ": \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - 交通時間與導航（移植自 EventShareView）
+
+    @ViewBuilder
+    private var travelTimeSection: some View {
+        if destination.isEmpty {
+            EmptyView()
+        } else if let travelInfo = travelTimeInfo {
+            VStack(alignment: .leading, spacing: 8) {
+                if let routeInfo = travelInfo.routeInfo {
+                    HStack {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundColor(.blue)
+                            .font(.caption)
+                        Text(routeInfo)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    if let efficientTime = travelInfo.efficientTime {
+                        Button(action: {
+                            showMapSelectorForNavigation(transportType: .walking)
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "figure.walk")
+                                Text("event_share.estimated_time".localized(with: Int(efficientTime / 60)))
+                            }
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.blue.opacity(0.1))
+                            .foregroundColor(.blue)
+                            .cornerRadius(8)
+                        }
+                    }
+
+                    if let taxiTime = travelInfo.taxiTime {
+                        Button(action: {
+                            showMapSelectorForNavigation(transportType: .automobile)
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "car.fill")
+                                Text("event_share.estimated_time".localized(with: Int(taxiTime / 60)))
+                            }
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.green.opacity(0.1))
+                            .foregroundColor(.green)
+                            .cornerRadius(8)
+                        }
+                    }
+                }
+            }
+            .padding(.top, 8)
+        } else if isCalculatingTravelTime {
+            HStack {
+                ProgressView()
+                    .scaleEffect(0.8)
+                Text("event_share.calculating".localized())
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.top, 8)
+        } else if eventLocationManager.currentLocation != nil {
+            Button(action: {
+                calculateTravelTime()
+            }) {
+                HStack {
+                    Image(systemName: "clock.fill")
+                        .foregroundColor(.blue)
+                    Text("event_share.calculate".localized())
+                        .foregroundColor(.blue)
+                }
+                .font(.subheadline)
+            }
+            .padding(.top, 8)
+        }
+    }
+
+    /// 取得目的地座標
+    private func getDestinationCoordinate() -> CLLocationCoordinate2D? {
+        return selectedCoordinate
+    }
+
+    /// 顯示地圖選擇器進行導航
+    private func showMapSelectorForNavigation(transportType: MKDirectionsTransportType) {
+        mapAppSelectorDestination = destination
+        mapAppSelectorCoordinate = getDestinationCoordinate()
+        mapAppSelectorTransportType = transportType
+        showMapAppSelector = true
+    }
+
+    /// 計算交通時間
+    private func calculateTravelTime() {
+        guard let currentLocation = eventLocationManager.currentLocation,
+              !destination.isEmpty else { return }
+
+        let geocodingFailedText = "event_share.geocoding_failed".localized()
+        let geocoder = CLGeocoder()
+        geocoder.geocodeAddressString(destination) { placemarks, error in
+            if let error = error {
+                print(geocodingFailedText + ": \(error.localizedDescription)")
+                return
+            }
+
+            guard let placemark = placemarks?.first,
+                  let location = placemark.location else {
+                return
+            }
+
+            self.isCalculatingTravelTime = true
+            TravelTimeCalculator.shared.calculateTravelTime(
+                from: currentLocation,
+                to: location
+            ) { efficientTime, taxiTime, routeInfo in
+                DispatchQueue.main.async {
+                    self.travelTimeInfo = (efficientTime, taxiTime, routeInfo)
+                    self.isCalculatingTravelTime = false
+                }
+            }
+        }
+    }
+
     // MARK: - 私有方法
-    
-    /// 转换为智能行程
-    private func convertToAiEvent() {
-        // 更新事件为智能行程
-        viewModel.event.aiEvent = 1
-        
-        // 先更新其他字段
-        updateEvent()
-        
-        // 显示成功提示
-        errorMessage = "已轉換為智能行程"
-        showErrorAlert = true
-        
-        // 调用完成回调，让调用方知道已转换为智能行程
-        onComplete?()
-    }
-    
+
     private func updateEvent() {
         viewModel.event.title = title
         viewModel.event.destination = destination
@@ -445,6 +726,25 @@ struct EventEditView: View {
         Task.detached {
             do {
                 try await viewModel.saveEvent(currentUserOpenId: userId)
+                // 修改内容：Phase 2-C — 重排本地提醒
+                if let intId = viewModel.event.id {
+                    EventReminderScheduler.shared.cancel(eventId: intId)
+                }
+                EventReminderScheduler.shared.schedule(for: viewModel.event)
+
+                // 修改内容：Phase 2-E — 曾同步到 Apple 日曆的事件，編輯後回寫
+                if let intId = viewModel.event.id,
+                   let s = viewModel.event.startDateTime,
+                   let e = viewModel.event.endDateTime {
+                    AppleCalendarManager.shared.updateSyncedEvent(
+                        eventId: intId,
+                        title: viewModel.event.title,
+                        start: s,
+                        end: e,
+                        location: viewModel.event.destination.isEmpty ? nil : viewModel.event.destination,
+                        notes: viewModel.event.information
+                    )
+                }
             } catch {
                 // 修改内容：Phase 1-C — 背景更新失敗改入同步佇列，自動重試
                 print("⚠️ 后台更新 Firebase 失败，已加入同步佇列：\(error.localizedDescription)")
@@ -473,6 +773,31 @@ private func dateToString(_ date: Date, format: String) -> String {
 
 private func stringToDate(_ string: String, format: String) -> Date? {
     return DateFormatter.stable(format).date(from: string)  // 修改内容：Phase 1-A
+}
+
+// 修改内容：依觀看者身份分流的行程入口
+// 創建者 → EventEditView（可編輯，右上分享，底部更新/刪除）
+// 非創建者 → EventShareView（唯讀 + 參與/不參與；社群管理者可從右上角進編輯）
+struct EventDetailRoute: View {
+    let event: Event
+    var onEventUpdated: (() -> Void)? = nil
+
+    @EnvironmentObject var userManager: FirebaseUserManager
+
+    var body: some View {
+        if event.creatorOpenid == userManager.userOpenId {
+            EventEditView(
+                viewModel: EventDetailViewModel(event: event),
+                onComplete: { onEventUpdated?() },
+                onDelete: { onEventUpdated?() },
+                source: .singleView
+            )
+            .environmentObject(userManager)
+        } else {
+            EventShareView(event: event, onEventUpdated: onEventUpdated)
+                .environmentObject(userManager)
+        }
+    }
 }
 
 struct EventEditView_Previews: PreviewProvider {

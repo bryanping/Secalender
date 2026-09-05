@@ -37,6 +37,13 @@ struct Event: Identifiable, Codable {
     var aiEvent: Int? = 0              // 智能行程标识：0=普通行程，1=智能行程（AI生成）
     var tags: [String]?                // 事件標籤，用於分類與搜尋
 
+    // 修改内容：Apple 匯入 Step1 — 匯入來源識別，供去重與管理頁使用
+    var appleEventId: String?          // Apple 日曆事件識別符（EKEvent.eventIdentifier）
+    var appleOccurrenceKey: String?    // "appleEventId|yyyy-MM-dd"，重複事件單次發生的唯一鍵
+    var appleCalendarId: String?       // 來源 Apple 日曆識別符
+    var appleCalendarTitle: String?    // 來源 Apple 日曆名稱
+    var timeItemId: String?            // 修改内容：Step8 — 來源 time_items 文件 id（供刪除回寫）
+
     // MARK: - 同步欄位（Local First，對應 OFFLINE_SYNC_DESIGN.md）
     var syncStatusRaw: String?        // SyncStatus.rawValue，可選以相容舊快取
     var updatedAtSync: Date?          // 本地最後修改時間（用於衝突判定）
@@ -73,6 +80,11 @@ struct Event: Identifiable, Codable {
         invitees: [String]? = nil,
         aiEvent: Int? = 0,
         tags: [String]? = nil,
+        appleEventId: String? = nil,           // 修改内容：Apple 匯入 Step1
+        appleOccurrenceKey: String? = nil,     // 修改内容：Apple 匯入 Step1
+        appleCalendarId: String? = nil,        // 修改内容：Apple 匯入 Step1
+        appleCalendarTitle: String? = nil,     // 修改内容：Apple 匯入 Step1
+        timeItemId: String? = nil,             // 修改内容：Step8
         syncStatusRaw: String? = nil,
         updatedAtSync: Date? = nil,
         serverUpdatedAt: Date? = nil,
@@ -106,6 +118,11 @@ struct Event: Identifiable, Codable {
         self.invitees = invitees
         self.aiEvent = aiEvent
         self.tags = tags
+        self.appleEventId = appleEventId                 // 修改内容：Apple 匯入 Step1
+        self.appleOccurrenceKey = appleOccurrenceKey     // 修改内容：Apple 匯入 Step1
+        self.appleCalendarId = appleCalendarId           // 修改内容：Apple 匯入 Step1
+        self.appleCalendarTitle = appleCalendarTitle     // 修改内容：Apple 匯入 Step1
+        self.timeItemId = timeItemId                     // 修改内容：Step8
         self.syncStatusRaw = syncStatusRaw
         self.updatedAtSync = updatedAtSync
         self.serverUpdatedAt = serverUpdatedAt
@@ -120,6 +137,8 @@ struct Event: Identifiable, Codable {
         case destination, mapObj, openChecked, personChecked, personNumber
         case sponsorType, category, createTime, deleted, information, groupId
         case isAllDay, repeatType, calendarComponent, travelTime, invitees, aiEvent, tags
+        case appleEventId, appleOccurrenceKey, appleCalendarId, appleCalendarTitle  // 修改内容：Apple 匯入 Step1
+        case timeItemId  // 修改内容：Step8
         case syncStatusRaw, updatedAtSync, serverUpdatedAt, syncVersion, deviceId, lastEditorId
     }
     
@@ -161,6 +180,12 @@ struct Event: Identifiable, Codable {
         invitees = try container.decodeIfPresent([String].self, forKey: .invitees)
         aiEvent = try container.decodeIfPresent(Int.self, forKey: .aiEvent) ?? 0
         tags = try container.decodeIfPresent([String].self, forKey: .tags)
+        // 修改内容：Apple 匯入 Step1
+        appleEventId = try container.decodeIfPresent(String.self, forKey: .appleEventId)
+        appleOccurrenceKey = try container.decodeIfPresent(String.self, forKey: .appleOccurrenceKey)
+        appleCalendarId = try container.decodeIfPresent(String.self, forKey: .appleCalendarId)
+        appleCalendarTitle = try container.decodeIfPresent(String.self, forKey: .appleCalendarTitle)
+        timeItemId = try container.decodeIfPresent(String.self, forKey: .timeItemId)
         syncStatusRaw = try container.decodeIfPresent(String.self, forKey: .syncStatusRaw)
         updatedAtSync = try container.decodeIfPresent(Date.self, forKey: .updatedAtSync)
         serverUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .serverUpdatedAt)
@@ -198,6 +223,12 @@ struct Event: Identifiable, Codable {
         try container.encodeIfPresent(invitees, forKey: .invitees)
         try container.encodeIfPresent(aiEvent, forKey: .aiEvent)
         try container.encodeIfPresent(tags, forKey: .tags)
+        // 修改内容：Apple 匯入 Step1
+        try container.encodeIfPresent(appleEventId, forKey: .appleEventId)
+        try container.encodeIfPresent(appleOccurrenceKey, forKey: .appleOccurrenceKey)
+        try container.encodeIfPresent(appleCalendarId, forKey: .appleCalendarId)
+        try container.encodeIfPresent(appleCalendarTitle, forKey: .appleCalendarTitle)
+        try container.encodeIfPresent(timeItemId, forKey: .timeItemId)
         try container.encodeIfPresent(syncStatusRaw, forKey: .syncStatusRaw)
         try container.encodeIfPresent(updatedAtSync, forKey: .updatedAtSync)
         try container.encodeIfPresent(serverUpdatedAt, forKey: .serverUpdatedAt)
@@ -237,10 +268,35 @@ extension Event {
             personChecked: 0,
             createTime: createStr,
             information: timeItem.notes,
-            aiEvent: timeItem.source == .ai ? 1 : 0
+            aiEvent: timeItem.source == .ai ? 1 : 0,
+            timeItemId: timeItem.id   // 修改内容：Step8 — 保留來源 id，刪除時可回寫 time_items
         )
     }
     
+    // MARK: - 修改内容：Apple 匯入 Step1 — 穩定身分（去重核心）
+    /// 由 Apple 事件識別符 + 發生日期組成的唯一鍵（重複事件每次發生各一筆）
+    static func appleOccurrenceKey(appleEventId: String, date: String) -> String {
+        "\(appleEventId)|\(date)"
+    }
+
+    /// 由 occurrenceKey 推導的穩定本地 id（跨啟動、跨重裝一致）
+    /// 區段 -3,000,000 ~ -3,999,999，與 TimeItem（-1,xxx,xxx）不重疊
+    static func appleStableId(occurrenceKey: String) -> Int {
+        -3_000_000 - (occurrenceKey.stableIntId % 1_000_000)
+    }
+
+    /// 是否為 Apple 日曆匯入
+    var isAppleImported: Bool { appleEventId != nil }
+
+    /// 修改内容：Apple 同步 Step7 — 行程來源名稱（編輯頁顯示）
+    /// 有同步來源時回傳日曆名稱，否則回傳 nil（代表 App 內建立）
+    var importSourceName: String? {
+        if let title = appleCalendarTitle, !title.isEmpty { return title }
+        guard let comp = calendarComponent, comp != "default", comp != "event", !comp.isEmpty else { return nil }
+        if let ekTitle = AppleCalendarManager.shared.calendar(withIdentifier: comp)?.title { return ekTitle }
+        return isAppleImported ? "Apple 日曆" : nil
+    }
+
     /// 是否為外部匯入（Apple Calendar / Google Calendar）
     var isFromExternalImport: Bool {
         guard let comp = calendarComponent, !comp.isEmpty else { return false }
@@ -405,5 +461,54 @@ extension String {
         var hash: UInt64 = 5381
         for b in utf8 { hash = (hash &* 33) &+ UInt64(b) }
         return Int(hash & 0x7fff_ffff_ffff)
+    }
+}
+
+// MARK: - 修改内容：Phase 2-B — 重複事件展開引擎（v1：顯示層展開）
+// repeatType（never/daily/weekly/monthly/yearly）此前只有欄位無任何消費端。
+// v1 於日曆載入範圍內展開虛擬 occurrence（同 id、日期平移）；
+// 編輯/刪除仍作用於母事件（「僅此次/此後全部」語意留待 v2）。
+extension Event {
+    var isRepeating: Bool {
+        guard let r = repeatType else { return false }
+        return r != "never" && !r.isEmpty
+    }
+
+    /// 展開與 [rangeStart, rangeEnd] 重疊的重複發生（不含母事件本身）
+    func occurrences(from rangeStart: Date, to rangeEnd: Date, calendar: Calendar = .current) -> [Event] {
+        guard isRepeating, let baseStart = dateObj else { return [] }
+
+        let baseDay = calendar.startOfDay(for: baseStart)
+        var spanDays = 0
+        if let end = endDateObj {
+            spanDays = max(0, calendar.dateComponents([.day], from: baseDay, to: calendar.startOfDay(for: end)).day ?? 0)
+        }
+
+        let step: DateComponents
+        switch repeatType {
+        case "daily": step = DateComponents(day: 1)
+        case "weekly": step = DateComponents(day: 7)
+        case "monthly": step = DateComponents(month: 1)
+        case "yearly": step = DateComponents(year: 1)
+        default: return []
+        }
+
+        let df = DateFormatter.stable("yyyy-MM-dd")
+        var result: [Event] = []
+        var occStart = baseDay
+        var guardCount = 0
+        while occStart <= rangeEnd && guardCount < 1000 {
+            guardCount += 1
+            let occEnd = calendar.date(byAdding: .day, value: spanDays, to: occStart) ?? occStart
+            if occStart > baseDay && occStart <= rangeEnd && occEnd >= rangeStart {
+                var copy = self
+                copy.date = df.string(from: occStart)
+                copy.endDate = spanDays > 0 ? df.string(from: occEnd) : nil
+                result.append(copy)
+            }
+            guard let next = calendar.date(byAdding: step, to: occStart) else { break }
+            occStart = next
+        }
+        return result
     }
 }

@@ -1296,3 +1296,5 @@
 "event_ui.end_time" = "結束時間";
 "event_ui.date_time" = "日期與時間";
 "event_create.calendar_options.health" = "健康";
+
+"event_edit.update" = "更新活動";

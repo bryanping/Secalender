@@ -1315,6 +1315,9 @@ struct EventCreateView: View {
                     )
                 }
                 
+                // 修改内容：Phase 2-C — 排定本地提醒（開始前 30 分鐘）
+                EventReminderScheduler.shared.schedule(for: viewModel.event)
+
                 // 等待一小段时间确保 Firebase 写入完成
                 try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 秒
                 
@@ -1524,6 +1527,8 @@ struct EventCreateView: View {
                     if firstEventId == nil, let id = detailViewModel.event.id {
                         firstEventId = id
                     }
+                    // 修改内容：Phase 2-C — 每日行程各自排提醒
+                    EventReminderScheduler.shared.schedule(for: detailViewModel.event)
                 }
                 
                 // 多日行程：邀請好友到首個行程（代表整趟行程）
@@ -1725,7 +1730,8 @@ struct EventCreateView: View {
                 start: startDate,
                 end: endDate,
                 location: event.destination.isEmpty ? nil : event.destination,
-                notes: notes.isEmpty ? nil : notes
+                notes: notes.isEmpty ? nil : notes,
+                eventId: event.id  // 修改内容：Phase 2-E — 記錄映射供雙向同步
             )
             print("✅ 已同步事件到手机日历：\(event.title)")
         } catch {
