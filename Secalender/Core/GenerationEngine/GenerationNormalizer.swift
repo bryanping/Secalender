@@ -16,6 +16,8 @@ final class GenerationNormalizer {
         var list: [TimeItemCandidate] = []
         for (dayIdx, day) in plan.days.enumerated() {
             for block in day.blocks {
+                // 修改内容：交通 / 緩衝 / 彈性時間不是行程，不寫入時間表（也不計入套用數量、衝突、分享）
+                if block.type == .transit || block.type == .buffer || block.type == .flex { continue }
                 let type = mapBlockType(block.type)
                 let durationMin = block.endTime.timeIntervalSince(block.startTime) / 60
                 list.append(TimeItemCandidate(

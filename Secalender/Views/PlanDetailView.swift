@@ -27,12 +27,29 @@ struct PlanDetailView: View {
     // 修改内容：Time OS — 統一安排預覽：重新生成回調＋多人協作旗標（顯示「發送給成員確認」）
     var onRegenerate: (() -> Void)? = nil
     var isCollaborative: Bool = false
-    // 修改内容：Step B — 套用成功後回調（建議收件匣用於標記來源項目 done）
-    var onApplied: (() -> Void)? = nil
+    // 修改內容：預覽與套用一致性 — 套用後回傳實際結果（ApplyOutcome），來源頁只消耗真正寫入成功的項目
+    var onApplied: ((ApplyOutcome) -> Void)? = nil
+    // 修改內容：常用安排 — 呼叫端提供本次標準化輸入草稿；有值時「更多」選單顯示「存成常用安排」
+    var presetDraft: PlanningPreset? = nil
+    /// 修改内容：整體行程 — 由行事曆重新開啟時傳入原 requestId（重新套用會覆寫同批項目，不重複建立）
+    var initialRequestId: String? = nil
+    var initialTitle: String? = nil
+    @State private var showSavePresetAlert = false
+    @State private var presetName: String = ""
+    @State private var presetSavedMessage: String? = nil
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var userManager: FirebaseUserManager
     @State private var isApplying = false
     @State private var applyError: String? = nil
+    // 修改內容：預覽與套用一致性 — 唯一可編輯資料源
+    //   有 days 的行程：planDays 為真相，套用時由 planDays 重建 candidates
+    //   任務型（無 days）：editableCandidates 為真相
+    @State private var editableCandidates: [TimeItemCandidate] = []
+    @State private var existingItemsForConflict: [TimeItem] = []   // 供編輯後重新檢查衝突
+    @State private var existingItemsLoaded = false                 // 現有行程是否已載入（未載入前沿用生成時衝突）
+    @State private var liveConflicts: [ConflictInfo] = []          // 依當前資料重新計算的衝突
+    @State private var applyRequestId: String = UUID().uuidString  // 本預覽的穩定 requestId（重試去重）
+    @State private var applyOutcome: ApplyOutcome? = nil           // 套用結果 alert
     
     // 横向滚动相关状态
     @State private var selectedDayIndex: Int = 0  // 当前选中的日期索引
@@ -49,6 +66,15 @@ struct PlanDetailView: View {
     @StateObject private var locationManager = TransitLocationManager()
     @State private var gpsUpdateTask: Task<Void, Never>? = nil  // 后台GPS更新任务
     @State private var isDismissing = false  // 關閉中，避免 onPlanUpdated 在關閉時觸發重複彈出
+    // 修改内容：頂部日期可修改 — 整體平移行程日期；套用時第一個行程不得在過去
+    @State private var showStartDatePicker = false
+    @State private var dayScrollTarget: Int? = nil        // 修改内容：點 D 按鈕的捲動目標
+    @State private var isProgrammaticDayScroll = false    // 修改内容：程式捲動中，忽略滑動同步
+    @State private var editedTitle: String? = nil  // 修改内容：可編輯標題（nil = 沿用預設）
+    @State private var showTitleEditor = false
+    @State private var titleDraft = ""
+    @State private var pickedStartDate = Date()
+    @State private var pastTimeAlert = false
     
     var body: some View {
         ZStack {
@@ -60,8 +86,9 @@ struct PlanDetailView: View {
             VStack(spacing: 0) {
                 if let result = generationResult, plan.days.isEmpty, !result.candidates.isEmpty {
                     // 任務型結果（taskOnly / untimedPlan）：候選清單
-                    if !result.conflicts.isEmpty {
-                        conflictsBanner(conflicts: result.conflicts)
+                    // 修改內容：預覽與套用一致性 — 改用 editableCandidates / liveConflicts
+                    if !liveConflicts.isEmpty {
+                        conflictsBanner(conflicts: liveConflicts)
                     }
                     candidateListView(result)
                 } else if plan.days.isEmpty {
@@ -77,8 +104,8 @@ struct PlanDetailView: View {
                     }
                     Spacer()
                 } else {
-                    if let result = generationResult, !result.conflicts.isEmpty {
-                        conflictsBanner(conflicts: result.conflicts)
+                    if generationResult != nil, !liveConflicts.isEmpty {
+                        conflictsBanner(conflicts: liveConflicts)  // 修改內容：依當前 planDays 重新計算
                     }
                     headerCardView
                     if !planDays.isEmpty {
@@ -95,6 +122,15 @@ struct PlanDetailView: View {
         }
         .onAppear {
             planDays = plan.days
+            if let rid = initialRequestId, !rid.isEmpty { applyRequestId = rid }  // 修改内容：整體行程
+            if editedTitle == nil, let t = initialTitle, !t.isEmpty { editedTitle = t }
+            // 修改內容：預覽與套用一致性 — 初始化可編輯資料源與衝突，並載入現有行程供編輯後重算
+            if let result = generationResult {
+                if editableCandidates.isEmpty { editableCandidates = result.candidates }
+                if let rid = result.requestId, !rid.isEmpty { applyRequestId = rid }
+                liveConflicts = result.conflicts
+                loadExistingItemsForConflict()
+            }
             // 启动后台GPS检查任务（每10分钟检查一次从餐厅到下一个景点的交通时间）
             startGPSUpdateTask()
         }
@@ -164,12 +200,19 @@ struct PlanDetailView: View {
         // 套用/存建議移至底部；「用 scheduler 補時間」併入「套用到時間表」自動處理；「儲存」正名「存為模板」
         .confirmationDialog("更多操作", isPresented: $showActionSheet, titleVisibility: .visible) {
             if generationResult == nil {
-                Button("加入行程") {
+                Button(initialRequestId != nil ? "更新到行事曆" : "加入行程") {  // 修改内容
                     addPlanToCalendar()
                 }
             }
             Button("存為模板") {
                 savePlan()
+            }
+            // 修改內容：常用安排 — 不需理解 prompt / 表單 schema，直接以本次輸入建立
+            if let draft = presetDraft {
+                Button("存成常用安排") {
+                    presetName = draft.name
+                    showSavePresetAlert = true
+                }
             }
             // 修改内容：分享整併 — 生成階段不提供右上角分享（與底部「發送給成員確認」重疊）；僅模板/瀏覽情境保留
             if generationResult == nil {
@@ -200,14 +243,57 @@ struct PlanDetailView: View {
         } message: {
             if let msg = applyError { Text(msg) }
         }
+        // 修改內容：常用安排 — 命名後保存（按帳號隔離）
+        .alert("存成常用安排", isPresented: $showSavePresetAlert) {
+            TextField("名稱", text: $presetName)
+            Button("儲存") {
+                guard var draft = presetDraft else { return }
+                let trimmed = presetName.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { draft.name = trimmed }
+                PlanningPresetStore.shared.upsert(draft, userId: userManager.userOpenId)
+                presetSavedMessage = "已存成「\(draft.name)」，下次可直接沿用偏好"
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("會保存偏好與常用設定；日期等每次變動的條件下次重新確認")
+        }
+        .alert("已儲存", isPresented: Binding(get: { presetSavedMessage != nil }, set: { if !$0 { presetSavedMessage = nil } })) {
+            Button("確定", role: .cancel) { presetSavedMessage = nil }
+        } message: {
+            if let m = presetSavedMessage { Text(m) }
+        }
+        // 修改內容：預覽與套用一致性 — 顯示實際寫入結果；有失敗可重試（同 requestId，不重複建立）
+        .alert(applyOutcome?.hasAnyApplied == true ? "已加入日曆" : "未加入", isPresented: Binding(get: { applyOutcome != nil }, set: { if !$0 { applyOutcome = nil } })) {
+            if let o = applyOutcome, o.failedCount > 0 {
+                Button("重試失敗項目") {
+                    applyOutcome = nil
+                    if generationResult != nil { applyDirectToTimeItems() } else { addPlanToCalendar() }
+                }
+            }
+            Button("確定", role: .cancel) {
+                let o = applyOutcome
+                applyOutcome = nil
+                guard let o = o, o.hasAnyApplied else { return }
+                if generationResult != nil {
+                    onApplied?(o)
+                } else {
+                    onAddToCalendar?()
+                }
+                onDismiss?()  // 修改内容
+                switchToCalendarTab()
+            }
+        } message: {
+            if let o = applyOutcome { Text(o.summaryText) }
+        }
         #endif
     }
     
     
     // MARK: - 修改内容：Time OS — 候選清單（任務清單 / 分工清單 / 待安排清單）
     private func candidateListView(_ result: GenerationResult) -> some View {
-        let timed = result.candidates.filter { $0.hasTime }.sorted { ($0.startAt ?? .distantPast) < ($1.startAt ?? .distantPast) }
-        let untimed = result.candidates.filter { !$0.hasTime }
+        // 修改內容：預覽與套用一致性 — 顯示與套用同一份 editableCandidates
+        let timed = editableCandidates.filter { $0.hasTime }.sorted { ($0.startAt ?? .distantPast) < ($1.startAt ?? .distantPast) }
+        let untimed = editableCandidates.filter { !$0.hasTime }
         let listTitle: String = isCollaborative ? "分工清單" : (result.resultType == .taskOnly ? "任務清單" : "待安排清單")
         let timeFormatter: DateFormatter = {
             let f = DateFormatter()
@@ -216,7 +302,7 @@ struct PlanDetailView: View {
         }()
         return ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(customTitle ?? listTitle)
+                Text(editedTitle ?? customTitle ?? listTitle)  // 修改内容
                     .font(.system(size: 24, weight: .bold))
                 Text(listTitle)
                     .font(.subheadline)
@@ -307,7 +393,7 @@ struct PlanDetailView: View {
             }
             HStack(spacing: 10) {
                 Button(action: { applyDirectToTimeItems() }) {
-                    Text("套用到時間表")
+                    Text(currentCandidates.filter { $0.hasTime }.isEmpty ? "套用到時間表" : "套用到時間表・\(currentCandidates.filter { $0.hasTime }.count) 項")  // 修改內容：顯示實際會寫入的數量
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
@@ -315,8 +401,9 @@ struct PlanDetailView: View {
                         .background(Color.blue)
                         .cornerRadius(14)
                 }
+                .disabled(isApplying)  // 修改內容：套用中停用，避免連點
                 Button(action: { saveAsSuggestionToTimeItems() }) {
-                    Text("存為建議")
+                    Text("暫存草稿")  // 修改内容
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(.blue)
                         .frame(maxWidth: .infinity)
@@ -324,6 +411,7 @@ struct PlanDetailView: View {
                         .background(Color(.systemBackground))
                         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.blue, lineWidth: 1))
                 }
+                .disabled(isApplying)  // 修改內容
                 if onRegenerate != nil {
                     Button(action: { onRegenerate?() }) {
                         Image(systemName: "arrow.clockwise")
@@ -346,12 +434,13 @@ struct PlanDetailView: View {
     /// 多人協作：發送給成員確認
     /// 修改内容：分享整併 — 改為發佈公開網頁連結（shared_plans），任何平台皆可開啟閱讀；發佈失敗退回純文字
     private func sendToMembersForConfirmation() {
-        guard let result = generationResult else { return }
-        let title = customTitle ?? "時間安排"
+        guard generationResult != nil else { return }
+        let title = editedTitle ?? customTitle ?? "時間安排"  // 修改内容
         let f = DateFormatter()
         f.dateFormat = "MM/dd HH:mm"
         var lines: [String] = ["【\(title)】請確認以下安排："]
-        for c in result.candidates {
+        let shareCandidates = currentCandidates  // 修改內容：分享當前編輯後資料
+        for c in shareCandidates {
             if let s = c.startAt {
                 lines.append("・\(f.string(from: s)) \(c.title)")
             } else {
@@ -364,7 +453,7 @@ struct PlanDetailView: View {
         Task {
             let url = await SharedPlanService.shared.publish(
                 title: title,
-                candidates: result.candidates,
+                candidates: shareCandidates,  // 修改內容
                 creatorId: userManager.userOpenId,
                 creatorName: userManager.displayName
             )
@@ -395,16 +484,54 @@ struct PlanDetailView: View {
         .background(Color.orange.opacity(0.15))
     }
 
+    // MARK: - 修改內容：預覽與套用一致性 — 唯一資料源
+    /// 套用 / 分享 / 衝突檢查一律以此為準：有 days → 由 planDays 重建；否則 editableCandidates
+    private var currentCandidates: [TimeItemCandidate] {
+        if !planDays.isEmpty {
+            var p = plan
+            p.days = planDays
+            return GenerationNormalizer.shared.normalize(plan: p)
+        }
+        return editableCandidates
+    }
+
+    /// 載入現有行程（供編輯後重新檢查衝突）；失敗則沿用生成時的衝突
+    private func loadExistingItemsForConflict() {
+        guard let result = generationResult else { return }
+        Task {
+            let request = buildMinimalRequest(from: result)
+            if let ctx = try? await ContextProvider.shared.fetchContext(for: request) {
+                await MainActor.run {
+                    existingItemsForConflict = ctx.existingItems
+                    existingItemsLoaded = true
+                    recomputeConflicts()
+                }
+            }
+        }
+    }
+
+    /// 依當前資料重新計算衝突（未載入現有行程時不覆蓋原衝突）
+    private func recomputeConflicts() {
+        guard generationResult != nil, existingItemsLoaded else { return }
+        liveConflicts = ConflictDetector.shared.detect(candidates: currentCandidates, existingItems: existingItemsForConflict)
+    }
+
     // MARK: - 寫入 time_items（生成引擎套用）
     // 修改内容：功能整理 — 「套用到時間表」智能化：候選若缺時間，先用 scheduler 補齊再寫入
-    // （原獨立選單項「用 scheduler 補時間」已併入此處，使用者不需理解差異）
+    // 修改內容：預覽與套用一致性 —
+    //   1. 以 currentCandidates（編輯後）寫入，不用過期的 result.candidates
+    //   2. 缺時間者經 scheduler 仍排不進 → 保留待安排並回報，不靜默跳過
+    //   3. 同一預覽沿用 applyRequestId → 重試 / 連點不重複建立
+    //   4. 回報 ApplyOutcome，由使用者確認後才回呼 onApplied
     private func applyDirectToTimeItems() {
-        guard let result = generationResult else { return }
+        guard let result = generationResult, !isApplying else { return }
+        if firstItemIsPast { pastTimeAlert = true; return }  // 修改内容：第一個行程不可在過去
         isApplying = true
         applyError = nil
+        let snapshot = currentCandidates
         Task {
             do {
-                var candidates = result.candidates
+                var candidates = snapshot
                 let untimed = candidates.filter { !$0.hasTime }
                 if !untimed.isEmpty {
                     let context = try await ContextProvider.shared.fetchContext(for: buildMinimalRequest(from: result))
@@ -419,15 +546,27 @@ struct PlanDetailView: View {
                         return scheduled.first(where: { $0.id == c.id }) ?? c
                     }
                 }
-                try await ApplyStrategy.shared.applyDirect(
-                    candidates: candidates.filter { $0.hasTime },
-                    requestId: result.requestId,
+                // 不在此過濾 hasTime：交由 ApplyStrategy 回報 skippedNoTime
+                let outcome = await ApplyStrategy.shared.applyDirect(
+                    candidates: candidates,
+                    requestId: applyRequestId,
                     themeKey: result.themeKey
                 )
                 await MainActor.run {
                     isApplying = false
-                    onApplied?()  // 修改内容：Step B — 通知來源頁（如建議收件匣標記已消化）
-                    onDismiss?()
+                    // 任務型：已寫入者從可編輯清單移除，剩下仍為待安排（可重試）
+                    if planDays.isEmpty {
+                        editableCandidates = candidates.filter { !outcome.appliedCandidateIds.contains($0.id) }
+                    }
+                    // 修改内容：全部成功 → 直接回呼並關閉，不再等待 alert 確認
+                    if outcome.isFullSuccess {
+                        if !planDays.isEmpty { persistAppliedSnapshot(outcome: outcome, themeKey: result.themeKey) }  // 修改内容
+                        onApplied?(outcome)
+                        onDismiss?()
+                        switchToCalendarTab()
+                    } else {
+                        applyOutcome = outcome
+                    }
                 }
             } catch {
                 await MainActor.run {
@@ -439,29 +578,26 @@ struct PlanDetailView: View {
     }
 
     private func saveAsSuggestionToTimeItems() {
-        guard let result = generationResult else { return }
+        guard let result = generationResult, !isApplying else { return }
         isApplying = true
         applyError = nil
+        let snapshot = currentCandidates
         Task {
-            do {
-                try await ApplyStrategy.shared.saveAsSuggestion(
-                    candidates: result.candidates,
-                    requestId: result.requestId,
-                    themeKey: result.themeKey
-                )
-                await MainActor.run {
-                    isApplying = false
+            let outcome = await ApplyStrategy.shared.saveAsSuggestion(
+                candidates: snapshot,
+                requestId: applyRequestId,
+                themeKey: result.themeKey
+            )
+            await MainActor.run {
+                isApplying = false
+                if outcome.failedCount == 0 {
                     onDismiss?()
-                }
-            } catch {
-                await MainActor.run {
-                    isApplying = false
-                    applyError = error.localizedDescription
+                } else {
+                    applyError = "\(outcome.failedCount) 項未能暫存草稿：" + (outcome.failures.first?.reason ?? "")  // 修改内容
                 }
             }
         }
     }
-
 
     private func buildMinimalRequest(from result: GenerationResult) -> GenerateRequest {
         let start = result.plan?.days.first?.date ?? Date()
@@ -491,46 +627,218 @@ struct PlanDetailView: View {
 
     // MARK: - 头部卡片视图（参考图片）
     
+    // 修改内容：排版優化 — 標題 / 日期 / 天數摘要分層；過去日期以紅字 + 警示標示
     private var headerCardView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(planTitle)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(.white)
-            
-            Text(dateRangeString)
-                .font(.system(size: 16))
-                .foregroundColor(.white.opacity(0.9))
+        let isPast = firstItemIsPast
+        return VStack(alignment: .leading, spacing: 10) {
+            Button {  // 修改内容：標題可修改
+                titleDraft = planTitle
+                showTitleEditor = true
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(planTitle)
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    Image(systemName: "pencil")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            .alert("修改標題", isPresented: $showTitleEditor) {
+                TextField("行程標題", text: $titleDraft)
+                Button("儲存") {
+                    let t = titleDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !t.isEmpty { editedTitle = t }
+                }
+                Button("取消", role: .cancel) {}
+            }
+
+            Button {
+                pickedStartDate = max(planDays.first?.date ?? Date(), Calendar.current.startOfDay(for: Date()))
+                showStartDatePicker = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: isPast ? "exclamationmark.triangle.fill" : "calendar")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(dateRangeString)
+                        .font(.system(size: 15, weight: .semibold))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .opacity(0.8)
+                }
+                .foregroundColor(isPast ? .red : .blue)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background((isPast ? Color.red : Color.blue).opacity(0.1))
+                .cornerRadius(10)
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            if isPast {  // 修改内容：僅過期時顯示提示
+                Text(firstDayIsToday ? "今天部分行程時間已過，套用時可捨去或重新安排" : "日期已過，點擊上方修改出發日")  // 修改内容
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.red)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 20)
-        .padding(.vertical, 8)
-        .background(
-            LinearGradient(
-                colors: [Color.teal, Color.green.opacity(0.7)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .cornerRadius(16)
-        .padding(.horizontal, 16)
         .padding(.top, 8)
+        .padding(.bottom, 6)  // 修改内容：取消色塊背景，改為純文字排版
+        .sheet(isPresented: $showStartDatePicker) {
+            NavigationView {
+                VStack {
+                    DatePicker("出發日期", selection: $pickedStartDate, in: Calendar.current.startOfDay(for: Date())..., displayedComponents: .date)
+                        .datePickerStyle(.graphical)
+                        .padding()
+                    Spacer()
+                }
+                .navigationTitle("修改出發日期")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("取消") { showStartDatePicker = false }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("套用") {
+                            shiftPlan(toStart: pickedStartDate)
+                            showStartDatePicker = false
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+        }
+        .confirmationDialog("行程時間已過", isPresented: $pastTimeAlert, titleVisibility: .visible) {
+            if firstDayIsToday {
+                Button("捨去已過的行程") { dropPastBlocks() }
+                Button("從現在開始重新安排") { rescheduleFromNow() }
+            }
+            Button("修改出發日期") {
+                pickedStartDate = Calendar.current.startOfDay(for: Date())
+                showStartDatePicker = true
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text(firstDayIsToday
+                 ? "今天部分行程的時間已經過了，可以捨去已過的行程，或以現在時間重新安排今天的行程"
+                 : "第一個行程的時間早於現在，請先修改出發日期")
+        }
     }
-    
+
+    // 修改内容：整體平移 — 以新出發日取代第一天，所有天/區塊保持相對間隔
+    private func shiftPlan(toStart newStart: Date) {
+        guard let first = planDays.first else { return }
+        let cal = Calendar.current
+        let oldDay = cal.startOfDay(for: first.date)
+        let newDay = cal.startOfDay(for: newStart)
+        let delta = cal.dateComponents([.day], from: oldDay, to: newDay).day ?? 0
+        guard delta != 0 else { return }
+        planDays = planDays.map { day in
+            var d = day
+            d.date = cal.date(byAdding: .day, value: delta, to: day.date) ?? day.date
+            d.blocks = day.blocks.map { b in
+                var nb = b
+                nb.startTime = cal.date(byAdding: .day, value: delta, to: b.startTime) ?? b.startTime
+                nb.endTime = cal.date(byAdding: .day, value: delta, to: b.endTime) ?? b.endTime
+                return nb
+            }
+            return d
+        }
+        var p = plan
+        p.days = planDays
+        onPlanUpdated?(p)
+        recomputeConflicts()
+    }
+
+    /// 第一個有時間的行程是否已在過去
+    private var firstItemIsPast: Bool {
+        let firstStart = currentCandidates.compactMap { $0.startAt }.min()
+        guard let s = firstStart else { return false }
+        return s < Date()
+    }
+
+    /// 修改内容：第一天即為今天（日期沒過，只是時間過了）
+    private var firstDayIsToday: Bool {
+        guard let d = planDays.first?.date else { return false }
+        return Calendar.current.isDateInToday(d)
+    }
+
+    // 修改内容：捨去已過的行程 — 移除今天結束時間早於現在的區塊；整天皆過則移除該天
+    private func dropPastBlocks() {
+        let now = Date()
+        planDays = planDays.compactMap { day in
+            var d = day
+            d.blocks = day.blocks.filter { $0.endTime > now }
+            // 開頭若為交通/彈性，清掉直到第一個 activity
+            while let f = d.blocks.first, f.type != .activity { d.blocks.removeFirst() }
+            return d.blocks.contains(where: { $0.type == .activity }) ? d : nil
+        }
+        selectedDayIndex = 0
+        commitPlanDays()
+    }
+
+    // 修改内容：從現在開始重新安排 — 今天的區塊整體後移，第一個行程從「現在（進位到 15 分）」開始，保持時長與順序
+    private func rescheduleFromNow() {
+        guard let first = planDays.first, let firstBlock = first.blocks.first else { return }
+        let cal = Calendar.current
+        let now = Date()
+        let minute = cal.component(.minute, from: now)
+        let rounded = cal.date(byAdding: .minute, value: (15 - minute % 15) % 15, to: now) ?? now
+        let start = cal.date(bySetting: .second, value: 0, of: rounded) ?? rounded
+        let delta = start.timeIntervalSince(firstBlock.startTime)
+        guard delta > 0 else { return }
+        let dayEnd = cal.date(bySettingHour: 23, minute: 30, second: 0, of: first.date) ?? first.date
+        var d = first
+        d.blocks = first.blocks.compactMap { b in
+            var nb = b
+            nb.startTime = b.startTime.addingTimeInterval(delta)
+            nb.endTime = b.endTime.addingTimeInterval(delta)
+            return nb.startTime < dayEnd ? nb : nil  // 超出當天者捨去
+        }
+        planDays[0] = d
+        commitPlanDays()
+    }
+
+    // 修改内容：整體行程 — 套用成功後保存快照並清理已移除的項目
+    private func persistAppliedSnapshot(outcome: ApplyOutcome, themeKey: String?) {
+        var p = plan
+        p.days = planDays
+        AppliedPlanStore.shared.upsert(
+            AppliedPlanSnapshot(requestId: outcome.requestId, title: planTitle, plan: p, themeKey: themeKey, appliedAt: Date()),
+            userId: userManager.userOpenId
+        )
+        let keep = Set(outcome.writtenItemIds.values)
+        Task { await TimeItemService.shared.deleteOrphans(requestId: outcome.requestId, keepIds: keep) }
+    }
+
+    private func commitPlanDays() {
+        var p = plan
+        p.days = planDays
+        onPlanUpdated?(p)
+        recomputeConflicts()
+    }
+
     // MARK: - 日期范围字符串
     private var dateRangeString: String {
-        guard let firstDay = plan.days.first,
-              let lastDay = plan.days.last else {
+        guard let firstDay = planDays.first ?? plan.days.first,
+              let lastDay = planDays.last ?? plan.days.last else {
             return ""
         }
         
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy/MM/dd"
-        formatter.locale = Locale(identifier: "zh_TW")
-        
-        let startDate = formatter.string(from: firstDay.date)
-        let endDate = formatter.string(from: lastDay.date)
-        
-        return "\(startDate) - \(endDate)"
+        // 修改内容：同月 yyyy/MM/dd-dd；跨月 yyyy/MM/dd-MM/dd；跨年 yyyy/MM/dd-yyyy/MM/dd；單日僅 yyyy/MM/dd
+        let cal = Calendar.current
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_TW")
+        f.dateFormat = "yyyy/MM/dd"
+        let start = f.string(from: firstDay.date)
+        if cal.isDate(firstDay.date, inSameDayAs: lastDay.date) { return start }
+        let sameYear = cal.component(.year, from: firstDay.date) == cal.component(.year, from: lastDay.date)
+        let sameMonth = sameYear && cal.component(.month, from: firstDay.date) == cal.component(.month, from: lastDay.date)
+        f.dateFormat = sameMonth ? "dd" : (sameYear ? "MM/dd" : "yyyy/MM/dd")
+        return "\(start)-\(f.string(from: lastDay.date))"
     }
     
     private var backgroundColor: Color {
@@ -558,52 +866,30 @@ struct PlanDetailView: View {
     }
     
     // MARK: - 日期选择栏（仅显示 D1、D2、D3）
+    // 修改内容：排版優化 — 膠囊分段（D1 + 日期），移除無功能的「+」；固定尺寸避免切換時跳動
     private var daySelectorBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 ForEach(0..<planDays.count, id: \.self) { index in
                     dayButton(dayIndex: index, isSelected: selectedDayIndex == index)
                 }
-                
-                // 添加更多日期按钮（参考图片）
-                Button(action: {
-                    // TODO: 添加更多日期
-                }) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .frame(width: 50, height: 50)
-                        .background(
-                            Circle()
-                                .strokeBorder(Color(.systemGray4), style: StrokeStyle(lineWidth: 1, dash: [5]))
-                                .background(Circle().fill(Color.white))
-                        )
-                }
-                .buttonStyle(PlainButtonStyle())
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
         }
         .background(Color.white)
+        .overlay(Rectangle().fill(Color(UIColor.systemGray5)).frame(height: 0.5), alignment: .bottom)
     }
-    
-    // MARK: - 日期按钮（仅显示 D1、D2、D3）
+
     private func dayButton(dayIndex: Int, isSelected: Bool) -> some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 1)) {
-                selectedDayIndex = dayIndex
-            }
+        return Button(action: {  // 修改内容：點擊 → 捲動到該日（與滑動同步分離）
+            dayScrollTarget = dayIndex
         }) {
-            Text("D\(dayIndex + 1)")
-                .font(.system(size: isSelected ? 16 : 14, weight: isSelected ? .bold : .medium))
+            Text("D\(dayIndex + 1)")  // 修改内容：只留 D1，不重複日期
+                .font(.system(size: 15, weight: .bold))
                 .foregroundColor(isSelected ? .white : .primary)
-                .frame(width: isSelected ? 50 : 44, height: isSelected ? 50 : 44)
-                .background(
-                    Circle()
-                        .fill(isSelected ? Color.blue : Color(.systemGray6))
-                )
-                .scaleEffect(isSelected ? 1.05 : 1.0)  // 减小放大倍数，避免切边
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+                .frame(width: 46, height: 46)
+                .background(Circle().fill(isSelected ? Color.blue : Color(.systemGray6)))
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -617,57 +903,56 @@ struct PlanDetailView: View {
     }
     
     // MARK: - 横向滚动内容
+    // 修改内容：改用 scrollPosition + paging（原 offset preference 與 scrollTo 互相覆蓋，點 D1/D2 無法換頁）
+    // 修改内容：改為單頁垂直接續顯示所有天；點 D1/D2/D3 捲動到該日
     private var horizontalScrollContentView: some View {
         ScrollViewReader { proxy in
-            GeometryReader { geometry in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 4) {  // 缩小两天之间的距离
-                        ForEach(0..<planDays.count, id: \.self) { index in
-                            DayColumnView(
-                                dayIndex: index + 1,
-                                day: planDays[index],
-                                onBlockTap: { block in
-                                    // 点击 block 时，打开编辑页面
-                                    selectedBlock = block
-                                    showBlockEditView = true
-                                }
-                            )
-                            .frame(width: geometry.size.width)
-                            .id("day-\(index)")
-                            .background(
-                                GeometryReader { dayGeometry in
-                                    Color.clear
-                                        .preference(
-                                            key: ScrollOffsetPreferenceKey.self,
-                                            value: [ScrollOffsetData(
-                                                index: index,
-                                                offset: dayGeometry.frame(in: .named("scroll")).minX
-                                            )]
-                                        )
-                                }
-                            )
-                        }
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(0..<planDays.count, id: \.self) { index in
+                        DayColumnView(
+                            dayIndex: index + 1,
+                            day: planDays[index],
+                            onBlockTap: { block in
+                                selectedBlock = block
+                                showBlockEditView = true
+                            }
+                        )
+                        .id(index)
+                        .background(  // 修改内容：回報各日頂部位置，供滑動時同步 D1/D2/D3
+                            GeometryReader { g in
+                                Color.clear.preference(
+                                    key: ScrollOffsetPreferenceKey.self,
+                                    value: [ScrollOffsetData(index: index, offset: g.frame(in: .named("dayScroll")).minY)]
+                                )
+                            }
+                        )
                     }
-                    .padding(.horizontal, 0)  // 去除两侧 padding，避免灰边
-                }
-                .coordinateSpace(name: "scroll")
-                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { offsetData in
-                    handleScrollOffsetChange(offsetData: offsetData, screenWidth: geometry.size.width)
+                    Color.clear.frame(height: 200)  // 讓最後一天也能捲到頂
                 }
             }
-            .background(Color.white)  // 确保背景是白色
+            .coordinateSpace(name: "dayScroll")
+            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { data in
+                guard !isProgrammaticDayScroll else { return }
+                // 取「頂部已越過上緣（≤ 40pt）」的最後一天
+                let passed = data.filter { $0.offset <= 40 }.map { $0.index }
+                let current = passed.max() ?? 0
+                if current != selectedDayIndex { selectedDayIndex = current }
+            }
+            .background(Color(UIColor.systemGroupedBackground))
             .onAppear {
-                planDays = plan.days
+                if planDays.isEmpty { planDays = plan.days }
             }
-            .onChange(of: selectedDayIndex) { oldIndex, newIndex in
-                // 当选中日期变化时，滚动到对应位置（仅在用户点击日期按钮时触发）
-                if oldIndex != newIndex {
-                    // 使用 DispatchQueue 确保在主线程执行，并延迟一点以确保视图已准备好
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            proxy.scrollTo("day-\(newIndex)", anchor: .center)
-                        }
-                    }
+            .onChange(of: dayScrollTarget) { _, target in
+                guard let target else { return }
+                isProgrammaticDayScroll = true
+                selectedDayIndex = target
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(target, anchor: .top)
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    isProgrammaticDayScroll = false
+                    dayScrollTarget = nil
                 }
             }
         }
@@ -826,6 +1111,7 @@ struct PlanDetailView: View {
     // MARK: - 计算属性
     
     private var planTitle: String {
+        if let t = editedTitle, !t.isEmpty { return t }  // 修改内容
         // 优先使用用户自定义标题（"此行的主题"）
         if let customTitle = customTitle, !customTitle.isEmpty {
             return customTitle
@@ -910,6 +1196,7 @@ struct PlanDetailView: View {
                     isLast: isLastActivity
                 )
                 planDays[dayIndex].blocks = recalculatedBlocks
+                recomputeConflicts()  // 修改內容：編輯後依新時間重新檢查衝突
                 
                 // 同步 plan 給父層（關閉中不觸發，避免重複彈出）
                 if !isDismissing {
@@ -937,7 +1224,9 @@ struct PlanDetailView: View {
         
         // 生成默认标题
         let templateTitle: String
-        if let customTitle = customTitle, !customTitle.isEmpty {
+        if let t = editedTitle, !t.isEmpty {  // 修改内容：優先使用編輯後標題
+            templateTitle = t
+        } else if let customTitle = customTitle, !customTitle.isEmpty {
             templateTitle = customTitle
         } else {
             let destination = extractDestination()
@@ -1022,40 +1311,43 @@ struct PlanDetailView: View {
     
     // MARK: - 加入行程（添加到日历）
     // 修改内容：Time OS — 套用一律寫入 time_items（ApplyStrategy），不再寫舊 EventManager
+    // 修改內容：預覽與套用一致性 — 改用 ApplyOutcome 顯示實際結果；沿用 applyRequestId 去重；套用中禁止重入
     private func addPlanToCalendar() {
+        guard !isApplying else { return }
+        if firstItemIsPast { pastTimeAlert = true; return }  // 修改内容：第一個行程不可在過去
         var updatedPlan = plan
         updatedPlan.days = planDays
 
         isApplying = true
         Task {
-            do {
-                try await ApplyStrategy.shared.applyFromPlan(
-                    updatedPlan,
-                    requestId: generationResult?.requestId,
-                    themeKey: generationResult?.themeKey
-                )
-                await MainActor.run {
-                    isApplying = false
-                    #if os(iOS)
-                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                       let window = windowScene.windows.first,
-                       let rootViewController = window.rootViewController {
-                        let alert = UIAlertController(title: "成功", message: "已將行程加入時間表", preferredStyle: .alert)
-                        alert.addAction(UIAlertAction(title: "確定", style: .default))
-                        rootViewController.present(alert, animated: true)
-                    }
-                    #endif
+            let outcome = await ApplyStrategy.shared.applyFromPlan(
+                updatedPlan,
+                requestId: applyRequestId,
+                themeKey: generationResult?.themeKey
+            )
+            await MainActor.run {
+                isApplying = false
+                // 修改内容：全部成功 → 直接回呼、關閉並切到行事曆
+                if outcome.isFullSuccess {
+                    persistAppliedSnapshot(outcome: outcome, themeKey: generationResult?.themeKey)  // 修改内容
                     onAddToCalendar?()
-                }
-            } catch {
-                await MainActor.run {
-                    isApplying = false
-                    applyError = error.localizedDescription
+                    onDismiss?()
+                    switchToCalendarTab()
+                } else {
+                    applyOutcome = outcome
                 }
             }
         }
     }
-    
+
+    // 修改内容：關閉後切到行事曆 Tab（ContentView 監聽）；無 onDismiss（NavigationLink 推入）時用環境 dismiss
+    private func switchToCalendarTab() {
+        if onDismiss == nil { dismiss() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            NotificationCenter.default.post(name: NSNotification.Name("SwitchToCalendarTab"), object: nil)
+        }
+    }
+
     // MARK: - 辅助函数
     private func combine(date: Date, time: Date) -> Date {
         let calendar = Calendar.current
@@ -1689,46 +1981,29 @@ struct DayColumnView: View {
         return formatter
     }
     
+    // 修改内容：改為區段（外層由 PlanDetailView 單一垂直 ScrollView 接續顯示）
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                dayHeaderView
+        VStack(alignment: .leading, spacing: 12) {
+            dayHeaderView
+            VStack(alignment: .leading, spacing: 6) {  // 連接列緊貼行程卡片
                 blocksListView
             }
-            .padding(.bottom, 40)
         }
-        .background(Color.white)
+        .padding(.bottom, 24)
+        .background(Color(UIColor.systemGroupedBackground))
     }
     
     // MARK: - 日期标题视图
+    // 修改内容：排版優化 — 過去日期紅字標示；移除無功能的「AI 建議路線」；顯示當日行程數
     private var dayHeaderView: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(dayDateFormatter.string(from: day.date))
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.primary)
-                
-
-            }
-            
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {  // 修改内容：只留日期
+            Text(dayDateFormatter.string(from: day.date))
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.primary)
             Spacer()
-            
-            // AI 建議路線按钮（参考图片）
-            Button(action: {
-                // TODO: 实现 AI 建议路线功能
-            }) {
-                Text("AI 建議路線")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.blue)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(8)
-            }
-            .buttonStyle(PlainButtonStyle())
         }
         .padding(.horizontal, 20)
-        .padding(.top, 20)
+        .padding(.top, 16)
     }
     
      // MARK: - 行程卡片列表视图
@@ -1784,13 +2059,63 @@ struct BlockCardView: View {
     }
     
     var body: some View {
+        // 修改内容：交通 / 彈性時間不是行程 → 改為輕量連接列，與行程卡片區分
+        if block.type == .transit || block.type == .flex || block.type == .buffer {
+            connectorRow
+        } else {
+            cardBody
+        }
+    }
+
+    // 修改内容：交通 / 彈性時間的連接列（無卡片、無陰影、縮排、虛線）
+    private var connectorRow: some View {
+        HStack(spacing: 10) {
+            Rectangle()
+                .fill(Color.clear)
+                .frame(width: 40)
+                .overlay(
+                    Rectangle()
+                        .fill(Color(.systemGray4))
+                        .frame(width: 1.5)
+                )
+            Image(systemName: iconForBlock(block))
+                .font(.system(size: 13))
+                .foregroundColor(iconColorForBlock(block))
+            Text(block.title)
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+            Text("·")
+                .font(.system(size: 13))
+                .foregroundColor(Color(.systemGray3))
+            Text("\(durationMinutes) 分鐘")
+                .font(.system(size: 13))
+                .foregroundColor(Color(.systemGray))
+            Spacer()
+            if block.type == .transit, nextLocation != nil {
+                Image(systemName: "arrow.triangle.turn.up.right.diamond")
+                    .font(.system(size: 13))
+                    .foregroundColor(.blue)
+            }
+        }
+        .frame(height: 32)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if block.type == .transit { openMapForNavigation() }
+        }
+    }
+
+    private var durationMinutes: Int {
+        Int(block.endTime.timeIntervalSince(block.startTime) / 60)
+    }
+
+    private var cardBody: some View {
         HStack(spacing: 12) {
             // 图标圆圈
             ZStack {
                 Circle()
                     .fill(iconColorForBlock(block))
                     .frame(width: 40, height: 40)
-                
+
                 Image(systemName: iconForBlock(block))
                     .font(.system(size: 18))
                     .foregroundColor(.white)
@@ -1844,10 +2169,10 @@ struct BlockCardView: View {
                 .buttonStyle(PlainButtonStyle())
             }
         }
-        .padding()
+        .padding(14)
         .background(Color.white)
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+        .cornerRadius(14)
+        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 1)
         .contentShape(Rectangle())  // 让整个卡片可点击
         .onTapGesture {
             // 餐饮类型：跳转到地图应用搜索附近餐厅

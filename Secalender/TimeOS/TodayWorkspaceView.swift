@@ -94,7 +94,7 @@ struct TodayWorkspaceView: View {
                             previewResult = nil
                             runSchedule()
                         },
-                        onApplied: { markConsumedAndReload() }
+                        onApplied: { outcome in markConsumedAndReload(outcome) }  // 修改內容：只消耗實際寫入成功的項目
                     )
                     .environmentObject(userManager)
                 }
@@ -402,7 +402,8 @@ struct TodayWorkspaceView: View {
                         title: item.title,
                         notes: item.notes,
                         durationMin: item.resolvedDurationMin,
-                        type: .task
+                        type: .task,
+                        sourceItemId: item.id  // 修改內容：記錄來源，寫入時帶 linkedTaskId
                     )
                 }
                 candidates += quickSelected.map { q in
@@ -421,6 +422,9 @@ struct TodayWorkspaceView: View {
                     riskFlags.append("今天空檔不足，有 \(unplaced) 項未能排入，可改用「待安排」排進 7 天空檔")
                 }
                 let conflicts = ConflictDetector.shared.detect(candidates: scheduled, existingItems: existing)
+                // 修改內容：未排入者以無時間候選一併進預覽（顯示於「待安排」），不靜默消失
+                let scheduledIds = Set(scheduled.map(\.id))
+                let previewCandidates = scheduled + candidates.filter { !scheduledIds.contains($0.id) }
 
                 await MainActor.run {
                     isScheduling = false
@@ -429,11 +433,12 @@ struct TodayWorkspaceView: View {
                         return
                     }
                     previewResult = GenerationResult(
-                        resultType: .taskOnly,
+                        resultType: scheduled.count == candidates.count ? .taskOnly : .partialSuccess,
                         plan: PlanResult(days: [], assumptions: [], riskFlags: riskFlags),
-                        candidates: scheduled,
+                        candidates: previewCandidates,
                         conflicts: conflicts,
                         riskFlags: riskFlags,
+                        requestId: UUID().uuidString,  // 修改內容：每次排程一個穩定 requestId，套用重試去重
                         themeKey: "today_workspace"
                     )
                 }
@@ -446,25 +451,34 @@ struct TodayWorkspaceView: View {
         }
     }
 
-    // MARK: - 套用後：來源標記 done、清掉已用的臨時項、刷新今日
-    private func markConsumedAndReload() {
+    // MARK: - 套用後：只把「實際寫入成功」的來源標記為已安排（非完成）、清掉已用的臨時項、刷新今日
+    // 修改內容：預覽與套用一致性 — 不再對 selectedIds 全部標 done；未排入 / 失敗者保留在待安排
+    private func markConsumedAndReload(_ outcome: ApplyOutcome) {
+        let appliedSource = outcome.appliedSourceItemIds
+        let appliedCandidateIds = Set(outcome.appliedCandidateIds)
         let consumed = (suggestions + floatingTasks).filter { item in
             guard let id = item.id else { return false }
-            return selectedIds.contains(id)
+            return appliedSource.contains(id)
         }
-        let usedQuickIds = selectedQuickIds
+        let usedQuickIds = selectedQuickIds.filter { appliedCandidateIds.contains($0) }
         Task {
             var updated: [TimeItem] = []
             for var item in consumed {
-                item.status = .done
+                item.status = .scheduled   // 已排入日曆 ≠ 已完成
                 item.updatedAt = Date()
                 updated.append(item)
             }
-            try? await TimeItemService.shared.batchUpdate(updated)
+            if !updated.isEmpty {
+                do {
+                    try await TimeItemService.shared.batchUpdate(updated)
+                } catch {
+                    await MainActor.run { errorMessage = "已加入日曆，但來源狀態更新失敗：\(error.localizedDescription)" }
+                }
+            }
             await MainActor.run {
-                selectedIds = []
+                selectedIds.subtract(appliedSource)
                 quickItems.removeAll { usedQuickIds.contains($0.id) }
-                selectedQuickIds = []
+                selectedQuickIds.subtract(usedQuickIds)
             }
             await load()
         }

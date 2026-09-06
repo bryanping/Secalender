@@ -755,9 +755,13 @@ class EventManager {
     }
     
     /// 修改内容：Step11 — 重送尚未送達伺服器的刪除（離線期間累積者）
+    private var lastRetryPendingAt: Date = .distantPast  // 修改内容：節流
     func retryPendingDeletions(for userId: String) {
+        // 修改内容：每 60 秒最多重送一次，避免 刪除→通知→刷新→重送 迴圈
+        guard Date().timeIntervalSince(lastRetryPendingAt) > 60 else { return }
         let pending = DeletedEventRegistry.shared.tombstones(for: userId)
         guard !pending.isEmpty else { return }
+        lastRetryPendingAt = Date()
         print("♻️ 重送 \(pending.count) 筆待確認刪除")
 
         for tombstone in pending {
@@ -765,7 +769,7 @@ class EventManager {
             if let itemId = tombstone.timeItemId {
                 Task {
                     do {
-                        try await TimeItemService.shared.delete(itemId: itemId)
+                        try await TimeItemService.shared.delete(itemId: itemId, notify: false)  // 修改内容：不觸發刷新
                         DeletedEventRegistry.shared.clear(eventId: tombstone.eventId, for: userId)
                     } catch {
                         print("⚠️ 重送刪除 time_item 仍失敗: \(error.localizedDescription)")

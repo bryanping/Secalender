@@ -27,7 +27,7 @@ enum MiddleButtonAction {
     static func action(for tab: Int) -> MiddleButtonAction {
         switch tab {
         case 1: return .createEvent      // CalendarView
-        case 2: return .aiConversation   // TravelTemplateView
+        case 2: return .createEvent      // 修改內容：統一入口 — 規劃 Tab 亦為「新增」語意（展開幫我安排／手動新增）
         case 3: return .memberActions    // FriendsAndGroupsView - 显示功能菜单
         case 4: return .createEvent      // MemberView - 建立行程
         default: return .createEvent
@@ -39,6 +39,8 @@ struct ContentView: View {
     @State private var selectedTab = 1
     @State private var showCreateEvent = false
     @State private var showAIConversation = false
+    @State private var showPlanChoice = false      // 修改內容：統一入口 — 中央按鈕固定語意「新增」，展開「幫我安排／手動新增」
+    @State private var showTimeOSHome = false
     @State private var showMemberActionSheet = false
     @State private var showFriendsActionSheet = false  // FriendsAndGroupsView 的功能菜单
     @State private var showAddFriend = false
@@ -85,6 +87,10 @@ struct ContentView: View {
             }
             .ignoresSafeArea(edges: .bottom)
         }
+        // 修改内容：行程套用成功後自動切到行事曆 Tab
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SwitchToCalendarTab"))) { _ in
+            selectedTab = 1
+        }
         .onChange(of: selectedTab) { _, newTab in
             // 当切换页面时，添加旋转动画
             if newTab != previousTab {
@@ -112,6 +118,16 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showAIConversation) {
             AIConversationView()
+                .environmentObject(userManager)
+        }
+        // 修改內容：統一入口
+        .confirmationDialog("新增", isPresented: $showPlanChoice, titleVisibility: .visible) {
+            Button("幫我安排") { showTimeOSHome = true }
+            Button("手動新增行程") { showCreateEvent = true }
+            Button("取消", role: .cancel) {}
+        }
+        .fullScreenCover(isPresented: $showTimeOSHome) {
+            TimeOSHomeView()
                 .environmentObject(userManager)
         }
         .sheet(isPresented: $showAddFriend) {
@@ -149,7 +165,12 @@ struct ContentView: View {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
             switch action {
             case .createEvent:
-                showCreateEvent = true
+                // 修改內容：統一入口 — 規劃 Tab 展開選項，「幫我安排」轉接同一規劃入口（TimeOSHomeView），不再開獨立聊天流程
+                if selectedTab == 2 {
+                    showPlanChoice = true
+                } else {
+                    showCreateEvent = true
+                }
             case .aiConversation:
                 showAIConversation = true
             case .memberActions:

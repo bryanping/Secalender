@@ -125,6 +125,41 @@ final class TimeItemService {
         }
     }
 
+    /// 修改内容：批次寫入（單次 commit）— 逐筆 await setData 在網路不穩時第二筆會卡住，
+    /// 改用 WriteBatch 一次提交；超時視為已寫入本地快取（Firestore 離線佇列會自動補送）
+    /// - Returns: 依輸入順序的 document id
+    func upsertBatch(_ items: [TimeItem]) async throws -> [String] {
+        guard !items.isEmpty else { return [] }
+        let ref = try collectionRef()
+        let batch = db.batch()
+        var ids: [String] = []
+        for item in items {
+            var data = try encode(item)
+            data["updatedAt"] = FieldValue.serverTimestamp()
+            let docRef: DocumentReference
+            if let existingId = item.id, !existingId.isEmpty {
+                docRef = ref.document(existingId)
+                batch.setData(data, forDocument: docRef, merge: true)
+            } else {
+                docRef = ref.document()
+                batch.setData(data, forDocument: docRef)
+            }
+            ids.append(docRef.documentID)
+        }
+
+        // 修改内容：不等待 server ack — Firestore 本地寫入即刻生效並自動同步；ack 僅記錄 log
+        batch.commit { error in
+            if let error = error {
+                print("⚠️ [TimeItemService] 批次 commit 同步失敗（本地已寫入，將重試）：\(error.localizedDescription)")
+            } else {
+                print("✅ [TimeItemService] 批次 commit 已同步 \(ids.count) 筆")
+            }
+        }
+        print("✅ [TimeItemService] 批次寫入本地 \(ids.count) 筆")
+        Self.notifyChanged()
+        return ids
+    }
+
     /// 修改内容：time_items 變更廣播（CalendarView 既有監聽 "EventSaved"，沿用同一通知名）
     private static func notifyChanged() {
         Task { @MainActor in
@@ -140,13 +175,32 @@ final class TimeItemService {
     }
     
     /// 刪除
-    func delete(itemId: String) async throws {
+    /// - notify: 重送佇列時傳 false，避免每筆刪除都觸發行事曆全量刷新
+    func delete(itemId: String, notify: Bool = true) async throws {  // 修改内容
         let ref = try collectionRef()
-        try await ref.document(itemId).delete()
-        print("✅ [TimeItemService] 刪除: \(itemId)")
-        Self.notifyChanged()  // 修改内容
+        // 修改内容：不等 server ack — 本地立即生效，離線由 Firestore 佇列自動補送
+        ref.document(itemId).delete { error in
+            if let error = error {
+                print("⚠️ [TimeItemService] 刪除同步失敗（本地已刪，將重試）: \(itemId) \(error.localizedDescription)")
+            } else {
+                print("✅ [TimeItemService] 刪除已同步: \(itemId)")
+            }
+        }
+        print("✅ [TimeItemService] 刪除(本地): \(itemId)")
+        if notify { Self.notifyChanged() }  // 修改内容
     }
     
+    /// 修改内容：整體行程 — 重新套用後，刪除同 requestId 但已不在新行程中的舊項目（本地快取查詢，不等網路）
+    func deleteOrphans(requestId: String, keepIds: Set<String>) async {
+        guard let ref = try? collectionRef() else { return }
+        let query = ref.whereField("requestId", isEqualTo: requestId)
+        let docs = (try? await query.getDocuments(source: .cache))?.documents ?? []
+        for doc in docs where !keepIds.contains(doc.documentID) {
+            doc.reference.delete { _ in }
+            print("🗑 [TimeItemService] 移除已不在行程中的項目: \(doc.documentID)")
+        }
+    }
+
     // MARK: - 查詢
 
     /// 修改内容：Phase 1-B — 跨區間事件回溯窗
@@ -158,7 +212,8 @@ final class TimeItemService {
 
     /// 範圍查詢：與 [rangeStart, rangeEnd] 有重疊的項目
     /// 用於日曆月視圖載入
-    func fetchRanged(rangeStart: Date, rangeEnd: Date) async throws -> [TimeItem] {
+    /// 修改内容：fromCacheOnly=true → 只讀 Firestore 本地快取（離線 / 剛寫入時瞬間可得，不等網路）
+    func fetchRanged(rangeStart: Date, rangeEnd: Date, fromCacheOnly: Bool = false) async throws -> [TimeItem] {
         let ref = try collectionRef()
         
         // 修改内容：移除 status 等值條件 — 「範圍＋等值」組合需 Firestore 複合索引，
@@ -168,7 +223,7 @@ final class TimeItemService {
             .whereField("startAt", isGreaterThanOrEqualTo: Timestamp(date: lookback))
             .whereField("startAt", isLessThanOrEqualTo: Timestamp(date: rangeEnd))
 
-        let snapshot = try await query.getDocuments()
+        let snapshot = try await query.getDocuments(source: fromCacheOnly ? .cache : .default)  // 修改内容
         let items = snapshot.documents.compactMap { decode($0) }
 
         // 客戶端過濾：active＋只取 event, block, availability, suggestion＋實際與範圍重疊

@@ -785,7 +785,20 @@ struct EventDetailRoute: View {
     @EnvironmentObject var userManager: FirebaseUserManager
 
     var body: some View {
-        if event.creatorOpenid == userManager.userOpenId {
+        // 修改内容：整體行程 — 同批套用的行程視為一體，點選任一項回到整份行程編輯頁
+        if event.creatorOpenid == userManager.userOpenId,
+           let rid = event.planRequestId,
+           let snap = AppliedPlanStore.shared.snapshot(requestId: rid, userId: userManager.userOpenId) {
+            PlanDetailView(
+                plan: snap.plan,
+                customTitle: snap.title,
+                onPlanUpdated: { _ in },
+                onAddToCalendar: { onEventUpdated?() },
+                initialRequestId: rid,
+                initialTitle: snap.title
+            )
+            .environmentObject(userManager)
+        } else if event.creatorOpenid == userManager.userOpenId {
             EventEditView(
                 viewModel: EventDetailViewModel(event: event),
                 onComplete: { onEventUpdated?() },

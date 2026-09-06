@@ -141,7 +141,7 @@ struct LifeWorkflowView: View {
                             previewResult = nil
                             runSchedule()
                         },
-                        onApplied: {
+                        onApplied: { _ in  // 修改內容：ApplyOutcome 簽名
                             previewResult = nil
                             dismiss()
                         }

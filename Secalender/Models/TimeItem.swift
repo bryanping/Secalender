@@ -34,6 +34,8 @@ enum TimeItemStatus: String, Codable, CaseIterable {
     case active = "active"
     case done = "done"
     case canceled = "canceled"
+    /// 修改內容：預覽與套用一致性 — 已排入日曆（有對應 event），但使用者尚未完成；與 done 區分
+    case scheduled = "scheduled"
 }
 
 // MARK: - TimeItemSource

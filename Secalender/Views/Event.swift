@@ -43,6 +43,7 @@ struct Event: Identifiable, Codable {
     var appleCalendarId: String?       // 來源 Apple 日曆識別符
     var appleCalendarTitle: String?    // 來源 Apple 日曆名稱
     var timeItemId: String?            // 修改内容：Step8 — 來源 time_items 文件 id（供刪除回寫）
+    var planRequestId: String?         // 修改内容：整體行程 — 所屬套用批次（同一 requestId 視為一個行程）
 
     // MARK: - 同步欄位（Local First，對應 OFFLINE_SYNC_DESIGN.md）
     var syncStatusRaw: String?        // SyncStatus.rawValue，可選以相容舊快取
@@ -85,6 +86,7 @@ struct Event: Identifiable, Codable {
         appleCalendarId: String? = nil,        // 修改内容：Apple 匯入 Step1
         appleCalendarTitle: String? = nil,     // 修改内容：Apple 匯入 Step1
         timeItemId: String? = nil,             // 修改内容：Step8
+        planRequestId: String? = nil,          // 修改内容：整體行程
         syncStatusRaw: String? = nil,
         updatedAtSync: Date? = nil,
         serverUpdatedAt: Date? = nil,
@@ -123,6 +125,7 @@ struct Event: Identifiable, Codable {
         self.appleCalendarId = appleCalendarId           // 修改内容：Apple 匯入 Step1
         self.appleCalendarTitle = appleCalendarTitle     // 修改内容：Apple 匯入 Step1
         self.timeItemId = timeItemId                     // 修改内容：Step8
+        self.planRequestId = planRequestId               // 修改内容：整體行程
         self.syncStatusRaw = syncStatusRaw
         self.updatedAtSync = updatedAtSync
         self.serverUpdatedAt = serverUpdatedAt
@@ -139,6 +142,7 @@ struct Event: Identifiable, Codable {
         case isAllDay, repeatType, calendarComponent, travelTime, invitees, aiEvent, tags
         case appleEventId, appleOccurrenceKey, appleCalendarId, appleCalendarTitle  // 修改内容：Apple 匯入 Step1
         case timeItemId  // 修改内容：Step8
+        case planRequestId  // 修改内容：整體行程
         case syncStatusRaw, updatedAtSync, serverUpdatedAt, syncVersion, deviceId, lastEditorId
     }
     
@@ -186,6 +190,7 @@ struct Event: Identifiable, Codable {
         appleCalendarId = try container.decodeIfPresent(String.self, forKey: .appleCalendarId)
         appleCalendarTitle = try container.decodeIfPresent(String.self, forKey: .appleCalendarTitle)
         timeItemId = try container.decodeIfPresent(String.self, forKey: .timeItemId)
+        planRequestId = try container.decodeIfPresent(String.self, forKey: .planRequestId)  // 修改内容
         syncStatusRaw = try container.decodeIfPresent(String.self, forKey: .syncStatusRaw)
         updatedAtSync = try container.decodeIfPresent(Date.self, forKey: .updatedAtSync)
         serverUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .serverUpdatedAt)
@@ -229,12 +234,36 @@ struct Event: Identifiable, Codable {
         try container.encodeIfPresent(appleCalendarId, forKey: .appleCalendarId)
         try container.encodeIfPresent(appleCalendarTitle, forKey: .appleCalendarTitle)
         try container.encodeIfPresent(timeItemId, forKey: .timeItemId)
+        try container.encodeIfPresent(planRequestId, forKey: .planRequestId)  // 修改内容
         try container.encodeIfPresent(syncStatusRaw, forKey: .syncStatusRaw)
         try container.encodeIfPresent(updatedAtSync, forKey: .updatedAtSync)
         try container.encodeIfPresent(serverUpdatedAt, forKey: .serverUpdatedAt)
         try container.encodeIfPresent(syncVersion, forKey: .syncVersion)
         try container.encodeIfPresent(deviceId, forKey: .deviceId)
         try container.encodeIfPresent(lastEditorId, forKey: .lastEditorId)
+    }
+}
+
+// 修改内容：供 onChange(of: [Event]) 使用，避免每次渲染重算分組
+extension Event: Equatable {
+    static func == (lhs: Event, rhs: Event) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.title == rhs.title &&
+        lhs.creatorOpenid == rhs.creatorOpenid &&
+        lhs.color == rhs.color &&
+        lhs.date == rhs.date &&
+        lhs.startTime == rhs.startTime &&
+        lhs.endTime == rhs.endTime &&
+        lhs.endDate == rhs.endDate &&
+        lhs.destination == rhs.destination &&
+        lhs.deleted == rhs.deleted &&
+        lhs.isAllDay == rhs.isAllDay &&
+        lhs.repeatType == rhs.repeatType &&
+        lhs.tags == rhs.tags &&
+        lhs.appleEventId == rhs.appleEventId &&
+        lhs.appleOccurrenceKey == rhs.appleOccurrenceKey &&
+        lhs.updatedAtSync == rhs.updatedAtSync &&
+        lhs.syncVersion == rhs.syncVersion
     }
 }
 
@@ -269,7 +298,8 @@ extension Event {
             createTime: createStr,
             information: timeItem.notes,
             aiEvent: timeItem.source == .ai ? 1 : 0,
-            timeItemId: timeItem.id   // 修改内容：Step8 — 保留來源 id，刪除時可回寫 time_items
+            timeItemId: timeItem.id,   // 修改内容：Step8 — 保留來源 id，刪除時可回寫 time_items
+            planRequestId: timeItem.requestId  // 修改内容：整體行程
         )
     }
     

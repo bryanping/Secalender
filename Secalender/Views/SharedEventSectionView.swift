@@ -98,7 +98,6 @@ struct SharedEventSectionView: View {
     private func multiDayEventRow(event: Event) -> some View {
         let eventId = event.id ?? 0
         let isSelected = selectedEventIds.contains(eventId)
-        let destination = AnyView(EventDetailRoute(event: event, onEventUpdated: onEventUpdated))  // 修改内容：身份分流
         
         HStack(spacing: 12) {
             if isMultiSelectMode {
@@ -125,7 +124,7 @@ struct SharedEventSectionView: View {
             
             Group {
                 if allowNavigation && !isMultiSelectMode {
-                    NavigationLink(destination: destination) {
+                    NavigationLink(destination: EventDetailRoute(event: event, onEventUpdated: onEventUpdated)) {  // 修改内容：多選時不建構 destination
                         multiDayEventContent(event: event)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -164,7 +163,6 @@ struct SharedEventSectionView: View {
     private func allDayEventRow(event: Event) -> some View {
         let eventId = event.id ?? 0
         let isSelected = selectedEventIds.contains(eventId)
-        let destination = AnyView(EventDetailRoute(event: event, onEventUpdated: onEventUpdated))  // 修改内容：身份分流
         
         HStack(spacing: 12) {
             if isMultiSelectMode {
@@ -192,7 +190,7 @@ struct SharedEventSectionView: View {
             // 整日活動：不顯示時間，直接顯示橫跨全寬的半透明色塊
             Group {
                 if allowNavigation && !isMultiSelectMode {
-                    NavigationLink(destination: destination) {
+                    NavigationLink(destination: EventDetailRoute(event: event, onEventUpdated: onEventUpdated)) {  // 修改内容：多選時不建構 destination
                         allDayEventContent(event: event)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -230,7 +228,6 @@ struct SharedEventSectionView: View {
     private func eventRowWithInteractions(event: Event, isMine: Bool) -> some View {
         let eventId = event.id ?? 0
         let isSelected = selectedEventIds.contains(eventId)
-        let destination = AnyView(EventDetailRoute(event: event, onEventUpdated: onEventUpdated))  // 修改内容：身份分流
         
         HStack(spacing: 12) {
             // 多选模式：显示勾选圈
@@ -268,7 +265,7 @@ struct SharedEventSectionView: View {
             // 事件内容
             Group {
                 if allowNavigation && !isMultiSelectMode {
-                    NavigationLink(destination: destination) {
+                    NavigationLink(destination: EventDetailRoute(event: event, onEventUpdated: onEventUpdated)) {  // 修改内容：多選時不建構 destination
                         eventContent(event: event)
                             // 在 NavigationLink 内部添加长按手势
                             .onLongPressGesture(minimumDuration: 0.8) {
@@ -451,7 +448,7 @@ struct SharedEventSectionView: View {
         .animation(isMultiSelectMode ? nil : .easeInOut(duration: 0.2), value: event.deleted)
         .animation(isMultiSelectMode ? nil : .easeInOut(duration: 0.2), value: event.date)
         // 添加对 events 数组的监听，确保其他事件更新后重新计算重叠
-        .animation(isMultiSelectMode ? nil : .easeInOut(duration: 0.2), value: events.map { "\($0.id ?? 0)-\($0.startDateTime?.timeIntervalSince1970 ?? 0)-\($0.endDateTime?.timeIntervalSince1970 ?? 0)" })
+        .animation(isMultiSelectMode ? nil : .easeInOut(duration: 0.2), value: hasOverlap)  // 修改内容：改監聽計算結果，避免每列重算 map
     }
 
     //修改内容：拖动浮层，纯视觉，不带任何手势/导航/异步任务，避免拖动时死机

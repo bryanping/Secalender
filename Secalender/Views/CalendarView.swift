@@ -60,6 +60,7 @@ struct CalendarView: View {
     // 多选模式相关状态（需要在 CalendarView 中管理，因为多个 SharedEventSectionView 需要共享状态）
     @State private var isMultiSelectMode: Bool = false
     @State private var selectedEventIds: Set<Int> = []
+    @State private var pendingReloadAfterMultiSelect = false  // 修改内容
     @State private var showBatchShare: Bool = false
     @State private var showMultiEventView: Bool = false
     // 修改内容：Step17 — 右上角「…」直接開啟「日曆管理」頁（頁內含四項功能）
@@ -71,6 +72,7 @@ struct CalendarView: View {
     @State private var selectedTagFilter: String? = nil
     /// 修改内容：僅在本頁首次載入時定位到今天，從行程詳情返回不重新定位
     @State private var hasScrolledToToday: Bool = false
+    @State private var groupedDays: [(Date, [Event])] = []  // 修改内容：快取分組結果，避免每次勾選重算
 
     var body: some View {
         NavigationView {
@@ -85,7 +87,7 @@ struct CalendarView: View {
                     ScrollView {
                         // 修改内容：移除「加載中」ProgressView，避免載入時畫面閃爍
                         LazyVStack(alignment: .leading, spacing: 16) {
-                                ForEach(groupedEventsWithEmptyDays(), id: \.0) { (date, dayEvents) in
+                                ForEach(groupedDays, id: \.0) { (date, dayEvents) in  // 修改内容
                                     SharedEventSectionView(
                                         date: date,
                                         events: dayEvents,
@@ -142,6 +144,16 @@ struct CalendarView: View {
                             scrollTodayRowToTop(proxy: proxy)
                         }
                     }
+                    // 修改内容：只在 events / currentMonth 變動時重算分組
+                    .onChange(of: events) { _, _ in
+                        groupedDays = groupedEventsWithEmptyDays()
+                    }
+                    .onChange(of: currentMonth) { _, _ in
+                        groupedDays = groupedEventsWithEmptyDays()
+                    }
+                    .onAppear {
+                        if groupedDays.isEmpty { groupedDays = groupedEventsWithEmptyDays() }
+                    }
                     .onChange(of: selectedFilter) { _, _ in
                         // 当筛选器改变时，重新过滤事件
                         events = filterEvents(allEvents)
@@ -153,9 +165,19 @@ struct CalendarView: View {
                         events = filterEvents(allEvents)
                     }
                     .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("EventSaved"))) { _ in
-                        // 当事件保存完成后，刷新事件列表
+                        // 修改内容：多選中不刷新（背景刪除重送 / 同步會清掉選取狀態），退出多選時補刷新
+                        if isMultiSelectMode {
+                            pendingReloadAfterMultiSelect = true
+                            return
+                        }
                         Task { @MainActor in
                             await loadEvents(force: true)   // 修改内容：Step9
+                        }
+                    }
+                    .onChange(of: isMultiSelectMode) { _, on in
+                        if !on && pendingReloadAfterMultiSelect {
+                            pendingReloadAfterMultiSelect = false
+                            Task { @MainActor in await loadEvents(force: true) }
                         }
                     }
                     // 修改内容：Phase 2-E — Apple 日曆變更時觸發自動匯入（Apple→App）
@@ -269,11 +291,36 @@ struct CalendarView: View {
         let cachedEvents = DeletedEventRegistry.shared.filterDeleted(
             EventCacheManager.shared.loadEvents(for: myId), for: myId
         )
-        if !cachedEvents.isEmpty {
+        // 修改内容：time_items 本地快取即時合併 — 剛寫入 / 刪除 / 離線時不等網路即反映
+        var quickEvents = cachedEvents.filter { $0.deleted != 1 }
+        do {
+            let cal = Calendar.current
+            let mStart = cal.date(from: cal.dateComponents([.year, .month], from: currentMonth)) ?? currentMonth
+            let mEnd = cal.date(byAdding: .month, value: 1, to: mStart) ?? currentMonth
+            let rEnd = cal.date(byAdding: .day, value: 7, to: mEnd) ?? mEnd
+            let localItems = try await TimeItemService.shared.fetchRanged(rangeStart: mStart, rangeEnd: rEnd, fromCacheOnly: true)
+            let localItemIds = Set(localItems.compactMap { $0.id })
+            let projected = localItems.compactMap { Event.from(timeItem: $0, creatorOpenid: myId) }
+            // 以本地 time_items 為準：移除快取內已不存在的投影，再加入最新投影
+            quickEvents = quickEvents.filter { ev in
+                guard let tid = ev.timeItemId else { return true }
+                return localItemIds.contains(tid)
+            }
+            let projectedIds = Set(projected.compactMap { $0.id })
+            quickEvents.removeAll { ev in ev.timeItemId != nil && projectedIds.contains(ev.id ?? Int.min) }
+            quickEvents.append(contentsOf: projected)
+            quickEvents = DeletedEventRegistry.shared.filterDeleted(quickEvents, for: myId)
+            if !projected.isEmpty || !localItemIds.isEmpty {
+                EventCacheManager.shared.saveEvents(quickEvents, for: myId)  // 讓刪除時能在快取找到目標
+            }
+        } catch {
+            print("⚠️ time_items 本地快取讀取失敗: \(error.localizedDescription)")
+        }
+        if !quickEvents.isEmpty || !cachedEvents.isEmpty {
+            let show = quickEvents
             await MainActor.run {
-                // 先显示缓存的数据
-                self.allEvents = cachedEvents.filter { $0.deleted != 1 }
-                self.events = filterEvents(self.allEvents)
+                self.allEvents = show
+                self.events = filterEvents(show)
                 self.isLoading = false
             }
         }

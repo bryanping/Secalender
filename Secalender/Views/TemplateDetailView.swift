@@ -160,16 +160,14 @@ struct TemplateDetailView: View {
                         onPlanUpdated: { updatedPlan in
                             templatePlan = updatedPlan
                         },
-                        onAddToCalendar: {
-                            if let plan = templatePlan {
-                                applyPlanToCalendar(plan)
-                            }
-                        },
+                        // 修改内容：PlanDetailView 已寫入 time_items，不再重複走舊 EventManager 逐筆寫入
+                        onAddToCalendar: nil,
                         onSaveToTemplate: { title in
                             if let plan = templatePlan {
                                 savePlanToTemplate(plan, title: title)
                             }
-                        }
+                        },
+                        onDismiss: { showPlanDetail = false }  // 修改内容
                     )
                     .environmentObject(userManager)
                 }

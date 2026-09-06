@@ -160,13 +160,20 @@ struct AIPlannerView: View {
     // 修改内容：Time OS — 工作流入口（帶場景標題/模型/預設輸入）與自由一句話輸入
     private let workflow: PlannerWorkflow?
     private let initialInput: String?
+    // 修改內容：統一入口 — 已在入口頁提交過一句話時，進頁自動解析，不再要求按第二次「下一步」
+    private let autoParseInitialInput: Bool
+    // 修改內容：常用安排 — 再次使用時沿用偏好（主題表單答案排除日期題；自由輸入沿用原句／地點／偏好）
+    private let preset: PlanningPreset?
+    @State private var appliedPresetName: String? = nil
 
-    init(plannerModelType: PlannerModelType? = nil, themeKey: String? = nil, customTheme: QuickTheme? = nil, workflow: PlannerWorkflow? = nil, initialInput: String? = nil) {
+    init(plannerModelType: PlannerModelType? = nil, themeKey: String? = nil, customTheme: QuickTheme? = nil, workflow: PlannerWorkflow? = nil, initialInput: String? = nil, autoParse: Bool = false, preset: PlanningPreset? = nil) {
         self.customTheme = customTheme
         self.initialPlannerModelType = plannerModelType ?? workflow?.modelType
         self.initialThemeKey = themeKey
         self.workflow = workflow
-        self.initialInput = initialInput
+        self.initialInput = initialInput ?? preset?.inputs[PlanningPreset.Key.input]
+        self.autoParseInitialInput = autoParse || (initialInput == nil && preset?.inputs[PlanningPreset.Key.input] != nil)
+        self.preset = preset
     }
     
     /// 是否為「模型驅動單頁」：無主題時為 true，有主題時維持原步驟流程
@@ -281,6 +288,7 @@ struct AIPlannerView: View {
     @State private var parsedIntent: ParsedPlannerIntent? = nil
     @State private var hasConfirmedParsedIntent: Bool = false
     @State private var isParsingIntent: Bool = false
+    @State private var showOptionalPreferences: Bool = false  // 修改內容：統一入口 — 選填欄位預設收合
     // 任務拆解專屬
     @State private var taskDeadline: Date = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
     @State private var taskAvailableHoursPerDay: Double = 4
@@ -412,7 +420,7 @@ struct AIPlannerView: View {
         // 修改内容：Step2 — 無表單主題（travel 四步驟）改共用 TravelPlannerContent，本檔僅保留：模型驅動單頁 + 主題表單流程
         // 修改内容：Step3 — 僅 generateItinerary 主題導向 TravelPlannerContent；floatingTasks 走表單→任務拆解；collectAvailability 走模型驅動頁
         if let theme = customTheme, theme.themeMode == .generateItinerary, !useThemeFormMode {
-            TravelPlannerContent(customTheme: customTheme)
+            TravelPlannerContent(customTheme: customTheme, preset: preset)  // 修改內容：常用安排
                 .environmentObject(userManager)
         } else {
             mainNavigationContent
@@ -546,6 +554,15 @@ struct AIPlannerView: View {
                     plannerModelType = wf.modelType
                     hasConfirmedParsedIntent = true
                 }
+                // 修改內容：常用安排 — 沿用偏好（只填空欄；日期題不帶入）
+                if let p = preset, appliedPresetName == nil {
+                    applyPreset(p)
+                }
+                // 修改內容：統一入口 — 入口頁已提交的一句話直接解析並帶入表單
+                if autoParseInitialInput, isModelDrivenPage, !hasConfirmedParsedIntent, parsedIntent == nil,
+                   !naturalLanguageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    parseIntentAndFillForm()
+                }
             }
             .sheet(isPresented: $showEditThemeSheet) {
                 if let theme = customTheme, !theme.isBuiltIn {
@@ -647,7 +664,8 @@ struct AIPlannerView: View {
                                 startGeneration()
                             }
                         },
-                        isCollaborative: workflow?.isCollaborative ?? (plannerModelType == .availabilityCoordination)
+                        isCollaborative: workflow?.isCollaborative ?? (plannerModelType == .availabilityCoordination),
+                        presetDraft: buildPresetDraft()  // 修改內容：常用安排
                     )
                     .environmentObject(userManager)
                 }
@@ -727,7 +745,23 @@ struct AIPlannerView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 24) {
-                    if !hasConfirmedParsedIntent {
+                    if !hasConfirmedParsedIntent && autoParseInitialInput && isParsingIntent {
+                        // 修改內容：統一入口 — 自動解析中：顯示原句與進度，不再呈現輸入頁
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(naturalLanguageInput)
+                                .font(.system(size: 17, weight: .medium))
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("正在理解你的需求…")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(12)
+                    } else if !hasConfirmedParsedIntent {
                         // 修改内容：Step4 UX — 歡迎標題（對齊「行程規劃」28pt 標題＋副標）；Time OS 工作流顯示場景標題
                         VStack(alignment: .leading, spacing: 8) {
                             Text(workflow?.title ?? "智能規劃")
@@ -743,20 +777,7 @@ struct AIPlannerView: View {
                         if !naturalLanguageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             // 修改内容：Step5 — 意圖解析主路徑改 LLM 分類（多語言），關鍵詞路由為 fallback
                             // 修改内容：解析後直接帶入基礎資訊填寫，跳過「AI 理解你的需求」確認頁
-                            Button(action: {
-                                guard !isParsingIntent else { return }
-                                isParsingIntent = true
-                                let inputText = naturalLanguageInput
-                                Task {
-                                    let parsed = await PlannerIntentClassifier.shared.parse(input: inputText)
-                                    await MainActor.run {
-                                        parsedIntent = parsed
-                                        applyParsedIntentToForm(parsed)
-                                        hasConfirmedParsedIntent = true
-                                        isParsingIntent = false
-                                    }
-                                }
-                            }) {
+                            Button(action: { parseIntentAndFillForm() }) {  // 修改內容：統一入口 — 與自動解析共用
                                 HStack {
                                     if isParsingIntent {
                                         ProgressView()
@@ -782,6 +803,7 @@ struct AIPlannerView: View {
                         if let intent = parsedIntent {
                             aiUnderstandingBanner(intent)
                         }
+                        presetBanner  // 修改內容：常用安排
                         sharedFormSection
                         modelSpecificFormSection
                     }
@@ -797,6 +819,103 @@ struct AIPlannerView: View {
             )
             if hasConfirmedParsedIntent {
                 modelDrivenGenerateButton
+            }
+        }
+    }
+
+    // MARK: - 修改內容：常用安排 — 保存／沿用
+    private var dateQuestionIds: Set<String> {
+        guard let qs = customTheme?.formQuestions else { return [] }
+        return Set(qs.filter { ThemeFormReservedId.isDateQuestion($0) || ThemeFormReservedId.isDurationDayQuestion($0) || ThemeFormReservedId.isDurationWeekQuestion($0) }.map(\.id))
+    }
+
+    /// 本次標準化輸入（主題表單：答案排除日期／天數題；模型驅動：原句、標題、地點、偏好）
+    private func buildPresetDraft() -> PlanningPreset {
+        var inputs: [String: String] = [:]
+        let kind: PlanningPresetKind
+        if let theme = customTheme, !isModelDrivenPage {
+            kind = .themeForm
+            let answers = themeFormAnswers.filter { !dateQuestionIds.contains($0.key) && !$0.value.isEmpty }
+            if let data = try? JSONSerialization.data(withJSONObject: answers), let json = String(data: data, encoding: .utf8) {
+                inputs[PlanningPreset.Key.formAnswers] = json
+            }
+            if let destQ = theme.formQuestions?.first(where: { $0.role == .destination }), let dest = answers[destQ.id] {
+                inputs[PlanningPreset.Key.destination] = dest
+            }
+            inputs[PlanningPreset.Key.title] = theme.title
+        } else {
+            kind = .freeInput
+            let raw = naturalLanguageInput.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !raw.isEmpty { inputs[PlanningPreset.Key.input] = raw }
+            if !baseTitle.isEmpty { inputs[PlanningPreset.Key.title] = baseTitle }
+            if !baseLocation.isEmpty { inputs[PlanningPreset.Key.destination] = baseLocation }
+            if !basePreferences.isEmpty { inputs[PlanningPreset.Key.notes] = basePreferences }
+            inputs[PlanningPreset.Key.budget] = budgetLevel.rawValue
+        }
+        var draft = PlanningPreset(
+            id: preset?.id ?? UUID().uuidString,
+            name: preset?.name ?? PlanningPreset.defaultName(kind: kind, inputs: inputs),
+            kind: kind,
+            themeKey: customTheme?.key ?? initialThemeKey,
+            inputs: inputs
+        )
+        if let p = preset { draft.createdAt = p.createdAt; draft.useCount = p.useCount }
+        return draft
+    }
+
+    /// 沿用偏好：只填空欄，不動日期／天數題
+    private func applyPreset(_ p: PlanningPreset) {
+        let i = p.inputs
+        if let json = i[PlanningPreset.Key.formAnswers],
+           let data = json.data(using: .utf8),
+           let saved = (try? JSONSerialization.jsonObject(with: data)) as? [String: String] {
+            var updated = themeFormAnswers
+            let skip = dateQuestionIds
+            for (k, v) in saved where !skip.contains(k) && (updated[k] ?? "").isEmpty {
+                updated[k] = v
+            }
+            themeFormAnswers = updated
+        }
+        if baseLocation.isEmpty, let v = i[PlanningPreset.Key.destination] { baseLocation = v; if destination.isEmpty { destination = v } }
+        if basePreferences.isEmpty, let v = i[PlanningPreset.Key.notes] { basePreferences = v }
+        if let b = i[PlanningPreset.Key.budget], let lvl = BudgetLevel(rawValue: b) { budgetLevel = lvl }
+        appliedPresetName = p.name
+    }
+
+    @ViewBuilder
+    private var presetBanner: some View {
+        if let name = appliedPresetName {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.counterclockwise.circle.fill")
+                    .foregroundColor(.blue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("已沿用「\(name)」的偏好")
+                        .font(.subheadline.weight(.medium))
+                    Text("請確認本次日期；其他欄位可直接修改")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+            .padding(12)
+            .background(Color.blue.opacity(0.08))
+            .cornerRadius(12)
+        }
+    }
+
+    /// 修改內容：統一入口 — 解析一句話並帶入表單（手動「下一步」與入口自動解析共用）
+    private func parseIntentAndFillForm() {
+        guard !isParsingIntent else { return }
+        let inputText = naturalLanguageInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !inputText.isEmpty else { return }
+        isParsingIntent = true
+        Task {
+            let parsed = await PlannerIntentClassifier.shared.parse(input: inputText)
+            await MainActor.run {
+                parsedIntent = parsed
+                applyParsedIntentToForm(parsed)
+                hasConfirmedParsedIntent = true
+                isParsingIntent = false
             }
         }
     }
@@ -965,12 +1084,6 @@ struct AIPlannerView: View {
                     .padding()
                     .background(Color(.systemBackground))
                     .cornerRadius(12)
-                TextField("描述（選填）", text: $baseDescription, axis: .vertical)
-                    .lineLimit(3...6)
-                    .textFieldStyle(.roundedBorder)
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
                 VStack(alignment: .leading, spacing: 8) {
                     Text("時間範圍")
                         .font(.subheadline)
@@ -995,15 +1108,34 @@ struct AIPlannerView: View {
                     .padding()
                     .background(Color(.systemBackground))
                     .cornerRadius(12)
-                TextField("偏好或備註", text: $basePreferences, axis: .vertical)
-                    .lineLimit(2...4)
-                    .textFieldStyle(.roundedBorder)
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
-                // 修改内容：多階段型欄位（目的地/日期）與基礎資訊重複，已合併於上方；僅預算屬專屬欄位，直接併入基礎資訊
-                if plannerModelType == .multiPhase {
-                    budgetField
+                // 修改內容：統一入口 — 選填欄位（描述、偏好、預算）收進「調整偏好」，已說過的內容不再要求掃整張表單
+                DisclosureGroup(isExpanded: $showOptionalPreferences) {
+                    VStack(spacing: 12) {
+                        TextField("描述（選填）", text: $baseDescription, axis: .vertical)
+                            .lineLimit(3...6)
+                            .textFieldStyle(.roundedBorder)
+                            .padding()
+                            .background(Color(.systemBackground))
+                            .cornerRadius(12)
+                        TextField("偏好或備註", text: $basePreferences, axis: .vertical)
+                            .lineLimit(2...4)
+                            .textFieldStyle(.roundedBorder)
+                            .padding()
+                            .background(Color(.systemBackground))
+                            .cornerRadius(12)
+                        // 修改内容：多階段型欄位（目的地/日期）與基礎資訊重複，已合併於上方；僅預算屬專屬欄位，直接併入基礎資訊
+                        if plannerModelType == .multiPhase {
+                            budgetField
+                        }
+                    }
+                    .padding(.top, 8)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "slider.horizontal.3")
+                        Text("調整偏好（選填）")
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.blue)
                 }
             }
         }
@@ -1512,6 +1644,7 @@ struct AIPlannerView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
+            presetBanner  // 修改內容：常用安排
             
             // 固定：計劃開始日期（僅當 formQuestions 未包含 plan_start_date/start_date 時顯示）
             if showFixedPlanDate {

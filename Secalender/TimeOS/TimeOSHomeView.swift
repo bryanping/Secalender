@@ -129,7 +129,7 @@ struct TimeOSHomeView: View {
             }
             // 自由輸入 → AIPlannerView（帶一句話，AI 判斷型態）
             .fullScreenCover(isPresented: $showFreeInputPlanner) {
-                AIPlannerView(initialInput: aiInput)
+                AIPlannerView(initialInput: aiInput, autoParse: true)  // 修改內容：統一入口 — 一句話不重複提交
                     .environmentObject(userManager)
             }
             // 修改内容：Step A — 規劃行程 → TravelPlannerContent 四步驟（自帶 NavigationView）

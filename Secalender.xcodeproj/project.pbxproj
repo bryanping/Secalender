@@ -176,11 +176,14 @@
 		A2GEN00B2F24B10000DA4FC9 /* GenerationNormalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2GEN00C2F24B10000DA4FC9 /* GenerationNormalizer.swift */; };
 		A2GEN00D2F24B10000DA4FC9 /* ConflictDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2GEN00E2F24B10000DA4FC9 /* ConflictDetector.swift */; };
 		A2GEN00F2F24B10000DA4FC9 /* ApplyStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2GEN0102F24B10000DA4FC9 /* ApplyStrategy.swift */; };
+		A2GEN0FA2F24B10000DA4FC9 /* ApplyPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2GEN0FB2F24B10000DA4FC9 /* ApplyPlan.swift */; };
+		A2GEN0FC2F24B10000DA4FC9 /* AppliedPlanStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2GEN0FD2F24B10000DA4FC9 /* AppliedPlanStore.swift */; };
 		A2GEN0112F24B10000DA4FC9 /* GenerationSchedulerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2GEN0122F24B10000DA4FC9 /* GenerationSchedulerService.swift */; };
 		A2GEN0132F24B10000DA4FC9 /* GenerationOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2GEN0142F24B10000DA4FC9 /* GenerationOrchestrator.swift */; };
 		A2KE00012F4E7D22000736C8 /* KeyboardDismissExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2KE00002F4E7D22000736C8 /* KeyboardDismissExtension.swift */; };
 		A2PLAN002F24B10000DA4FC9 /* PlannerAutoRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2PLAN012F24B10000DA4FC9 /* PlannerAutoRouter.swift */; };
 		AA10E0000000000000000003 /* QuickThemeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E0000000000000000004 /* QuickThemeService.swift */; };
+		AA10E0000000000000000103 /* PlanningPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E0000000000000000104 /* PlanningPreset.swift */; };
 		AA10E0000000000000000005 /* PlannerIntentClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E0000000000000000006 /* PlannerIntentClassifier.swift */; };
 		AA10E0000000000000000007 /* PlannerWorkflow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E0000000000000000008 /* PlannerWorkflow.swift */; };
 		AA10E0000000000000000009 /* TimeOSHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA10E000000000000000000A /* TimeOSHomeView.swift */; };
@@ -387,11 +390,14 @@
 		A2GEN00C2F24B10000DA4FC9 /* GenerationNormalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationNormalizer.swift; sourceTree = "<group>"; };
 		A2GEN00E2F24B10000DA4FC9 /* ConflictDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictDetector.swift; sourceTree = "<group>"; };
 		A2GEN0102F24B10000DA4FC9 /* ApplyStrategy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyStrategy.swift; sourceTree = "<group>"; };
+		A2GEN0FB2F24B10000DA4FC9 /* ApplyPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplyPlan.swift; sourceTree = "<group>"; };
+		A2GEN0FD2F24B10000DA4FC9 /* AppliedPlanStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppliedPlanStore.swift; sourceTree = "<group>"; };
 		A2GEN0122F24B10000DA4FC9 /* GenerationSchedulerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationSchedulerService.swift; sourceTree = "<group>"; };
 		A2GEN0142F24B10000DA4FC9 /* GenerationOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerationOrchestrator.swift; sourceTree = "<group>"; };
 		A2KE00002F4E7D22000736C8 /* KeyboardDismissExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardDismissExtension.swift; sourceTree = "<group>"; };
 		A2PLAN012F24B10000DA4FC9 /* PlannerAutoRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerAutoRouter.swift; sourceTree = "<group>"; };
 		AA10E0000000000000000004 /* QuickThemeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickThemeService.swift; sourceTree = "<group>"; };
+		AA10E0000000000000000104 /* PlanningPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningPreset.swift; sourceTree = "<group>"; };
 		AA10E0000000000000000006 /* PlannerIntentClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerIntentClassifier.swift; sourceTree = "<group>"; };
 		AA10E0000000000000000008 /* PlannerWorkflow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlannerWorkflow.swift; sourceTree = "<group>"; };
 		AA10E000000000000000000A /* TimeOSHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeOSHomeView.swift; sourceTree = "<group>"; };
@@ -713,6 +719,7 @@
 				A2E0FA0B2F21F31B00DA4FC9 /* NPI.swift */,
 				A2E0FA032F21F31A00DA4FC9 /* QuickThemeManager.swift */,
 				AA10E0000000000000000004 /* QuickThemeService.swift */,
+				AA10E0000000000000000104 /* PlanningPreset.swift */,
 				A2E0FA0D2F21F31D00DA4FC9 /* ThemePromptService.swift */,
 				A2E0FA3B2F24B00300DA4FC9 /* TimeItemService.swift */,
 				A2E0FA3E2F24B00600DA4FC9 /* SchedulerService.swift */,
@@ -834,6 +841,8 @@
 				A2GEN00C2F24B10000DA4FC9 /* GenerationNormalizer.swift */,
 				A2GEN00E2F24B10000DA4FC9 /* ConflictDetector.swift */,
 				A2GEN0102F24B10000DA4FC9 /* ApplyStrategy.swift */,
+				A2GEN0FB2F24B10000DA4FC9 /* ApplyPlan.swift */,
+				A2GEN0FD2F24B10000DA4FC9 /* AppliedPlanStore.swift */,
 				A2GEN0122F24B10000DA4FC9 /* GenerationSchedulerService.swift */,
 				A2GEN0142F24B10000DA4FC9 /* GenerationOrchestrator.swift */,
 				A2PLAN012F24B10000DA4FC9 /* PlannerAutoRouter.swift */,
@@ -1160,6 +1169,7 @@
 				A2E0F9DB2F210B6A00DA4FC9 /* AIPlanningWelcomeView.swift in Sources */,
 				A2E0FA022F21F31A00DA4FC9 /* QuickThemeManager.swift in Sources */,
 				AA10E0000000000000000003 /* QuickThemeService.swift in Sources */,
+				AA10E0000000000000000103 /* PlanningPreset.swift in Sources */,
 				A2E0FA0C2F21F31D00DA4FC9 /* ThemePromptService.swift in Sources */,
 				A2E0FA3A2F24B00300DA4FC9 /* TimeItemService.swift in Sources */,
 				A2E0FA3D2F24B00500DA4FC9 /* TimeItem.swift in Sources */,
@@ -1174,6 +1184,8 @@
 				A2D22E45300DBB990070D920 /* ActivityViewController.swift in Sources */,
 				A2GEN00D2F24B10000DA4FC9 /* ConflictDetector.swift in Sources */,
 				A2GEN00F2F24B10000DA4FC9 /* ApplyStrategy.swift in Sources */,
+				A2GEN0FA2F24B10000DA4FC9 /* ApplyPlan.swift in Sources */,
+				A2GEN0FC2F24B10000DA4FC9 /* AppliedPlanStore.swift in Sources */,
 				A2GEN0112F24B10000DA4FC9 /* GenerationSchedulerService.swift in Sources */,
 				A2GEN0132F24B10000DA4FC9 /* GenerationOrchestrator.swift in Sources */,
 				A2PLAN002F24B10000DA4FC9 /* PlannerAutoRouter.swift in Sources */,

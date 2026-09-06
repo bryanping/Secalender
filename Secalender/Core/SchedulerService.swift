@@ -132,7 +132,7 @@ final class SchedulerService {
         for s in suggestions {
             guard let taskId = s.linkedTaskId else { continue }
             guard var task = try await timeItemService.fetchById(taskId) else { continue }
-            task.status = .done
+            task.status = .scheduled  // 修改內容：已排入日曆 ≠ 已完成
             _ = try await timeItemService.upsert(task)
         }
     }

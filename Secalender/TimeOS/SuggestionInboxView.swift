@@ -161,7 +161,7 @@ struct SuggestionInboxView: View {
                             previewResult = nil
                             runSchedule()
                         },
-                        onApplied: { markSelectedConsumed() }
+                        onApplied: { outcome in markSelectedConsumed(outcome) }  // 修改內容：只消耗實際寫入成功的項目
                     )
                     .environmentObject(userManager)
                 }
@@ -179,7 +179,7 @@ struct SuggestionInboxView: View {
                     .foregroundColor(.secondary)
                 Text("目前沒有待安排的項目")
                     .font(.headline)
-                Text("在安排預覽頁點「存為建議」，或關注朋友的公開活動，項目會集中到這裡")
+                Text("在安排預覽頁點「暫存草稿」，或關注朋友的公開活動，項目會集中到這裡")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -486,7 +486,8 @@ struct SuggestionInboxView: View {
                         title: item.title,
                         notes: item.notes,
                         durationMin: item.resolvedDurationMin,
-                        type: .task
+                        type: .task,
+                        sourceItemId: item.id  // 修改內容：記錄來源，寫入時帶 linkedTaskId
                     )
                 }
                 let scheduled = GenerationSchedulerService.shared.schedule(
@@ -519,7 +520,10 @@ struct SuggestionInboxView: View {
                         location: ev.location
                     )
                 }
-                let allCandidates = scheduled + fixedCandidates + publicCandidates
+                // 修改內容：未排入者以無時間候選一併進預覽（顯示於「待安排」），不靜默消失
+                let scheduledIds = Set(scheduled.map(\.id))
+                let unplacedCandidates = untimed.filter { !scheduledIds.contains($0.id) }
+                let allCandidates = scheduled + fixedCandidates + publicCandidates + unplacedCandidates
 
                 var riskFlags: [String] = []
                 let unplaced = untimed.count - scheduled.count
@@ -530,16 +534,17 @@ struct SuggestionInboxView: View {
 
                 await MainActor.run {
                     isScheduling = false
-                    guard !allCandidates.isEmpty else {
+                    guard allCandidates.count > unplacedCandidates.count else {  // 修改內容：全部排不進視為失敗
                         errorMessage = "7 天內找不到足夠空檔，請先調整現有行程"
                         return
                     }
                     previewResult = GenerationResult(
-                        resultType: .taskOnly,
+                        resultType: unplacedCandidates.isEmpty ? .taskOnly : .partialSuccess,
                         plan: PlanResult(days: [], assumptions: [], riskFlags: riskFlags),
                         candidates: allCandidates,
                         conflicts: conflicts,
                         riskFlags: riskFlags,
+                        requestId: UUID().uuidString,  // 修改內容：穩定 requestId，套用重試去重
                         themeKey: "suggestion_inbox"
                     )
                 }
@@ -552,24 +557,33 @@ struct SuggestionInboxView: View {
         }
     }
 
-    // MARK: - 套用成功：來源項目標記 done 並刷新（朋友活動無來源需處理）
-    private func markSelectedConsumed() {
+    // MARK: - 套用後：只把「實際寫入成功」的來源標記為已安排（非完成）並刷新
+    // 修改內容：預覽與套用一致性 — 未排入 / 失敗者保留在待安排；朋友 / 時事活動依 candidateId 取消勾選
+    private func markSelectedConsumed(_ outcome: ApplyOutcome) {
+        let appliedSource = outcome.appliedSourceItemIds
+        let appliedCandidateIds = Set(outcome.appliedCandidateIds)
         let consumed = (suggestions + floatingTasks).filter { item in
             guard let id = item.id else { return false }
-            return selectedIds.contains(id)
+            return appliedSource.contains(id)
         }
         Task {
             var updated: [TimeItem] = []
             for var item in consumed {
-                item.status = .done
+                item.status = .scheduled   // 已排入日曆 ≠ 已完成
                 item.updatedAt = Date()
                 updated.append(item)
             }
-            try? await TimeItemService.shared.batchUpdate(updated)
+            if !updated.isEmpty {
+                do {
+                    try await TimeItemService.shared.batchUpdate(updated)
+                } catch {
+                    await MainActor.run { errorMessage = "已加入日曆，但來源狀態更新失敗：\(error.localizedDescription)" }
+                }
+            }
             await MainActor.run {
-                selectedIds = []
-                selectedFriendEventIds = []
-                selectedPublicEventIds = []
+                selectedIds.subtract(appliedSource)
+                selectedFriendEventIds = selectedFriendEventIds.filter { !appliedCandidateIds.contains("friend_\($0)") }
+                selectedPublicEventIds = selectedPublicEventIds.filter { !appliedCandidateIds.contains("public_\($0)") }
             }
             await load()
         }

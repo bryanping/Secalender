@@ -28,6 +28,8 @@ struct TimeItemCandidate: Identifiable, Equatable {
     var location: String?
     var dayIndex: Int
     var sourceBlockId: UUID?
+    /// 修改內容：預覽與套用一致性 — 來源 time_item id（待辦 / 建議排入日曆時記錄關聯，寫入 linkedTaskId）
+    var sourceItemId: String?
 
     var hasTime: Bool {
         startAt != nil && endAt != nil
@@ -43,7 +45,8 @@ struct TimeItemCandidate: Identifiable, Equatable {
         type: TimeItemCandidateType = .activity,
         location: String? = nil,
         dayIndex: Int = 0,
-        sourceBlockId: UUID? = nil
+        sourceBlockId: UUID? = nil,
+        sourceItemId: String? = nil  // 修改內容
     ) {
         self.id = id
         self.title = title
@@ -55,5 +58,6 @@ struct TimeItemCandidate: Identifiable, Equatable {
         self.location = location
         self.dayIndex = dayIndex
         self.sourceBlockId = sourceBlockId
+        self.sourceItemId = sourceItemId  // 修改內容
     }
 }

@@ -19,6 +19,9 @@ import UIKit
 /// 修改内容：Step2 — 新增 customTheme：AIPlannerView 無表單主題流程改共用本視圖（刪除其重複四步驟實作），主題指令/路由鍵由此帶入。
 struct TravelPlannerContent: View {
     var customTheme: QuickTheme? = nil
+    // 修改內容：常用安排 — 再次使用時帶入偏好（目的地／興趣／出發地／住宿／限制／備註）；日期每次重新確認
+    var preset: PlanningPreset? = nil
+    @State private var appliedPresetName: String? = nil
     @EnvironmentObject var userManager: FirebaseUserManager
     @Environment(\.dismiss) var dismiss
 
@@ -244,6 +247,10 @@ struct TravelPlannerContent: View {
                 if let theme = customTheme, tripTheme.isEmpty {
                     tripTheme = theme.title
                 }
+                // 修改內容：常用安排 — 沿用偏好（只填空欄；不動日期）
+                if let p = preset, appliedPresetName == nil {
+                    applyPreset(p)
+                }
             }
             .onChange(of: tripRangeStartDate) { _, _ in
                 clampTripEndDateIfNeeded()
@@ -334,7 +341,8 @@ struct TravelPlannerContent: View {
                         onRegenerate: {
                             generatedResult = nil
                             startGeneration()
-                        }
+                        },
+                        presetDraft: buildPresetDraft()  // 修改內容：常用安排
                     )
                     .environmentObject(userManager)
                 }
@@ -493,6 +501,7 @@ struct TravelPlannerContent: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
+            presetBanner  // 修改內容：常用安排
     
             // 主题输入
             VStack(alignment: .leading, spacing: 8) {
@@ -633,6 +642,76 @@ struct TravelPlannerContent: View {
         }
     }
     
+    // MARK: - 修改內容：常用安排 — 保存／沿用
+    /// 本次標準化輸入（不含日期）
+    private func buildPresetDraft() -> PlanningPreset {
+        var inputs: [String: String] = [:]
+        let dest = destination.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !dest.isEmpty { inputs[PlanningPreset.Key.destination] = dest }
+        if let c = selectedCountry, !c.isEmpty { inputs[PlanningPreset.Key.country] = c }
+        if let c = selectedCity, !c.isEmpty { inputs[PlanningPreset.Key.city] = c }
+        if !selectedInterests.isEmpty { inputs[PlanningPreset.Key.interests] = selectedInterests.map(\.rawValue).sorted().joined(separator: ",") }
+        if useCustomDepartureLocation, !customDepartureAddress.isEmpty { inputs[PlanningPreset.Key.departureAddress] = customDepartureAddress }
+        if !accommodationAddress.isEmpty { inputs[PlanningPreset.Key.accommodationAddress] = accommodationAddress }
+        if !selectedRestrictions.isEmpty { inputs[PlanningPreset.Key.restrictions] = selectedRestrictions.map(\.rawValue).sorted().joined(separator: ",") }
+        let notes = additionalRequirements.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !notes.isEmpty { inputs[PlanningPreset.Key.notes] = notes }
+        if !tripTheme.isEmpty { inputs[PlanningPreset.Key.title] = tripTheme }
+        var draft = PlanningPreset(
+            id: preset?.id ?? UUID().uuidString,  // 由常用安排進入時，再存回同一筆
+            name: preset?.name ?? PlanningPreset.defaultName(kind: .travel, inputs: inputs),
+            kind: .travel,
+            themeKey: customTheme?.key,
+            inputs: inputs
+        )
+        if let p = preset { draft.createdAt = p.createdAt; draft.useCount = p.useCount }
+        return draft
+    }
+
+    /// 沿用偏好：只填空欄，不覆蓋使用者已輸入；日期／航班保持預設待確認
+    private func applyPreset(_ p: PlanningPreset) {
+        let i = p.inputs
+        if destination.isEmpty, let v = i[PlanningPreset.Key.destination] { destination = v }
+        if selectedCountry == nil, let v = i[PlanningPreset.Key.country] { selectedCountry = v }
+        if selectedCity == nil, let v = i[PlanningPreset.Key.city] { selectedCity = v }
+        if selectedInterests.isEmpty, let v = i[PlanningPreset.Key.interests] {
+            selectedInterests = Set(v.split(separator: ",").compactMap { InterestTag(rawValue: String($0)) })
+        }
+        if let v = i[PlanningPreset.Key.departureAddress], !v.isEmpty, customDepartureAddress.isEmpty {
+            customDepartureAddress = v
+            useCustomDepartureLocation = true
+        }
+        if accommodationAddress.isEmpty, let v = i[PlanningPreset.Key.accommodationAddress] { accommodationAddress = v }
+        if selectedRestrictions.isEmpty, let v = i[PlanningPreset.Key.restrictions] {
+            selectedRestrictions = Set(v.split(separator: ",").compactMap { SpecialRestriction(rawValue: String($0)) })
+        }
+        if additionalRequirements.isEmpty, let v = i[PlanningPreset.Key.notes] { additionalRequirements = v }
+        if tripTheme.isEmpty, let v = i[PlanningPreset.Key.title] { tripTheme = v }
+        appliedPresetName = p.name
+    }
+
+    /// 沿用偏好提示（可見、可改）
+    @ViewBuilder
+    private var presetBanner: some View {
+        if let name = appliedPresetName {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.counterclockwise.circle.fill")
+                    .foregroundColor(.blue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("已沿用「\(name)」的偏好")
+                        .font(.subheadline.weight(.medium))
+                    Text("請確認本次日期；其他欄位可直接修改")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+            .padding(12)
+            .background(Color.blue.opacity(0.08))
+            .cornerRadius(12)
+        }
+    }
+
     /// 步驟一：出發位置與住宿（行程基礎）
     private var step1LocationSections: some View {
         VStack(alignment: .leading, spacing: 24) {
